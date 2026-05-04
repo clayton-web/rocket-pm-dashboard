@@ -1,0 +1,280 @@
+// Rocket PM Dashboard — Phase 0 schema (multi-tenant foundation + forward-looking models)
+// Organization scoping: business rows use organizationId; session always carries activeOrgId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Users (JWT sessions in Phase 0; add Auth.js adapter tables when moving to DB sessions / token vault) ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  /// Rocket Logic staff: may list/switch orgs; queries still scoped by active organizationId.
+  platformAccessLevel PlatformAccessLevel @default(NONE)
+
+  memberships            OrganizationMembership[]
+  auditLogs              AuditLog[]
+  connectedEmailAccounts ConnectedEmailAccount[]
+  styleExamples          AiStyleExample[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// --- Tenancy ---
+
+model Organization {
+  id   String @id @default(cuid())
+  name String
+  slug String @unique
+
+  memberships OrganizationMembership[]
+
+  auditLogs              AuditLog[]
+  connectedEmailAccounts ConnectedEmailAccount[]
+  emailThreads           EmailThread[]
+  emailMessages          EmailMessage[]
+  knowledgeSources       AiKnowledgeSource[]
+  responderRules         AiResponderRule[]
+  styleExamples          AiStyleExample[]
+  draftResponses         AiDraftResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum OrganizationRole {
+  ORG_ADMIN
+  PROPERTY_MANAGER
+}
+
+/// Rocket Logic operator flag (separate from per-org roles).
+enum PlatformAccessLevel {
+  NONE
+  OPERATOR
+}
+
+model OrganizationMembership {
+  id             String @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrganizationRole @default(PROPERTY_MANAGER)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+}
+
+model AuditLog {
+  id             String  @id @default(cuid())
+  organizationId String?
+  actorUserId    String
+  action         String
+  resourceType   String
+  resourceId     String?
+  metadata       Json?
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor        User          @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+// --- Email (Gmail) — Phase 1: connect + tokens; Phase 2+: sync ---
+
+enum ConnectedEmailAccountStatus {
+  CONNECTED
+  NEEDS_REAUTH
+  REVOKED
+}
+
+model ConnectedEmailAccount {
+  id             String @id @default(cuid())
+  organizationId String
+  userId         String
+
+  provider         String @default("gmail")
+  email            String
+  externalId       String? /// Google sub / account id
+  status           ConnectedEmailAccountStatus @default(CONNECTED)
+  lastError        String? @db.Text
+  lastSyncedAt     DateTime?
+  /// Encrypted at application layer (see lib/crypto/token-vault.ts).
+  refreshTokenEnc  String? @db.Text
+  accessTokenEnc   String? @db.Text
+  accessExpiresAt  DateTime?
+  scopes           String[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connector    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads      EmailThread[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([organizationId, userId])
+}
+
+model EmailThread {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  connectedAccountId      String
+  providerThreadId      String
+  subject               String?
+  snippet               String?
+  lastMessageAt         DateTime?
+  labelIds              String[] @default([])
+  isUnread              Boolean  @default(false)
+  participantEmails     String[] @default([])
+
+  /// Future: correlate to Core / Maintenance / etc. without tangling domains in code.
+  contextLinks Json?
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccount ConnectedEmailAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  messages       EmailMessage[]
+  drafts         AiDraftResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([connectedAccountId, providerThreadId])
+  @@index([organizationId, lastMessageAt])
+}
+
+model EmailMessage {
+  id               String   @id @default(cuid())
+  organizationId   String
+  threadId         String
+  providerMessageId String
+  fromAddr         String
+  toAddrs          String[]
+  ccAddrs          String[]
+  sentAt           DateTime
+  bodyText         String?  @db.Text
+  bodyHtml         String?  @db.Text
+  isOutbound       Boolean  @default(false)
+  labelIds         String[] @default([])
+  isUnread         Boolean  @default(false)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread       EmailThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  drafts AiDraftResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([threadId, providerMessageId])
+  @@index([organizationId, sentAt])
+}
+
+// --- AI / knowledge (retrieval-based; no model training in V1) ---
+
+enum AiKnowledgeSourceType {
+  RULE
+  WORKFLOW
+  POLICY
+  BC_CONTEXT
+  APPROVED_EXAMPLE
+  UPLOADED_THREAD_SUMMARY
+}
+
+model AiKnowledgeSource {
+  id             String @id @default(cuid())
+  organizationId String
+  type           AiKnowledgeSourceType
+  title          String
+  content        String @db.Text
+  metadata       Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, type])
+}
+
+model AiResponderRule {
+  id             String @id @default(cuid())
+  organizationId String
+  priority       Int    @default(0)
+  title          String
+  instruction    String @db.Text
+  active         Boolean @default(true)
+  metadata       Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, active, priority])
+}
+
+model AiStyleExample {
+  id             String @id @default(cuid())
+  organizationId String
+  userId         String?
+  title          String?
+  content        String @db.Text
+  metadata       Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, userId])
+}
+
+model AiDraftResponse {
+  id             String @id @default(cuid())
+  organizationId String
+  threadId       String?
+  messageId      String?
+
+  createdByUserId String?
+  model           String?
+  promptVersion   String?
+  status          AiDraftStatus @default(DRAFT)
+  draftText       String?       @db.Text
+  citations       Json?
+  classification  Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread       EmailThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  message      EmailMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, createdAt])
+}
+
+enum AiDraftStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+}
