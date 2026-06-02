@@ -56,6 +56,8 @@ model User {
   showingsAssigned       Showing[]                @relation("ShowingAssignedTo")
   showingsCreated        Showing[]                @relation("ShowingCreatedBy")
   applicationsReviewed   Application[]            @relation("ApplicationReviewedBy")
+  clientProfilesCreated  ClientProfile[]          @relation("ClientProfileCreatedBy")
+  activityLogEntries     ActivityLog[]            @relation("ActivityLogActor")
   auditLogs              AuditLog[]
   connectedEmailAccounts ConnectedEmailAccount[]
   styleExamples          AiStyleExample[]
@@ -142,6 +144,10 @@ model Property {
   applicationDocuments ApplicationDocument[]
   tenancies            Tenancy[]
   notices              Notice[]
+  generalDocuments     Document[]               @relation("DocumentProperty")
+  signatureRequests    SignatureRequest[]
+  checklists           Checklist[]
+  activityLogs         ActivityLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,12 +164,13 @@ model Unit {
   bedrooms   Int?
   isActive   Boolean @default(true)
 
-  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  prospects    Prospect[]
-  showings     Showing[]
-  applications Application[]
-  tenancies    Tenancy[]
-  notices      Notice[]
+  property         Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  prospects        Prospect[]
+  showings         Showing[]
+  applications     Application[]
+  tenancies        Tenancy[]
+  notices          Notice[]
+  generalDocuments Document[]    @relation("DocumentUnit")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -351,8 +358,10 @@ model Application {
   prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
   reviewedBy User?     @relation("ApplicationReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
-  documents ApplicationDocument[]
-  tenancy   Tenancy?
+  documents         ApplicationDocument[]
+  generalDocuments  Document[]            @relation("DocumentApplication")
+  signatureRequests SignatureRequest[]    @relation("SignatureRequestApplication")
+  tenancy           Tenancy?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -414,8 +423,12 @@ model Tenancy {
   unit        Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
   application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
 
-  contacts TenancyContact[]
-  notices  Notice[]
+  contacts              TenancyContact[]
+  notices               Notice[]
+  generalDocuments      Document[]         @relation("DocumentTenancy")
+  signatureRequests     SignatureRequest[] @relation("SignatureRequestTenancy")
+  checklists            Checklist[]        @relation("ChecklistTenancy")
+  sourcedClientProfiles ClientProfile[]    @relation("ClientProfileSourceTenancy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -478,6 +491,206 @@ model Notice {
   @@index([servedAt])
 }
 
+// --- Documents & operations (Path A / PR5) ---
+// AuditLog (below) = security/integration (Gmail, AI). ActivityLog = domain entity change history.
+
+enum SignatureRequestStatus {
+  draft
+  sent
+  viewed
+  completed
+  cancelled
+  failed
+}
+
+enum ChecklistStatus {
+  not_started
+  in_progress
+  complete
+}
+
+enum ChecklistItemStatus {
+  pending
+  complete
+  waived
+}
+
+enum ClientProfileSourceType {
+  former_tenant
+  prospect
+  manual
+}
+
+/// General file metadata (object storage). Distinct from ApplicationDocument on applications.
+model Document {
+  id            String  @id @default(cuid())
+  propertyId    String
+  unitId        String?
+  tenancyId     String?
+  applicationId String?
+
+  documentType String
+  title        String
+  fileName     String
+
+  contentType String?
+  sizeBytes   Int?
+
+  storageKey String @unique
+
+  isSigned Boolean @default(false)
+  isLocked Boolean @default(false)
+
+  property    Property     @relation("DocumentProperty", fields: [propertyId], references: [id], onDelete: Cascade)
+  unit        Unit?        @relation("DocumentUnit", fields: [unitId], references: [id], onDelete: SetNull)
+  tenancy     Tenancy?     @relation("DocumentTenancy", fields: [tenancyId], references: [id], onDelete: SetNull)
+  application Application? @relation("DocumentApplication", fields: [applicationId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([tenancyId])
+  @@index([applicationId])
+  @@index([documentType])
+}
+
+/// Outbound e-sign envelope. Exactly one of tenancyId or applicationId should be set (enforce in services).
+model SignatureRequest {
+  id            String  @id @default(cuid())
+  propertyId    String
+  tenancyId     String?
+  applicationId String?
+
+  provider          String
+  providerRequestId String?
+
+  status SignatureRequestStatus @default(draft)
+
+  sentAt      DateTime?
+  completedAt DateTime?
+
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenancy     Tenancy?     @relation("SignatureRequestTenancy", fields: [tenancyId], references: [id], onDelete: Cascade)
+  application Application? @relation("SignatureRequestApplication", fields: [applicationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([tenancyId])
+  @@index([applicationId])
+  @@index([status])
+  @@index([provider])
+}
+
+model Checklist {
+  id         String  @id @default(cuid())
+  propertyId String
+  tenancyId  String?
+
+  checklistType String
+
+  status ChecklistStatus @default(not_started)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenancy  Tenancy? @relation("ChecklistTenancy", fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  items ChecklistItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([tenancyId])
+  @@index([status])
+  @@index([checklistType])
+}
+
+model ChecklistItem {
+  id          String @id @default(cuid())
+  checklistId String
+
+  itemKey String
+  label   String
+
+  isRequired Boolean @default(true)
+
+  status ChecklistItemStatus @default(pending)
+
+  completedAt DateTime?
+
+  checklist Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([checklistId, itemKey])
+  @@index([checklistId])
+  @@index([status])
+}
+
+model ClientProfile {
+  id String @id @default(cuid())
+
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+
+  city  String?
+  notes String? @db.Text
+
+  employerName    String?
+  jobTitle        String?
+  monthlyIncome   Decimal? @db.Decimal(12, 2)
+  employmentNotes String?  @db.Text
+
+  sourceType ClientProfileSourceType
+
+  sourceTenancyId String?
+  createdByUserId String?
+
+  sourceTenancy Tenancy? @relation("ClientProfileSourceTenancy", fields: [sourceTenancyId], references: [id], onDelete: SetNull)
+  createdBy     User?    @relation("ClientProfileCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([sourceType])
+  @@index([sourceTenancyId])
+  @@index([createdByUserId])
+}
+
+/// Domain entity audit (tenancy, application, etc.). Not Gmail/AI security events — see AuditLog.
+model ActivityLog {
+  id String @id @default(cuid())
+
+  propertyId  String?
+  actorUserId String?
+
+  entityType String
+  entityId   String
+  action     String
+
+  oldValues Json?
+  newValues Json?
+
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  actor    User?     @relation("ActivityLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([propertyId])
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+/// Security and integration audit (Gmail connect/sync, AI drafts, OAuth). Separate from ActivityLog.
 model AuditLog {
   id             String  @id @default(cuid())
   organizationId String?

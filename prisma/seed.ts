@@ -25,6 +25,8 @@ const AXFORD_SEED_PROPERTY_NAME = "Harbourview Apartments (seed)";
 const SEED_PROSPECT_EMAIL = "prospect.seed@axford.test";
 const SEED_APPLICANT_EMAIL = "applicant.seed@axford.test";
 const SEED_TENANT_EMAIL = "tenant.seed@axford.test";
+const SEED_LEASE_STORAGE_KEY = "seed/axford/harbourview/lease-2026.pdf";
+const SEED_CLIENT_PROFILE_EMAIL = "client.jordan.tenant@axford.test";
 
 async function seedAxfordPropertyGraph(args: {
   organizationId: string;
@@ -200,6 +202,175 @@ async function seedAxfordLeasingTenancy(args: {
   }
 }
 
+async function seedAxfordDocumentsAndOps(args: {
+  propertyId: string;
+  unitId: string;
+  actorUserId: string;
+}) {
+  const application = await prisma.application.findFirst({
+    where: {
+      propertyId: args.propertyId,
+      email: SEED_APPLICANT_EMAIL,
+    },
+  });
+  if (!application) {
+    return;
+  }
+
+  const tenancy = await prisma.tenancy.findUnique({
+    where: { applicationId: application.id },
+  });
+  if (!tenancy) {
+    return;
+  }
+
+  await prisma.document.upsert({
+    where: { storageKey: SEED_LEASE_STORAGE_KEY },
+    update: {
+      title: "Residential tenancy agreement (seed)",
+      isLocked: true,
+    },
+    create: {
+      propertyId: args.propertyId,
+      unitId: args.unitId,
+      tenancyId: tenancy.id,
+      documentType: "lease",
+      title: "Residential tenancy agreement (seed)",
+      fileName: "lease-2026.pdf",
+      contentType: "application/pdf",
+      sizeBytes: 0,
+      storageKey: SEED_LEASE_STORAGE_KEY,
+      isLocked: true,
+    },
+  });
+
+  const existingSig = await prisma.signatureRequest.findFirst({
+    where: {
+      tenancyId: tenancy.id,
+      provider: "dropbox_sign",
+      status: "draft",
+    },
+  });
+  if (!existingSig) {
+    await prisma.signatureRequest.create({
+      data: {
+        propertyId: args.propertyId,
+        tenancyId: tenancy.id,
+        provider: "dropbox_sign",
+        status: "draft",
+      },
+    });
+  }
+
+  let checklist = await prisma.checklist.findFirst({
+    where: {
+      propertyId: args.propertyId,
+      tenancyId: tenancy.id,
+      checklistType: "move_in",
+    },
+  });
+  if (!checklist) {
+    checklist = await prisma.checklist.create({
+      data: {
+        propertyId: args.propertyId,
+        tenancyId: tenancy.id,
+        checklistType: "move_in",
+        status: "in_progress",
+        items: {
+          create: [
+            {
+              itemKey: "keys_handover",
+              label: "Keys handed to tenant",
+              status: "complete",
+              completedAt: new Date("2026-02-01"),
+            },
+            {
+              itemKey: "smoke_alarm_test",
+              label: "Smoke alarms tested",
+              status: "pending",
+            },
+          ],
+        },
+      },
+    });
+  } else {
+    for (const item of [
+      {
+        itemKey: "keys_handover",
+        label: "Keys handed to tenant",
+        status: "complete" as const,
+        completedAt: new Date("2026-02-01"),
+      },
+      {
+        itemKey: "smoke_alarm_test",
+        label: "Smoke alarms tested",
+        status: "pending" as const,
+        completedAt: null as Date | null,
+      },
+    ]) {
+      await prisma.checklistItem.upsert({
+        where: {
+          checklistId_itemKey: {
+            checklistId: checklist.id,
+            itemKey: item.itemKey,
+          },
+        },
+        update: {
+          label: item.label,
+          status: item.status,
+          completedAt: item.completedAt,
+        },
+        create: {
+          checklistId: checklist.id,
+          itemKey: item.itemKey,
+          label: item.label,
+          status: item.status,
+          completedAt: item.completedAt,
+        },
+      });
+    }
+  }
+
+  const existingProfile = await prisma.clientProfile.findFirst({
+    where: { email: SEED_CLIENT_PROFILE_EMAIL },
+  });
+  if (!existingProfile) {
+    await prisma.clientProfile.create({
+      data: {
+        firstName: "Jordan",
+        lastName: "Tenant",
+        email: SEED_CLIENT_PROFILE_EMAIL,
+        phone: "604-555-0103",
+        city: "Vancouver",
+        sourceType: "former_tenant",
+        sourceTenancyId: tenancy.id,
+        createdByUserId: args.actorUserId,
+        notes: "Seed client profile linked to Harbourview tenancy.",
+      },
+    });
+  }
+
+  const existingActivity = await prisma.activityLog.findFirst({
+    where: {
+      entityType: "Tenancy",
+      entityId: tenancy.id,
+      action: "tenancy.seeded",
+    },
+  });
+  if (!existingActivity) {
+    await prisma.activityLog.create({
+      data: {
+        propertyId: args.propertyId,
+        actorUserId: args.actorUserId,
+        entityType: "Tenancy",
+        entityId: tenancy.id,
+        action: "tenancy.seeded",
+        newValues: { status: tenancy.status, unitId: tenancy.unitId },
+      },
+    });
+  }
+}
+
 async function main() {
   await seedRoles();
 
@@ -298,6 +469,12 @@ async function main() {
     propertyId,
     unitId,
     reviewedByUserId: admin.id,
+  });
+
+  await seedAxfordDocumentsAndOps({
+    propertyId,
+    unitId,
+    actorUserId: admin.id,
   });
 
   const seededAi = await prisma.aiResponderRule.count({
