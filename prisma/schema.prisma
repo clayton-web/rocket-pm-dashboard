@@ -51,16 +51,17 @@ model User {
   /// Rocket Logic staff: may list/switch orgs; queries still scoped by active organizationId.
   platformAccessLevel PlatformAccessLevel @default(NONE)
 
-  memberships            OrganizationMembership[]
-  propertyAssignments    UserPropertyAssignment[]
-  showingsAssigned       Showing[]                @relation("ShowingAssignedTo")
-  showingsCreated        Showing[]                @relation("ShowingCreatedBy")
-  applicationsReviewed   Application[]            @relation("ApplicationReviewedBy")
-  clientProfilesCreated  ClientProfile[]          @relation("ClientProfileCreatedBy")
-  activityLogEntries     ActivityLog[]            @relation("ActivityLogActor")
-  auditLogs              AuditLog[]
-  connectedEmailAccounts ConnectedEmailAccount[]
-  styleExamples          AiStyleExample[]
+  memberships                 OrganizationMembership[]
+  propertyAssignments         UserPropertyAssignment[]
+  showingsAssigned            Showing[]                @relation("ShowingAssignedTo")
+  showingsCreated             Showing[]                @relation("ShowingCreatedBy")
+  applicationsReviewed        Application[]            @relation("ApplicationReviewedBy")
+  clientProfilesCreated       ClientProfile[]          @relation("ClientProfileCreatedBy")
+  activityLogEntries          ActivityLog[]            @relation("ActivityLogActor")
+  maintenanceRequestsAssigned MaintenanceRequest[]     @relation("MaintenanceRequestAssignedTo")
+  auditLogs                   AuditLog[]
+  connectedEmailAccounts      ConnectedEmailAccount[]
+  styleExamples               AiStyleExample[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -78,6 +79,8 @@ model Organization {
   memberships OrganizationMembership[]
   properties  Property[]
 
+  maintenanceRequests    MaintenanceRequest[]
+  maintenanceAttachments MaintenanceAttachment[]
   auditLogs              AuditLog[]
   connectedEmailAccounts ConnectedEmailAccount[]
   emailThreads           EmailThread[]
@@ -148,6 +151,7 @@ model Property {
   signatureRequests    SignatureRequest[]
   checklists           Checklist[]
   activityLogs         ActivityLog[]
+  maintenanceRequests  MaintenanceRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -164,13 +168,14 @@ model Unit {
   bedrooms   Int?
   isActive   Boolean @default(true)
 
-  property         Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  prospects        Prospect[]
-  showings         Showing[]
-  applications     Application[]
-  tenancies        Tenancy[]
-  notices          Notice[]
-  generalDocuments Document[]    @relation("DocumentUnit")
+  property            Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  prospects           Prospect[]
+  showings            Showing[]
+  applications        Application[]
+  tenancies           Tenancy[]
+  notices             Notice[]
+  generalDocuments    Document[]           @relation("DocumentUnit")
+  maintenanceRequests MaintenanceRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -425,10 +430,11 @@ model Tenancy {
 
   contacts              TenancyContact[]
   notices               Notice[]
-  generalDocuments      Document[]         @relation("DocumentTenancy")
-  signatureRequests     SignatureRequest[] @relation("SignatureRequestTenancy")
-  checklists            Checklist[]        @relation("ChecklistTenancy")
-  sourcedClientProfiles ClientProfile[]    @relation("ClientProfileSourceTenancy")
+  generalDocuments      Document[]           @relation("DocumentTenancy")
+  signatureRequests     SignatureRequest[]   @relation("SignatureRequestTenancy")
+  checklists            Checklist[]          @relation("ChecklistTenancy")
+  sourcedClientProfiles ClientProfile[]      @relation("ClientProfileSourceTenancy")
+  maintenanceRequests   MaintenanceRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -454,7 +460,8 @@ model TenancyContact {
 
   portalAccessEnabled Boolean @default(false)
 
-  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+  tenancy                      Tenancy              @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+  maintenanceRequestsSubmitted MaintenanceRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -688,6 +695,152 @@ model ActivityLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@index([action])
+}
+
+// --- Maintenance (Path A / PR6): unified Prisma SoT — tables MaintenanceRequest / MaintenanceAttachment only.
+// Do NOT @@map to maintenance_requests (Supabase legacy table in donor repo).
+
+enum MaintenanceRequestStatus {
+  new
+  triaged
+  dispatched
+  in_progress
+  awaiting_owner_approval
+  scheduled
+  completed
+  cancelled
+}
+
+enum MaintenanceUrgency {
+  emergency
+  urgent
+  routine
+}
+
+enum MaintenanceTrade {
+  general
+  plumbing
+  electrical
+  hvac
+  appliance
+  structural
+  other
+}
+
+enum MaintenanceRequestSource {
+  tenant_portal
+  staff
+  public_intake
+  email_intake
+}
+
+enum MaintenanceOwnerApprovalStatus {
+  not_required
+  pending
+  approved
+  declined
+}
+
+enum MaintenanceAttachmentKind {
+  photo
+  video
+  document
+  other
+}
+
+model MaintenanceRequest {
+  id             String @id @default(cuid())
+  organizationId String
+  propertyId     String
+  unitId         String
+  tenancyId      String
+
+  submittedByContactId String?
+  assignedToUserId     String?
+
+  source MaintenanceRequestSource @default(tenant_portal)
+
+  /// Optional free-form label alongside triage trade enum.
+  category String?
+
+  trade   MaintenanceTrade
+  urgency MaintenanceUrgency       @default(routine)
+  status  MaintenanceRequestStatus @default(new)
+
+  title       String
+  description String @db.Text
+
+  isHabitable Boolean?
+  accessNotes String?  @db.Text
+
+  triageSummary String? @db.Text
+  guidedMeta    Json?
+
+  assignedVendorName String?
+  completionNote     String? @db.Text
+
+  ownerApprovalStatus MaintenanceOwnerApprovalStatus @default(not_required)
+  ownerApprovedAt     DateTime?
+
+  scheduledWorkAt DateTime?
+
+  /// Reserved for PR7+ invoice workflow (object storage key).
+  invoiceStorageKey String?
+  invoiceAmount     Decimal? @db.Decimal(12, 2)
+
+  /// Maps a row imported from Supabase maintenance_requests during one-time ETL.
+  legacySupabaseId String? @unique
+
+  submittedAt  DateTime  @default(now())
+  dispatchedAt DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  property           Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit               Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  tenancy            Tenancy                 @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+  submittedByContact TenancyContact?         @relation(fields: [submittedByContactId], references: [id], onDelete: SetNull)
+  assignedTo         User?                   @relation("MaintenanceRequestAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  attachments        MaintenanceAttachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([tenancyId])
+  @@index([status])
+  @@index([urgency])
+  @@index([trade])
+  @@index([submittedByContactId])
+  @@index([assignedToUserId])
+  @@index([submittedAt])
+}
+
+model MaintenanceAttachment {
+  id                   String @id @default(cuid())
+  maintenanceRequestId String
+  organizationId       String
+
+  fileName    String
+  contentType String?
+  sizeBytes   Int?
+  storageKey  String  @unique
+
+  kind MaintenanceAttachmentKind @default(photo)
+
+  uploadedByContactId String?
+  uploadedByUserId    String?
+
+  maintenanceRequest MaintenanceRequest @relation(fields: [maintenanceRequestId], references: [id], onDelete: Cascade)
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([maintenanceRequestId])
+  @@index([organizationId])
 }
 
 /// Security and integration audit (Gmail connect/sync, AI drafts, OAuth). Separate from ActivityLog.

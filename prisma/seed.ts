@@ -27,6 +27,8 @@ const SEED_APPLICANT_EMAIL = "applicant.seed@axford.test";
 const SEED_TENANT_EMAIL = "tenant.seed@axford.test";
 const SEED_LEASE_STORAGE_KEY = "seed/axford/harbourview/lease-2026.pdf";
 const SEED_CLIENT_PROFILE_EMAIL = "client.jordan.tenant@axford.test";
+const SEED_MAINTENANCE_TITLE = "Kitchen sink slow drain (seed)";
+const SEED_MAINTENANCE_ATTACHMENT_KEY = "seed/axford/maintenance/kitchen-sink-photo.jpg";
 
 async function seedAxfordPropertyGraph(args: {
   organizationId: string;
@@ -371,6 +373,72 @@ async function seedAxfordDocumentsAndOps(args: {
   }
 }
 
+async function seedAxfordMaintenanceSample(args: {
+  organizationId: string;
+  propertyId: string;
+  unitId: string;
+  assignedPmUserId: string;
+}) {
+  const tenancy = await prisma.tenancy.findFirst({
+    where: { propertyId: args.propertyId, unitId: args.unitId },
+  });
+  if (!tenancy) {
+    return;
+  }
+
+  const contact = await prisma.tenancyContact.findFirst({
+    where: { tenancyId: tenancy.id, email: SEED_TENANT_EMAIL },
+  });
+
+  const existing = await prisma.maintenanceRequest.findFirst({
+    where: {
+      tenancyId: tenancy.id,
+      title: SEED_MAINTENANCE_TITLE,
+    },
+  });
+
+  const request =
+    existing ??
+    (await prisma.maintenanceRequest.create({
+      data: {
+        organizationId: args.organizationId,
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+        tenancyId: tenancy.id,
+        submittedByContactId: contact?.id ?? null,
+        assignedToUserId: args.assignedPmUserId,
+        source: "tenant_portal",
+        category: "plumbing",
+        trade: "plumbing",
+        urgency: "routine",
+        status: "triaged",
+        title: SEED_MAINTENANCE_TITLE,
+        description:
+          "Water drains slowly from the kitchen sink. No standing water yet. Tenant available weekdays after 5pm.",
+        accessNotes: "Buzz 101 — knock if no answer.",
+        triageSummary: "Routine plumbing — slow kitchen drain; PM review recommended.",
+        guidedMeta: { flow: "seed", category_hint: "plumbing" },
+        ownerApprovalStatus: "not_required",
+        submittedAt: new Date("2026-03-01T18:00:00Z"),
+      },
+    }));
+
+  await prisma.maintenanceAttachment.upsert({
+    where: { storageKey: SEED_MAINTENANCE_ATTACHMENT_KEY },
+    update: { fileName: "kitchen-sink.jpg" },
+    create: {
+      maintenanceRequestId: request.id,
+      organizationId: args.organizationId,
+      fileName: "kitchen-sink.jpg",
+      contentType: "image/jpeg",
+      sizeBytes: 0,
+      storageKey: SEED_MAINTENANCE_ATTACHMENT_KEY,
+      kind: "photo",
+      uploadedByContactId: contact?.id ?? null,
+    },
+  });
+}
+
 async function main() {
   await seedRoles();
 
@@ -475,6 +543,13 @@ async function main() {
     propertyId,
     unitId,
     actorUserId: admin.id,
+  });
+
+  await seedAxfordMaintenanceSample({
+    organizationId: org.id,
+    propertyId,
+    unitId,
+    assignedPmUserId: pm.id,
   });
 
   const seededAi = await prisma.aiResponderRule.count({
