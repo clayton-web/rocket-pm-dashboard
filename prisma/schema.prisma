@@ -53,6 +53,9 @@ model User {
 
   memberships            OrganizationMembership[]
   propertyAssignments    UserPropertyAssignment[]
+  showingsAssigned       Showing[]                @relation("ShowingAssignedTo")
+  showingsCreated        Showing[]                @relation("ShowingCreatedBy")
+  applicationsReviewed   Application[]            @relation("ApplicationReviewedBy")
   auditLogs              AuditLog[]
   connectedEmailAccounts ConnectedEmailAccount[]
   styleExamples          AiStyleExample[]
@@ -131,8 +134,14 @@ model Property {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
-  units       Unit[]
-  assignments UserPropertyAssignment[]
+  units                Unit[]
+  assignments          UserPropertyAssignment[]
+  prospects            Prospect[]
+  showings             Showing[]
+  applications         Application[]
+  applicationDocuments ApplicationDocument[]
+  tenancies            Tenancy[]
+  notices              Notice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,7 +158,12 @@ model Unit {
   bedrooms   Int?
   isActive   Boolean @default(true)
 
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  prospects    Prospect[]
+  showings     Showing[]
+  applications Application[]
+  tenancies    Tenancy[]
+  notices      Notice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -175,6 +189,293 @@ model UserPropertyAssignment {
   @@unique([userId, propertyId, roleId])
   @@index([userId])
   @@index([propertyId])
+}
+
+// --- Leasing & tenancy (Path A / PR4) ---
+
+enum ProspectStatus {
+  new
+  archived
+}
+
+enum ShowingStatus {
+  scheduled
+  completed
+  no_show
+  cancelled
+}
+
+enum ShowingOutcome {
+  interested
+  not_interested
+  no_show
+  reschedule
+}
+
+enum ContactStatus {
+  not_contacted
+  contacted
+}
+
+enum ApplicationStatus {
+  draft
+  submitted
+  under_review
+  approved
+  declined
+  withdrawn
+}
+
+enum TenancyStatus {
+  pending_move_in
+  active
+  notice_received
+  move_out_scheduled
+  ended
+  archived
+}
+
+enum RetentionStatus {
+  archived
+  pending_review
+  converted_to_client
+  scheduled_for_deletion
+  deleted
+}
+
+enum TenancyContactType {
+  tenant
+  co_tenant
+  occupant
+  emergency_contact
+}
+
+model Prospect {
+  id         String  @id @default(cuid())
+  propertyId String
+  unitId     String?
+
+  email     String
+  firstName String?
+  lastName  String?
+  phone     String?
+  message   String? @db.Text
+
+  status ProspectStatus @default(new)
+
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit         Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  showings     Showing[]
+  applications Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([email])
+  @@index([propertyId, email])
+}
+
+model Showing {
+  id         String  @id @default(cuid())
+  prospectId String
+  propertyId String
+  unitId     String?
+
+  assignedToUserId String?
+  createdByUserId  String?
+
+  scheduledStart DateTime
+  scheduledEnd   DateTime?
+
+  status         ShowingStatus   @default(scheduled)
+  showingOutcome ShowingOutcome?
+  contactStatus  ContactStatus   @default(not_contacted)
+  contactNotes   String?         @db.Text
+
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Restrict)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit       Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  assignedTo User?    @relation("ShowingAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  createdBy  User?    @relation("ShowingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([prospectId])
+  @@index([propertyId])
+  @@index([assignedToUserId])
+  @@index([scheduledStart])
+}
+
+model Application {
+  id         String  @id @default(cuid())
+  propertyId String
+  unitId     String
+  prospectId String?
+
+  email String
+
+  firstName         String?
+  lastName          String?
+  phone             String?
+  currentAddress    String?   @db.Text
+  desiredMoveInDate DateTime? @db.Date
+
+  occupantCount Int?
+  monthlyIncome Decimal? @db.Decimal(12, 2)
+
+  hasPets    Boolean @default(false)
+  petDetails String? @db.Text
+
+  smokerStatus String?
+
+  employerName    String?
+  jobTitle        String?
+  employmentNotes String? @db.Text
+
+  consentCreditCheck   Boolean   @default(false)
+  consentSignatureName String?
+  consentSignedAt      DateTime?
+  consentIpAddress     String?   @db.VarChar(45)
+  consentUserAgent     String?   @db.Text
+
+  status ApplicationStatus @default(draft)
+
+  submittedAt      DateTime?
+  reviewedByUserId String?
+  decisionAt       DateTime?
+
+  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit       Unit      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  reviewedBy User?     @relation("ApplicationReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  documents ApplicationDocument[]
+  tenancy   Tenancy?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([email])
+  @@index([propertyId, email])
+  @@index([prospectId])
+  @@index([status])
+  @@index([submittedAt])
+}
+
+model ApplicationDocument {
+  id            String @id @default(cuid())
+  applicationId String
+  propertyId    String
+
+  fileName     String
+  contentType  String?
+  sizeBytes    Int
+  storageKey   String  @unique
+  documentKind String?
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  property    Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([applicationId])
+  @@index([propertyId])
+}
+
+model Tenancy {
+  id            String @id @default(cuid())
+  propertyId    String
+  unitId        String
+  applicationId String @unique
+
+  status TenancyStatus @default(pending_move_in)
+
+  leaseStartDate DateTime  @db.Date
+  leaseEndDate   DateTime? @db.Date
+  moveInDate     DateTime  @db.Date
+  moveOutDate    DateTime? @db.Date
+
+  monthlyRent     Decimal  @db.Decimal(12, 2)
+  securityDeposit Decimal  @db.Decimal(12, 2)
+  petDeposit      Decimal? @db.Decimal(12, 2)
+
+  buildiumResidentCenterUrl String? @db.Text
+
+  archivedAt           DateTime?
+  retentionReviewDueAt DateTime?
+  retentionStatus      RetentionStatus?
+
+  property    Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit        Unit        @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+
+  contacts TenancyContact[]
+  notices  Notice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([status])
+  @@index([archivedAt])
+  @@index([retentionReviewDueAt])
+  @@index([retentionStatus])
+}
+
+model TenancyContact {
+  id        String @id @default(cuid())
+  tenancyId String
+
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+
+  contactType TenancyContactType
+
+  portalAccessEnabled Boolean @default(false)
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenancyId])
+  @@index([email])
+  @@index([tenancyId, email])
+}
+
+/// Notice served or filed for a tenancy. noticeType is app-level vocabulary (string), not an enum.
+model Notice {
+  id         String  @id @default(cuid())
+  propertyId String
+  unitId     String?
+  tenancyId  String
+
+  noticeType String
+  title      String
+  body       String @db.Text
+
+  serviceMethod String?
+  servedAt      DateTime?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit     Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  tenancy  Tenancy  @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([tenancyId])
+  @@index([servedAt])
 }
 
 model AuditLog {

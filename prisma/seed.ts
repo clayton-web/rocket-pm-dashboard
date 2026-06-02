@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient, type RoleKey } from "@prisma/client";
+import { Prisma, PrismaClient, type RoleKey } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -22,11 +22,15 @@ async function seedRoles() {
 
 const AXFORD_SEED_PROPERTY_NAME = "Harbourview Apartments (seed)";
 
+const SEED_PROSPECT_EMAIL = "prospect.seed@axford.test";
+const SEED_APPLICANT_EMAIL = "applicant.seed@axford.test";
+const SEED_TENANT_EMAIL = "tenant.seed@axford.test";
+
 async function seedAxfordPropertyGraph(args: {
   organizationId: string;
   pmUserId: string;
   propertyManagerRoleId: string;
-}) {
+}): Promise<{ propertyId: string; unitId: string }> {
   let property = await prisma.property.findFirst({
     where: {
       organizationId: args.organizationId,
@@ -83,6 +87,117 @@ async function seedAxfordPropertyGraph(args: {
       roleId: args.propertyManagerRoleId,
     },
   });
+
+  const unit = await prisma.unit.findUniqueOrThrow({
+    where: {
+      propertyId_unitNumber: {
+        propertyId: property.id,
+        unitNumber: "101",
+      },
+    },
+  });
+
+  return { propertyId: property.id, unitId: unit.id };
+}
+
+async function seedAxfordLeasingTenancy(args: {
+  propertyId: string;
+  unitId: string;
+  reviewedByUserId: string;
+}) {
+  let prospect = await prisma.prospect.findFirst({
+    where: { propertyId: args.propertyId, email: SEED_PROSPECT_EMAIL },
+  });
+  if (!prospect) {
+    prospect = await prisma.prospect.create({
+      data: {
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+        email: SEED_PROSPECT_EMAIL,
+        firstName: "Sam",
+        lastName: "Prospect",
+        phone: "604-555-0101",
+        message: "Interested in a showing for unit 101.",
+        status: "new",
+      },
+    });
+  }
+
+  let application = await prisma.application.findFirst({
+    where: {
+      propertyId: args.propertyId,
+      email: SEED_APPLICANT_EMAIL,
+      unitId: args.unitId,
+    },
+  });
+  if (!application) {
+    application = await prisma.application.create({
+      data: {
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+        prospectId: prospect.id,
+        email: SEED_APPLICANT_EMAIL,
+        firstName: "Taylor",
+        lastName: "Applicant",
+        phone: "604-555-0102",
+        status: "approved",
+        submittedAt: new Date("2026-01-15"),
+        decisionAt: new Date("2026-01-20"),
+        reviewedByUserId: args.reviewedByUserId,
+        consentCreditCheck: true,
+        consentSignatureName: "Taylor Applicant",
+        consentSignedAt: new Date("2026-01-15"),
+        monthlyIncome: new Prisma.Decimal("5500.00"),
+      },
+    });
+  }
+
+  const existingTenancy = await prisma.tenancy.findUnique({
+    where: { applicationId: application.id },
+  });
+  if (!existingTenancy) {
+    const tenancy = await prisma.tenancy.create({
+      data: {
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+        applicationId: application.id,
+        status: "active",
+        leaseStartDate: new Date("2026-02-01"),
+        leaseEndDate: new Date("2027-01-31"),
+        moveInDate: new Date("2026-02-01"),
+        monthlyRent: new Prisma.Decimal("2500.00"),
+        securityDeposit: new Prisma.Decimal("1250.00"),
+        contacts: {
+          create: {
+            firstName: "Jordan",
+            lastName: "Tenant",
+            email: SEED_TENANT_EMAIL,
+            phone: "604-555-0103",
+            contactType: "tenant",
+            portalAccessEnabled: false,
+          },
+        },
+      },
+    });
+
+    const noticeExists = await prisma.notice.findFirst({
+      where: { tenancyId: tenancy.id, noticeType: "welcome" },
+    });
+    if (!noticeExists) {
+      await prisma.notice.create({
+        data: {
+          propertyId: args.propertyId,
+          unitId: args.unitId,
+          tenancyId: tenancy.id,
+          noticeType: "welcome",
+          title: "Welcome to Harbourview (seed)",
+          body: "Sample welcome notice for seed tenancy.",
+          serviceMethod: "email",
+          servedAt: new Date("2026-02-01"),
+        },
+      });
+    }
+  }
 }
 
 async function main() {
@@ -173,10 +288,16 @@ async function main() {
     },
   });
 
-  await seedAxfordPropertyGraph({
+  const { propertyId, unitId } = await seedAxfordPropertyGraph({
     organizationId: org.id,
     pmUserId: pm.id,
     propertyManagerRoleId: propertyManagerRole.id,
+  });
+
+  await seedAxfordLeasingTenancy({
+    propertyId,
+    unitId,
+    reviewedByUserId: admin.id,
   });
 
   const seededAi = await prisma.aiResponderRule.count({
