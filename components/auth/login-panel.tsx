@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 
 export function LoginPanel({ googleEnabled }: { googleEnabled: boolean }) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const devLoginEnabled = process.env.NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN === "true";
 
@@ -23,54 +24,74 @@ export function LoginPanel({ googleEnabled }: { googleEnabled: boolean }) {
         </button>
       ) : null}
 
-      {devLoginEnabled ? (
-        <form
-          className="mt-6 space-y-3"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setError(null);
-            const result = await signIn("credentials", {
-              email,
-              callbackUrl: "/inbox",
-              redirect: false,
-            });
-            if (result?.error) {
-              setError("Unable to sign in. Check the email or seed data.");
-              return;
-            }
-            window.location.assign("/inbox");
-          }}
+      <form
+        className="mt-6 space-y-3"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setError(null);
+          const result = await signIn("credentials", {
+            email,
+            password: password || undefined,
+            callbackUrl: "/inbox",
+            redirect: false,
+          });
+          if (result?.error) {
+            setError("Unable to sign in. Check email, password, and that the account is active.");
+            return;
+          }
+          window.location.assign("/inbox");
+        }}
+      >
+        <label className="block text-xs font-medium text-neutral-700" htmlFor="email">
+          Email
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          placeholder="admin@axford.test"
+          autoComplete="username"
+        />
+        <label className="block text-xs font-medium text-neutral-700" htmlFor="password">
+          Password
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
+          placeholder={devLoginEnabled ? "Required for seeded staff" : "Password"}
+          autoComplete="current-password"
+        />
+        <button
+          type="submit"
+          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
         >
-          <label className="block text-xs font-medium text-neutral-700" htmlFor="email">
-            Dev email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
-            placeholder="you@example.com"
-            autoComplete="username"
-          />
-          <button
-            type="submit"
-            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
-          >
-            Continue (dev credentials)
-          </button>
+          Sign in with email
+        </button>
+        {devLoginEnabled ? (
           <p className="text-[11px] text-neutral-500">
-            Development only. Set <code className="rounded bg-neutral-100 px-1">NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN</code>{" "}
-            and <code className="rounded bg-neutral-100 px-1">DEV_CREDENTIALS_LOGIN</code> on the server.
+            Dev: accounts without a password hash can sign in with email only (leave password empty). Seeded{" "}
+            <code className="rounded bg-neutral-100 px-1">admin@axford.test</code> /{" "}
+            <code className="rounded bg-neutral-100 px-1">pm@axford.test</code> use the seed password — see{" "}
+            <code className="rounded bg-neutral-100 px-1">docs/auth.md</code>.
           </p>
-        </form>
-      ) : null}
+        ) : (
+          <p className="text-[11px] text-neutral-500">
+            Staff accounts with a stored password must enter it. Google sign-in remains available when configured.
+          </p>
+        )}
+      </form>
 
       {!googleEnabled && !devLoginEnabled ? (
-        <p className="mt-6 text-sm text-neutral-600">
-          Configure Google OAuth or enable dev credentials via environment variables to sign in.
+        <p className="mt-4 text-sm text-neutral-600">
+          Configure Google OAuth or ensure staff users have a password hash to sign in.
         </p>
       ) : null}
 

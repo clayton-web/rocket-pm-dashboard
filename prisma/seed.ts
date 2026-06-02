@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { Prisma, PrismaClient, type RoleKey } from "@prisma/client";
+import { hashPassword } from "../lib/auth/password";
 
 const prisma = new PrismaClient();
 
@@ -29,6 +30,9 @@ const SEED_LEASE_STORAGE_KEY = "seed/axford/harbourview/lease-2026.pdf";
 const SEED_CLIENT_PROFILE_EMAIL = "client.jordan.tenant@axford.test";
 const SEED_MAINTENANCE_TITLE = "Kitchen sink slow drain (seed)";
 const SEED_MAINTENANCE_ATTACHMENT_KEY = "seed/axford/maintenance/kitchen-sink-photo.jpg";
+
+/** Default seed staff password (override with SEED_STAFF_PASSWORD in env). Documented in docs/auth.md */
+const SEED_STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD ?? "AxfordDev123!";
 
 async function seedAxfordPropertyGraph(args: {
   organizationId: string;
@@ -455,6 +459,8 @@ async function main() {
     create: { name: "Axford Property Management", slug: "axford" },
   });
 
+  const seedStaffPasswordHash = await hashPassword(SEED_STAFF_PASSWORD);
+
   const admin = await prisma.user.upsert({
     where: { email: "admin@axford.test" },
     update: {
@@ -463,6 +469,7 @@ async function main() {
       lastName: "Admin",
       isActive: true,
       primaryRoleId: administratorRole.id,
+      passwordHash: seedStaffPasswordHash,
     },
     create: {
       name: "Axford Admin",
@@ -471,6 +478,7 @@ async function main() {
       email: "admin@axford.test",
       isActive: true,
       primaryRoleId: administratorRole.id,
+      passwordHash: seedStaffPasswordHash,
     },
   });
 
@@ -494,6 +502,7 @@ async function main() {
       lastName: "Property Manager",
       isActive: true,
       primaryRoleId: propertyManagerRole.id,
+      passwordHash: seedStaffPasswordHash,
     },
     create: {
       name: "Axford Property Manager",
@@ -502,6 +511,7 @@ async function main() {
       email: "pm@axford.test",
       isActive: true,
       primaryRoleId: propertyManagerRole.id,
+      passwordHash: seedStaffPasswordHash,
     },
   });
 
