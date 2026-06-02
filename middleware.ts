@@ -2,12 +2,26 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+function isPublicPortalApi(pathname: string): boolean {
+  return pathname.startsWith("/api/portal/");
+}
+
+function isPublicMaintenanceApi(req: NextRequest): boolean {
+  const pathname = req.nextUrl.pathname;
+  if (pathname === "/api/maintenance/submit-options") return true;
+  if (pathname === "/api/maintenance" && req.method === "POST") return true;
+  return false;
+}
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const isLogin = pathname.startsWith("/login");
   const isAuthApi = pathname.startsWith("/api/auth");
+  const isPortal = pathname.startsWith("/portal");
+  const isPublicMaintenance = isPublicMaintenanceApi(req);
+  const isPublicPortalApiRoute = isPublicPortalApi(pathname);
 
-  if (isAuthApi) {
+  if (isAuthApi || isPortal || isPublicMaintenance || isPublicPortalApiRoute) {
     return NextResponse.next();
   }
 
