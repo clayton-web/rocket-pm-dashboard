@@ -26,7 +26,8 @@ model Role {
   key  RoleKey @unique
   name String
 
-  usersPrimary User[] @relation("UserPrimaryRole")
+  usersPrimary        User[]                   @relation("UserPrimaryRole")
+  propertyAssignments UserPropertyAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -51,6 +52,7 @@ model User {
   platformAccessLevel PlatformAccessLevel @default(NONE)
 
   memberships            OrganizationMembership[]
+  propertyAssignments    UserPropertyAssignment[]
   auditLogs              AuditLog[]
   connectedEmailAccounts ConnectedEmailAccount[]
   styleExamples          AiStyleExample[]
@@ -69,6 +71,7 @@ model Organization {
   slug String @unique
 
   memberships OrganizationMembership[]
+  properties  Property[]
 
   auditLogs              AuditLog[]
   connectedEmailAccounts ConnectedEmailAccount[]
@@ -110,6 +113,68 @@ model OrganizationMembership {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, organizationId])
+}
+
+// --- Property graph (Path A / PR3): org-scoped properties, units, staff assignments ---
+
+model Property {
+  id          String  @id @default(cuid())
+  name        String
+  streetLine1 String
+  streetLine2 String?
+  city        String
+  province    String  @default("BC")
+  postalCode  String
+  country     String  @default("CA")
+  isActive    Boolean @default(true)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  units       Unit[]
+  assignments UserPropertyAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city])
+  @@index([organizationId])
+}
+
+model Unit {
+  id         String  @id @default(cuid())
+  propertyId String
+  unitNumber String
+  floor      String?
+  bedrooms   Int?
+  isActive   Boolean @default(true)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([propertyId, unitNumber])
+  @@index([propertyId])
+}
+
+/// Scopes property_manager and field_agent staff to specific properties within an org.
+model UserPropertyAssignment {
+  id         String @id @default(cuid())
+  userId     String
+  propertyId String
+  roleId     String
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  role     Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, propertyId, roleId])
+  @@index([userId])
+  @@index([propertyId])
 }
 
 model AuditLog {

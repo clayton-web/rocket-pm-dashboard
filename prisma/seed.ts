@@ -20,6 +20,71 @@ async function seedRoles() {
   }
 }
 
+const AXFORD_SEED_PROPERTY_NAME = "Harbourview Apartments (seed)";
+
+async function seedAxfordPropertyGraph(args: {
+  organizationId: string;
+  pmUserId: string;
+  propertyManagerRoleId: string;
+}) {
+  let property = await prisma.property.findFirst({
+    where: {
+      organizationId: args.organizationId,
+      name: AXFORD_SEED_PROPERTY_NAME,
+    },
+  });
+
+  if (!property) {
+    property = await prisma.property.create({
+      data: {
+        organizationId: args.organizationId,
+        name: AXFORD_SEED_PROPERTY_NAME,
+        streetLine1: "1000 Example Street",
+        streetLine2: "Suite 200",
+        city: "Vancouver",
+        province: "BC",
+        postalCode: "V6B 1A1",
+        country: "CA",
+      },
+    });
+  }
+
+  const unitNumbers = ["101", "102"] as const;
+  for (const unitNumber of unitNumbers) {
+    await prisma.unit.upsert({
+      where: {
+        propertyId_unitNumber: {
+          propertyId: property.id,
+          unitNumber,
+        },
+      },
+      update: { isActive: true },
+      create: {
+        propertyId: property.id,
+        unitNumber,
+        floor: unitNumber === "101" ? "1" : "1",
+        bedrooms: 2,
+      },
+    });
+  }
+
+  await prisma.userPropertyAssignment.upsert({
+    where: {
+      userId_propertyId_roleId: {
+        userId: args.pmUserId,
+        propertyId: property.id,
+        roleId: args.propertyManagerRoleId,
+      },
+    },
+    update: {},
+    create: {
+      userId: args.pmUserId,
+      propertyId: property.id,
+      roleId: args.propertyManagerRoleId,
+    },
+  });
+}
+
 async function main() {
   await seedRoles();
 
@@ -106,6 +171,12 @@ async function main() {
       email: "operator@rocket-logic.test",
       platformAccessLevel: "OPERATOR",
     },
+  });
+
+  await seedAxfordPropertyGraph({
+    organizationId: org.id,
+    pmUserId: pm.id,
+    propertyManagerRoleId: propertyManagerRole.id,
   });
 
   const seededAi = await prisma.aiResponderRule.count({
