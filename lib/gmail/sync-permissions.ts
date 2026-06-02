@@ -1,11 +1,11 @@
-import type { ConnectedEmailAccount, OrganizationRole } from "@prisma/client";
+import type { ConnectedEmailAccount, OrganizationMembershipRole } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { isOrgAdmin } from "@/lib/permissions/require-org-access";
 
 export async function assertCanUseMailbox(args: {
   userId: string;
   organizationId: string;
-  activeRole: OrganizationRole;
+  activeRole: OrganizationMembershipRole;
   account: Pick<ConnectedEmailAccount, "id" | "organizationId" | "userId">;
 }) {
   if (args.account.organizationId !== args.organizationId) {
@@ -31,7 +31,7 @@ export async function assertCanUseMailbox(args: {
 export async function listMailboxesForInbox(args: {
   userId: string;
   organizationId: string;
-  activeRole: OrganizationRole;
+  activeRole: OrganizationMembershipRole;
 }) {
   const user = await prisma.user.findUnique({ where: { id: args.userId } });
   const operator = user?.platformAccessLevel === "OPERATOR";

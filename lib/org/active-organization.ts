@@ -1,4 +1,4 @@
-import type { OrganizationRole } from "@prisma/client";
+import type { OrganizationMembershipRole } from "@prisma/client";
 import { cookies } from "next/headers";
 import prisma from "@/lib/db/prisma";
 import { auth } from "@/auth";
@@ -9,7 +9,7 @@ export type ActiveOrganization = {
   id: string;
   name: string;
   slug: string;
-  role: OrganizationRole;
+  role: OrganizationMembershipRole;
 };
 
 export async function getMembershipsForUser(userId: string) {
@@ -79,7 +79,7 @@ export async function getActiveOrganizationContext(): Promise<ActiveOrganization
     if (user?.platformAccessLevel === "OPERATOR") {
       const org = await prisma.organization.findUnique({ where: { id: activeOrgId } });
       if (org) {
-        return { id: org.id, name: org.name, slug: org.slug, role: "ORG_ADMIN" };
+        return { id: org.id, name: org.name, slug: org.slug, role: "ADMIN" };
       }
     }
   }

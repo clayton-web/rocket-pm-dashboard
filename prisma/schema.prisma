@@ -11,7 +11,26 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// --- Users (JWT sessions in Phase 0; add Auth.js adapter tables when moving to DB sessions / token vault) ---
+// --- Identity (Path A / PR2): staff roles + org membership; platform operators separate ---
+
+/// Canonical staff/tenant role keys (seed all rows). Property-scoped access uses UserPropertyAssignment (later PR).
+enum RoleKey {
+  administrator
+  property_manager
+  field_agent
+  tenant
+}
+
+model Role {
+  id   String  @id @default(cuid())
+  key  RoleKey @unique
+  name String
+
+  usersPrimary User[] @relation("UserPrimaryRole")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
 model User {
   id            String    @id @default(cuid())
@@ -19,6 +38,14 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+
+  passwordHash String?
+  firstName    String?
+  lastName     String?
+  isActive     Boolean @default(true)
+
+  primaryRoleId String?
+  primaryRole   Role?   @relation("UserPrimaryRole", fields: [primaryRoleId], references: [id], onDelete: SetNull)
 
   /// Rocket Logic staff: may list/switch orgs; queries still scoped by active organizationId.
   platformAccessLevel PlatformAccessLevel @default(NONE)
@@ -30,6 +57,8 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([primaryRoleId])
 }
 
 // --- Tenancy ---
@@ -54,9 +83,12 @@ model Organization {
   updatedAt DateTime @updatedAt
 }
 
-enum OrganizationRole {
-  ORG_ADMIN
-  PROPERTY_MANAGER
+/// Per-organization membership role (not Rocket Logic platform access).
+enum OrganizationMembershipRole {
+  ADMIN
+  MEMBER
+  /// Reserved for future SaaS/billing org owner — not used for Rocket Logic operators.
+  OWNER
 }
 
 /// Rocket Logic operator flag (separate from per-org roles).
@@ -66,10 +98,10 @@ enum PlatformAccessLevel {
 }
 
 model OrganizationMembership {
-  id             String @id @default(cuid())
+  id             String                     @id @default(cuid())
   userId         String
   organizationId String
-  role           OrganizationRole @default(PROPERTY_MANAGER)
+  role           OrganizationMembershipRole @default(MEMBER)
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -111,20 +143,20 @@ model ConnectedEmailAccount {
   organizationId String
   userId         String
 
-  provider         String @default("gmail")
-  email            String
-  externalId       String? /// Google sub / account id
-  status           ConnectedEmailAccountStatus @default(CONNECTED)
-  lastError        String? @db.Text
-  lastSyncedAt     DateTime?
+  provider        String                      @default("gmail")
+  email           String
+  externalId      String? /// Google sub / account id
+  status          ConnectedEmailAccountStatus @default(CONNECTED)
+  lastError       String?                     @db.Text
+  lastSyncedAt    DateTime?
   /// Encrypted at application layer (see lib/crypto/token-vault.ts).
-  refreshTokenEnc  String? @db.Text
-  accessTokenEnc   String? @db.Text
-  accessExpiresAt  DateTime?
-  scopes           String[]
+  refreshTokenEnc String?                     @db.Text
+  accessTokenEnc  String?                     @db.Text
+  accessExpiresAt DateTime?
+  scopes          String[]
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  connector    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connector    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   threads      EmailThread[]
 
   createdAt DateTime @default(now())
@@ -136,24 +168,24 @@ model ConnectedEmailAccount {
 }
 
 model EmailThread {
-  id                    String   @id @default(cuid())
-  organizationId        String
-  connectedAccountId      String
-  providerThreadId      String
-  subject               String?
-  snippet               String?
-  lastMessageAt         DateTime?
-  labelIds              String[] @default([])
-  isUnread              Boolean  @default(false)
-  participantEmails     String[] @default([])
+  id                 String    @id @default(cuid())
+  organizationId     String
+  connectedAccountId String
+  providerThreadId   String
+  subject            String?
+  snippet            String?
+  lastMessageAt      DateTime?
+  labelIds           String[]  @default([])
+  isUnread           Boolean   @default(false)
+  participantEmails  String[]  @default([])
 
   /// Future: correlate to Core / Maintenance / etc. without tangling domains in code.
   contextLinks Json?
 
-  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   connectedAccount ConnectedEmailAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
-  messages       EmailMessage[]
-  drafts         AiDraftResponse[]
+  messages         EmailMessage[]
+  drafts           AiDraftResponse[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -163,19 +195,19 @@ model EmailThread {
 }
 
 model EmailMessage {
-  id               String   @id @default(cuid())
-  organizationId   String
-  threadId         String
+  id                String   @id @default(cuid())
+  organizationId    String
+  threadId          String
   providerMessageId String
-  fromAddr         String
-  toAddrs          String[]
-  ccAddrs          String[]
-  sentAt           DateTime
-  bodyText         String?  @db.Text
-  bodyHtml         String?  @db.Text
-  isOutbound       Boolean  @default(false)
-  labelIds         String[] @default([])
-  isUnread         Boolean  @default(false)
+  fromAddr          String
+  toAddrs           String[]
+  ccAddrs           String[]
+  sentAt            DateTime
+  bodyText          String?  @db.Text
+  bodyHtml          String?  @db.Text
+  isOutbound        Boolean  @default(false)
+  labelIds          String[] @default([])
+  isUnread          Boolean  @default(false)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   thread       EmailThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
@@ -201,11 +233,11 @@ enum AiKnowledgeSourceType {
 }
 
 model AiKnowledgeSource {
-  id             String @id @default(cuid())
+  id             String                @id @default(cuid())
   organizationId String
   type           AiKnowledgeSourceType
   title          String
-  content        String @db.Text
+  content        String                @db.Text
   metadata       Json?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -217,11 +249,11 @@ model AiKnowledgeSource {
 }
 
 model AiResponderRule {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   organizationId String
-  priority       Int    @default(0)
+  priority       Int     @default(0)
   title          String
-  instruction    String @db.Text
+  instruction    String  @db.Text
   active         Boolean @default(true)
   metadata       Json?
 
@@ -234,15 +266,15 @@ model AiResponderRule {
 }
 
 model AiStyleExample {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   organizationId String
   userId         String?
   title          String?
-  content        String @db.Text
+  content        String  @db.Text
   metadata       Json?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -251,7 +283,7 @@ model AiStyleExample {
 }
 
 model AiDraftResponse {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   organizationId String
   threadId       String?
   messageId      String?
@@ -264,8 +296,8 @@ model AiDraftResponse {
   citations       Json?
   classification  Json?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  thread       EmailThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  thread       EmailThread?  @relation(fields: [threadId], references: [id], onDelete: SetNull)
   message      EmailMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())

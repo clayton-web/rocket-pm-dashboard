@@ -1,9 +1,35 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type RoleKey } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const ROLE_SEEDS: { key: RoleKey; name: string }[] = [
+  { key: "administrator", name: "Administrator" },
+  { key: "property_manager", name: "Property Manager" },
+  { key: "field_agent", name: "Field Agent" },
+  { key: "tenant", name: "Tenant" },
+];
+
+async function seedRoles() {
+  for (const row of ROLE_SEEDS) {
+    await prisma.role.upsert({
+      where: { key: row.key },
+      update: { name: row.name },
+      create: { key: row.key, name: row.name },
+    });
+  }
+}
+
 async function main() {
+  await seedRoles();
+
+  const administratorRole = await prisma.role.findUniqueOrThrow({
+    where: { key: "administrator" },
+  });
+  const propertyManagerRole = await prisma.role.findUniqueOrThrow({
+    where: { key: "property_manager" },
+  });
+
   const org = await prisma.organization.upsert({
     where: { slug: "axford" },
     update: { name: "Axford Property Management" },
@@ -12,37 +38,63 @@ async function main() {
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@axford.test" },
-    update: { name: "Axford Admin" },
-    create: { name: "Axford Admin", email: "admin@axford.test" },
+    update: {
+      name: "Axford Admin",
+      firstName: "Axford",
+      lastName: "Admin",
+      isActive: true,
+      primaryRoleId: administratorRole.id,
+    },
+    create: {
+      name: "Axford Admin",
+      firstName: "Axford",
+      lastName: "Admin",
+      email: "admin@axford.test",
+      isActive: true,
+      primaryRoleId: administratorRole.id,
+    },
   });
 
   await prisma.organizationMembership.upsert({
     where: {
       userId_organizationId: { userId: admin.id, organizationId: org.id },
     },
-    update: { role: "ORG_ADMIN" },
+    update: { role: "ADMIN" },
     create: {
       userId: admin.id,
       organizationId: org.id,
-      role: "ORG_ADMIN",
+      role: "ADMIN",
     },
   });
 
   const pm = await prisma.user.upsert({
     where: { email: "pm@axford.test" },
-    update: { name: "Axford Property Manager" },
-    create: { name: "Axford Property Manager", email: "pm@axford.test" },
+    update: {
+      name: "Axford Property Manager",
+      firstName: "Axford",
+      lastName: "Property Manager",
+      isActive: true,
+      primaryRoleId: propertyManagerRole.id,
+    },
+    create: {
+      name: "Axford Property Manager",
+      firstName: "Axford",
+      lastName: "Property Manager",
+      email: "pm@axford.test",
+      isActive: true,
+      primaryRoleId: propertyManagerRole.id,
+    },
   });
 
   await prisma.organizationMembership.upsert({
     where: {
       userId_organizationId: { userId: pm.id, organizationId: org.id },
     },
-    update: { role: "PROPERTY_MANAGER" },
+    update: { role: "MEMBER" },
     create: {
       userId: pm.id,
       organizationId: org.id,
-      role: "PROPERTY_MANAGER",
+      role: "MEMBER",
     },
   });
 

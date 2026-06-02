@@ -24,7 +24,7 @@ export async function GET() {
     await requireOrgAccess({
       userId: session.user.id,
       organizationId,
-      minimumRole: "PROPERTY_MANAGER",
+      minimumRole: "MEMBER",
     });
   } catch {
     return NextResponse.redirect(new URL("/email?error=forbidden", getAppBaseUrl()));

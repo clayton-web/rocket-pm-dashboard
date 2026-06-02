@@ -1,4 +1,4 @@
-import type { OrganizationRole } from "@prisma/client";
+import type { OrganizationMembershipRole } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 
 export type OrgAccessOptions = {
@@ -8,18 +8,19 @@ export type OrgAccessOptions = {
    * Minimum role required within the organization.
    * PLATFORM operators (Rocket Logic) pass through when platformAccessLevel is OPERATOR.
    */
-  minimumRole?: OrganizationRole;
+  minimumRole?: OrganizationMembershipRole;
 };
 
-const roleRank: Record<OrganizationRole, number> = {
-  PROPERTY_MANAGER: 0,
-  ORG_ADMIN: 1,
+const roleRank: Record<OrganizationMembershipRole, number> = {
+  MEMBER: 0,
+  ADMIN: 1,
+  OWNER: 2,
 };
 
 export async function requireOrgAccess({
   userId,
   organizationId,
-  minimumRole = "PROPERTY_MANAGER",
+  minimumRole = "MEMBER",
 }: OrgAccessOptions) {
   const membership = await prisma.organizationMembership.findFirst({
     where: { userId, organizationId },
@@ -44,6 +45,6 @@ export async function requireOrgAccess({
   throw new Error("Forbidden");
 }
 
-export function isOrgAdmin(role: OrganizationRole) {
-  return role === "ORG_ADMIN";
+export function isOrgAdmin(role: OrganizationMembershipRole) {
+  return role === "ADMIN" || role === "OWNER";
 }

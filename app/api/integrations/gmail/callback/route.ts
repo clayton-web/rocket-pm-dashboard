@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     await requireOrgAccess({
       userId: session.user.id,
       organizationId: state.organizationId,
-      minimumRole: "PROPERTY_MANAGER",
+      minimumRole: "MEMBER",
     });
   } catch {
     return redirectToEmail({ error: "forbidden" });

@@ -24,7 +24,7 @@ export type NavItem = {
   /** When false, item is omitted from the sidebar (stub for upcoming work). */
   enabled: boolean;
   section: "command" | "operations" | "growth" | "system";
-  minimumRole?: "PROPERTY_MANAGER" | "ORG_ADMIN";
+  minimumRole?: "MEMBER" | "ADMIN";
   /** Reserved for Rocket Logic tooling routes */
   platformOnly?: boolean;
 };
@@ -37,7 +37,7 @@ export const navigationItems: NavItem[] = [
     href: "/inbox",
     enabled: true,
     section: "command",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-email",
@@ -46,7 +46,7 @@ export const navigationItems: NavItem[] = [
     href: "/email",
     enabled: true,
     section: "command",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-ai-responder",
@@ -55,7 +55,7 @@ export const navigationItems: NavItem[] = [
     href: "/responder",
     enabled: true,
     section: "command",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-inspections",
@@ -64,7 +64,7 @@ export const navigationItems: NavItem[] = [
     href: "/modules/inspections",
     enabled: false,
     section: "operations",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-maintenance",
@@ -73,7 +73,7 @@ export const navigationItems: NavItem[] = [
     href: "/modules/maintenance",
     enabled: false,
     section: "operations",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-tenant-apps",
@@ -82,7 +82,7 @@ export const navigationItems: NavItem[] = [
     href: "/modules/applications",
     enabled: false,
     section: "operations",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-documents",
@@ -91,7 +91,7 @@ export const navigationItems: NavItem[] = [
     href: "/modules/documents",
     enabled: false,
     section: "operations",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-crm",
@@ -100,7 +100,7 @@ export const navigationItems: NavItem[] = [
     href: "/modules/crm",
     enabled: false,
     section: "growth",
-    minimumRole: "PROPERTY_MANAGER",
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-notifications",
@@ -109,7 +109,7 @@ export const navigationItems: NavItem[] = [
     href: "/modules/notifications",
     enabled: false,
     section: "growth",
-    minimumRole: "ORG_ADMIN",
+    minimumRole: "ADMIN",
   },
   {
     id: "nav-finance",
@@ -118,7 +118,7 @@ export const navigationItems: NavItem[] = [
     href: "/modules/finance",
     enabled: false,
     section: "growth",
-    minimumRole: "ORG_ADMIN",
+    minimumRole: "ADMIN",
   },
   {
     id: "nav-settings",
@@ -127,6 +127,6 @@ export const navigationItems: NavItem[] = [
     href: "/organization",
     enabled: true,
     section: "system",
-    minimumRole: "ORG_ADMIN",
+    minimumRole: "ADMIN",
   },
 ];

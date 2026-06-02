@@ -1,8 +1,8 @@
-import type { OrganizationRole } from "@prisma/client";
+import type { OrganizationMembershipRole } from "@prisma/client";
 import type { NavItem } from "@/config/navigation";
 
 export type EffectivePermissions = {
-  role: OrganizationRole | null;
+  role: OrganizationMembershipRole | null;
   isPlatformOperator: boolean;
 };
 
@@ -16,8 +16,8 @@ export function canSeeNavItem(item: NavItem, perms: EffectivePermissions) {
   if (!perms.role) {
     return false;
   }
-  if (item.minimumRole === "ORG_ADMIN") {
-    return perms.role === "ORG_ADMIN" || perms.isPlatformOperator;
+  if (item.minimumRole === "ADMIN") {
+    return perms.role === "ADMIN" || perms.role === "OWNER" || perms.isPlatformOperator;
   }
   return true;
 }
