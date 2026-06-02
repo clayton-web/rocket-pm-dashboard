@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 import { lookupMaintenanceForTenant } from "@/lib/portal/maintenance-tenant-status";
+import {
+  checkRateLimit,
+  getRequestClientKey,
+  rateLimitedJsonResponse,
+} from "@/lib/security/rate-limit";
+
+const PORTAL_LOOKUP_LIMIT = { windowMs: 60_000, max: 15 } as const;
 
 /** Public POST — maintenance status by reference id + email (no list endpoint). */
 export async function POST(request: Request) {
+  const rateKey = getRequestClientKey(request, "POST:/api/portal/maintenance/lookup");
+  const limited = checkRateLimit(rateKey, PORTAL_LOOKUP_LIMIT);
+  if (!limited.ok) {
+    return rateLimitedJsonResponse(limited.retryAfterSec);
+  }
+
   try {
     const body: unknown = await request.json();
     if (typeof body !== "object" || body === null) {

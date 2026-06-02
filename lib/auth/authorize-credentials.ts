@@ -1,5 +1,6 @@
 import prisma from "@/lib/db/prisma";
 import { verifyPassword } from "@/lib/auth/password";
+import { isDevCredentialsLoginEnabled } from "@/lib/runtime/production-guards";
 
 export type CredentialsAuthorizeInput = Partial<Record<"email" | "password", unknown>>;
 
@@ -13,7 +14,7 @@ export type AuthorizedStaffUser = {
 /**
  * NextAuth Credentials `authorize` implementation.
  * - Users with `passwordHash`: require correct password (works with or without dev flag).
- * - Users without `passwordHash`: email-only when `DEV_CREDENTIALS_LOGIN=true` and password omitted.
+ * - Users without `passwordHash`: email-only when dev login is enabled (never in production).
  * - `isActive=false` always rejects.
  */
 export async function authorizeStaffCredentials(
@@ -41,7 +42,7 @@ export async function authorizeStaffCredentials(
     };
   }
 
-  if (process.env.DEV_CREDENTIALS_LOGIN === "true" && !password) {
+  if (isDevCredentialsLoginEnabled() && !password) {
     return {
       id: user.id,
       email: user.email,

@@ -2,6 +2,12 @@ import "dotenv/config";
 import { Prisma, PrismaClient, type RoleKey } from "@prisma/client";
 import { hashPassword } from "../lib/auth/password";
 
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+  throw new Error(
+    "Refusing to run db:seed in production. Seeds use dev passwords and demo data — run locally or set ALLOW_PRODUCTION_SEED=true for intentional staging resets only.",
+  );
+}
+
 const prisma = new PrismaClient();
 
 const ROLE_SEEDS: { key: RoleKey; name: string }[] = [

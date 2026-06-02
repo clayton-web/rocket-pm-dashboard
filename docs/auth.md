@@ -17,7 +17,7 @@
 3. Rules:
    - User must exist and `isActive === true`.
    - If `passwordHash` is set: password must verify (scrypt, `lib/auth/password.ts`). Works in all environments.
-   - If `passwordHash` is null: sign-in allowed **only** when `DEV_CREDENTIALS_LOGIN=true` **and** password field is empty (legacy dev email-only).
+   - If `passwordHash` is null: sign-in allowed **only** in non-production when dev login is enabled and password field is empty (legacy dev email-only).
 4. JWT session stores `user.id` (`token.sub`).
 
 ## Google OAuth (optional)
@@ -64,7 +64,9 @@ After `npm run db:seed`:
 | `admin@axford.test` | `ADMIN` | `AxfordDev123!` (default) |
 | `pm@axford.test` | `MEMBER` | same |
 
-Override hash input with `SEED_STAFF_PASSWORD` when seeding.
+Override hash input with `SEED_STAFF_PASSWORD` when seeding (**local development only**).
+
+`npm run db:seed` refuses to run when `NODE_ENV=production` unless `ALLOW_PRODUCTION_SEED=true` (staging resets only).
 
 `operator@rocket-logic.test` has no password hash (platform operator; use dev email-only locally if needed).
 
@@ -76,8 +78,14 @@ Override hash input with `SEED_STAFF_PASSWORD` when seeding.
 | `NEXTAUTH_URL` / `AUTH_URL` | OAuth redirects |
 | `DEV_CREDENTIALS_LOGIN` | Server: allow email-only for users without `passwordHash` |
 | `NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN` | Client: show dev login hints |
-| `SEED_STAFF_PASSWORD` | Optional seed password for admin/pm hashes |
+| `SEED_STAFF_PASSWORD` | Optional seed password for admin/pm hashes (**local seed only**) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Optional staff Google sign-in |
+
+## Production guards
+
+- `DEV_CREDENTIALS_LOGIN` and `NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN` must be `false` in production (server boot fails if dev flags are `true`).
+- `isDevCredentialsLoginEnabled()` ignores dev login when `NODE_ENV=production` even if env is mis-set at authorize time.
+- See [deployment checklist](./deployment-checklist.md).
 
 ## Gmail / AI (unchanged)
 

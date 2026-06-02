@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireStaffMaintenanceContext } from "@/lib/maintenance/authorization";
 import {
+  checkRateLimit,
+  getRequestClientKey,
+  rateLimitedJsonResponse,
+} from "@/lib/security/rate-limit";
+import {
   createMaintenanceFromPublicIntake,
   listMaintenanceForStaff,
 } from "@/lib/maintenance/maintenance.service";
@@ -22,8 +27,16 @@ export async function GET() {
   }
 }
 
+const PUBLIC_MAINTENANCE_POST_LIMIT = { windowMs: 60_000, max: 8 } as const;
+
 /** Public tenant intake — validates tenancy; does not trust client property/unit ids. */
 export async function POST(request: Request) {
+  const rateKey = getRequestClientKey(request, "POST:/api/maintenance");
+  const limited = checkRateLimit(rateKey, PUBLIC_MAINTENANCE_POST_LIMIT);
+  if (!limited.ok) {
+    return rateLimitedJsonResponse(limited.retryAfterSec);
+  }
+
   try {
     const raw: unknown = await request.json();
     const parsed = parsePostMaintenanceBody(raw);

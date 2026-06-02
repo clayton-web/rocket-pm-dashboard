@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { isProductionRuntime } from "@/lib/runtime/production-guards";
 
 const PREFIX_V1 = "v1";
 const PREFIX_DEV_PLAIN = "dev-plain:";
@@ -7,8 +8,10 @@ function deriveKeyMaterial(secret: string): Buffer {
   return createHash("sha256").update(secret, "utf8").digest();
 }
 
-function isProduction(): boolean {
-  return process.env.NODE_ENV === "production";
+function assertNoInsecureGmailStorageInProduction(): void {
+  if (isProductionRuntime() && process.env.ALLOW_INSECURE_GMAIL_TOKEN_STORAGE === "true") {
+    throw new Error("ALLOW_INSECURE_GMAIL_TOKEN_STORAGE must not be enabled in production.");
+  }
 }
 
 export function isTokenVaultConfigured(): boolean {
@@ -16,10 +19,11 @@ export function isTokenVaultConfigured(): boolean {
 }
 
 export function assertTokenVaultReadyForConnect(): void {
+  assertNoInsecureGmailStorageInProduction();
   if (isTokenVaultConfigured()) {
     return;
   }
-  if (isProduction()) {
+  if (isProductionRuntime()) {
     throw new Error("GMAIL_TOKEN_ENCRYPTION_KEY is required in production to store Gmail tokens.");
   }
   if (process.env.ALLOW_INSECURE_GMAIL_TOKEN_STORAGE !== "true") {
@@ -30,8 +34,9 @@ export function assertTokenVaultReadyForConnect(): void {
 }
 
 export function encryptSecret(plaintext: string): string {
+  assertNoInsecureGmailStorageInProduction();
   if (!isTokenVaultConfigured()) {
-    if (isProduction()) {
+    if (isProductionRuntime()) {
       throw new Error("GMAIL_TOKEN_ENCRYPTION_KEY is required in production.");
     }
     if (process.env.ALLOW_INSECURE_GMAIL_TOKEN_STORAGE === "true") {
@@ -50,7 +55,7 @@ export function encryptSecret(plaintext: string): string {
 
 export function decryptSecret(payload: string): string {
   if (payload.startsWith(PREFIX_DEV_PLAIN)) {
-    if (isProduction()) {
+    if (isProductionRuntime()) {
       throw new Error("Refusing to read insecure dev token storage in production.");
     }
     const b64 = payload.slice(PREFIX_DEV_PLAIN.length);

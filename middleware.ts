@@ -17,11 +17,12 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const isLogin = pathname.startsWith("/login");
   const isAuthApi = pathname.startsWith("/api/auth");
+  const isHealth = pathname === "/api/health";
   const isPortal = pathname.startsWith("/portal");
   const isPublicMaintenance = isPublicMaintenanceApi(req);
   const isPublicPortalApiRoute = isPublicPortalApi(pathname);
 
-  if (isAuthApi || isPortal || isPublicMaintenance || isPublicPortalApiRoute) {
+  if (isAuthApi || isHealth || isPortal || isPublicMaintenance || isPublicPortalApiRoute) {
     return NextResponse.next();
   }
 
