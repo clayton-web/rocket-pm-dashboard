@@ -1,5 +1,10 @@
 import type { AiKnowledgeSource } from "@prisma/client";
 import type { IntegrationResult, RemoteEntityRef } from "@/lib/integrations/types";
+import {
+  partitionContextLinks,
+  type EmailThreadContextLink,
+} from "@/lib/ai/email-context-links";
+import { loadPmContextSnippets, type PmContextSnippet } from "@/lib/ai/load-pm-context";
 import { maintenanceClient } from "@/lib/integrations/maintenance/client";
 import { rocketCoreClient } from "@/lib/integrations/rocket-core/client";
 import { rocketInspectionsClient } from "@/lib/integrations/rocket-inspections/client";
@@ -22,7 +27,7 @@ export type ResponderThreadSnapshot = {
   threadId: string;
   subject: string | null;
   messages: ThreadMessageSnapshot[];
-  contextLinks: RemoteEntityRef[] | null;
+  contextLinks: EmailThreadContextLink[] | null;
 };
 
 export type KnowledgeChunk = Pick<AiKnowledgeSource, "id" | "type" | "title" | "content">;
@@ -39,6 +44,8 @@ export type ResponderContext = {
   styleExamples: StyleExampleChunk[];
   approvedDrafts: ApprovedDraftChunk[];
   integrationSnippets: IntegrationSnippet[];
+  /** Linked Prisma PM records (explicit contextLinks only). */
+  pmContextSnippets: PmContextSnippet[];
   promptVersion: string;
 };
 
@@ -50,7 +57,7 @@ export type BuildResponderContextInput = {
   approvedDrafts: ApprovedDraftChunk[];
 };
 
-const PROMPT_VERSION = "responder-context-v1";
+const PROMPT_VERSION = "responder-context-v2";
 
 async function collectIntegrationSnippets(
   organizationId: string,
@@ -105,10 +112,11 @@ async function collectIntegrationSnippets(
  * Single entry point for assembling AI responder context (email + DB retrieval + integrations).
  */
 export async function buildResponderContext(input: BuildResponderContextInput): Promise<ResponderContext> {
-  const integrationSnippets = await collectIntegrationSnippets(
-    input.thread.organizationId,
-    input.thread.contextLinks,
-  );
+  const { pmLinks, remoteLinks } = partitionContextLinks(input.thread.contextLinks);
+  const [integrationSnippets, pmContextSnippets] = await Promise.all([
+    collectIntegrationSnippets(input.thread.organizationId, remoteLinks),
+    loadPmContextSnippets(input.thread.organizationId, pmLinks),
+  ]);
 
   return {
     thread: input.thread,
@@ -117,6 +125,7 @@ export async function buildResponderContext(input: BuildResponderContextInput): 
     styleExamples: input.styleExamples,
     approvedDrafts: input.approvedDrafts,
     integrationSnippets,
+    pmContextSnippets,
     promptVersion: PROMPT_VERSION,
   };
 }

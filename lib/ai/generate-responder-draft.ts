@@ -27,7 +27,7 @@ export type ResponderClassification = {
 
 export type ResponderCitations = {
   retrieval: Array<{
-    kind: "rule" | "knowledge" | "style" | "prior_draft" | "integration";
+    kind: "rule" | "knowledge" | "style" | "prior_draft" | "integration" | "pm_context";
     id: string;
     title: string;
   }>;
@@ -73,9 +73,18 @@ function formatContextForPrompt(ctx: ResponderContext): string {
   }
 
   if (ctx.integrationSnippets.length) {
-    lines.push("\n## Related Rocket context");
+    lines.push("\n## Related Rocket context (integrations)");
     for (const s of ctx.integrationSnippets) {
       lines.push(`- [${s.source}] ${s.label}: ${s.text}`);
+    }
+  }
+
+  if (ctx.pmContextSnippets.length) {
+    lines.push(
+      "\n## Internal property management context (linked records only — do not infer unrelated tenants or properties)",
+    );
+    for (const s of ctx.pmContextSnippets) {
+      lines.push(`- [${s.kind}] ${s.label}: ${s.text}`);
     }
   }
 
@@ -101,6 +110,13 @@ function buildCitations(ctx: ResponderContext, modelNotes: string[]): ResponderC
     retrieval.push({
       kind: "integration",
       id: `${s.source}-${s.label}`,
+      title: s.label,
+    });
+  }
+  for (const s of ctx.pmContextSnippets) {
+    retrieval.push({
+      kind: "pm_context",
+      id: `${s.kind}-${s.id}`,
       title: s.label,
     });
   }

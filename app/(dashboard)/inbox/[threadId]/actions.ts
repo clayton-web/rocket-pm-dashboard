@@ -4,10 +4,28 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { generateAndPersistResponderDraft } from "@/lib/ai/generate-responder-draft";
+import {
+  parseEmailThreadContextLinks,
+  PM_CONTEXT_SOURCE,
+  serializeEmailThreadContextLinks,
+  type PmContextKind,
+} from "@/lib/ai/email-context-links";
+import { loadPmContextSnippets } from "@/lib/ai/load-pm-context";
 import { createThreadReplyGmailDraft } from "@/lib/gmail/create-thread-reply-gmail-draft";
 import { isGmailAuthError } from "@/lib/gmail/gmail-errors";
 import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
+
+const PM_KINDS = new Set<PmContextKind>([
+  "property",
+  "unit",
+  "tenancy",
+  "tenancy_contact",
+  "maintenance_request",
+  "application",
+  "notice",
+  "document",
+]);
 
 export type GenerateState = {
   error: string | null;
@@ -207,4 +225,99 @@ export async function loadAiDraftToGmailAction(
     successMessage: "Draft loaded to Gmail. Review and send from Gmail.",
     completedAt,
   };
+}
+
+async function getThreadForContextLinks(threadId: string, userId: string) {
+  const active = await getActiveOrganizationContext();
+  if (!active) return { error: "Choose an active organization." as const, thread: null };
+
+  const thread = await prisma.emailThread.findFirst({
+    where: { id: threadId, organizationId: active.id },
+    include: {
+      connectedAccount: {
+        select: { id: true, email: true, userId: true, organizationId: true },
+      },
+    },
+  });
+  if (!thread) return { error: "Thread not found." as const, thread: null };
+
+  try {
+    await assertCanUseMailbox({
+      userId,
+      organizationId: active.id,
+      activeRole: active.role,
+      account: thread.connectedAccount,
+    });
+  } catch {
+    return { error: "You cannot edit links for this mailbox." as const, thread: null };
+  }
+
+  return { error: null, thread, organizationId: active.id };
+}
+
+export async function addThreadPmContextLinkAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) return;
+
+  const threadId = formData.get("threadId");
+  const kind = formData.get("kind");
+  const entityId = formData.get("entityId");
+  if (typeof threadId !== "string" || typeof kind !== "string" || typeof entityId !== "string") {
+    return;
+  }
+  if (!PM_KINDS.has(kind as PmContextKind) || entityId.trim() === "") return;
+
+  const pmKind = kind as PmContextKind;
+  const { error, thread, organizationId } = await getThreadForContextLinks(threadId, session.user.id);
+  if (error || !thread || !organizationId) return;
+
+  const link = { source: PM_CONTEXT_SOURCE, kind: pmKind, id: entityId.trim() } as const;
+  const snippets = await loadPmContextSnippets(organizationId, [link]);
+  if (!snippets.length) return;
+
+  const existing = parseEmailThreadContextLinks(thread.contextLinks);
+  const merged = [...existing];
+  if (!merged.some((l) => "source" in l && l.source === PM_CONTEXT_SOURCE && l.kind === link.kind && l.id === link.id)) {
+    merged.push(link);
+  }
+
+  await prisma.emailThread.update({
+    where: { id: thread.id },
+    data: { contextLinks: serializeEmailThreadContextLinks(merged) },
+  });
+
+  revalidatePath(`/inbox/${threadId}`);
+}
+
+export async function removeThreadPmContextLinkAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) return;
+
+  const threadId = formData.get("threadId");
+  const kind = formData.get("kind");
+  const entityId = formData.get("entityId");
+  if (typeof threadId !== "string" || typeof kind !== "string" || typeof entityId !== "string") {
+    return;
+  }
+
+  const { error, thread } = await getThreadForContextLinks(threadId, session.user.id);
+  if (error || !thread) return;
+
+  const existing = parseEmailThreadContextLinks(thread.contextLinks);
+  const filtered = existing.filter(
+    (l) =>
+      !(
+        "source" in l &&
+        l.source === PM_CONTEXT_SOURCE &&
+        l.kind === kind &&
+        l.id === entityId.trim()
+      ),
+  );
+
+  await prisma.emailThread.update({
+    where: { id: thread.id },
+    data: { contextLinks: serializeEmailThreadContextLinks(filtered) },
+  });
+
+  revalidatePath(`/inbox/${threadId}`);
 }

@@ -1,5 +1,5 @@
 import type { EmailMessage, EmailThread } from "@prisma/client";
-import type { RemoteEntityRef } from "@/lib/integrations/types";
+import { parseEmailThreadContextLinks } from "@/lib/ai/email-context-links";
 import { buildResponderContext, type ResponderThreadSnapshot } from "@/lib/ai/context-builder";
 import {
   loadResponderRetrieval,
@@ -14,10 +14,7 @@ export type ThreadWithMessages = EmailThread & {
 };
 
 export function emailThreadToSnapshot(thread: ThreadWithMessages): ResponderThreadSnapshot {
-  let contextLinks: RemoteEntityRef[] | null = null;
-  if (thread.contextLinks != null && Array.isArray(thread.contextLinks)) {
-    contextLinks = thread.contextLinks as RemoteEntityRef[];
-  }
+  const contextLinks = parseEmailThreadContextLinks(thread.contextLinks);
 
   return {
     organizationId: thread.organizationId,
@@ -30,7 +27,7 @@ export function emailThreadToSnapshot(thread: ThreadWithMessages): ResponderThre
       bodyText: m.bodyText,
       isOutbound: m.isOutbound,
     })),
-    contextLinks,
+    contextLinks: contextLinks.length ? contextLinks : null,
   };
 }
 

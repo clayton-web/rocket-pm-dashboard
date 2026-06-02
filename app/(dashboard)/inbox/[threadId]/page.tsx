@@ -5,6 +5,8 @@ import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
 import { ThreadMessages } from "@/components/inbox/thread-messages";
 import { ResponderPanel } from "@/components/inbox/responder-panel";
+import { ThreadContextLinksPanel } from "@/components/inbox/thread-context-links-panel";
+import { loadThreadContextLinkOptions } from "@/lib/ai/thread-context-link-options";
 
 type PageProps = {
   params: Promise<{ threadId: string }>;
@@ -79,12 +81,20 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
   });
 
   const geminiConfigured = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const linkOptions = await loadThreadContextLinkOptions(active.id);
 
   return (
     <div className="mx-auto max-w-6xl">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
         <ThreadMessages thread={thread} mailboxQuery={mailboxQuery} />
-        <ResponderPanel threadId={thread.id} draft={latestDraft} geminiConfigured={geminiConfigured} />
+        <div className="flex flex-col gap-4">
+          <ThreadContextLinksPanel
+            threadId={thread.id}
+            contextLinksJson={thread.contextLinks}
+            options={linkOptions}
+          />
+          <ResponderPanel threadId={thread.id} draft={latestDraft} geminiConfigured={geminiConfigured} />
+        </div>
       </div>
     </div>
   );
