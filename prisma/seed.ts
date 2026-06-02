@@ -188,7 +188,7 @@ async function seedAxfordLeasingTenancy(args: {
             email: SEED_TENANT_EMAIL,
             phone: "604-555-0103",
             contactType: "tenant",
-            portalAccessEnabled: false,
+            portalAccessEnabled: true,
           },
         },
       },
@@ -566,6 +566,11 @@ async function main() {
     propertyId,
     unitId,
     assignedPmUserId: pm.id,
+  });
+
+  await prisma.tenancyContact.updateMany({
+    where: { email: SEED_TENANT_EMAIL },
+    data: { portalAccessEnabled: true },
   });
 
   const seededAi = await prisma.aiResponderRule.count({

@@ -1,4 +1,5 @@
 import { PortalPageHeader, SURFACE_CARD } from "@/components/portal/ui";
+import { getVerifiedTenantSession } from "@/lib/portal/tenant-auth";
 import Link from "next/link";
 
 const links = [
@@ -17,9 +18,16 @@ const links = [
     title: "Lease & documents",
     description: "View signed leases and shared files (coming soon).",
   },
+  {
+    href: "/portal/login",
+    title: "Sign in to your portal",
+    description: "For tenants with portal access enabled on their contact record.",
+  },
 ] as const;
 
-export default function TenantPortalHomePage() {
+export default async function TenantPortalHomePage() {
+  const session = await getVerifiedTenantSession();
+
   return (
     <div className="pb-14 pt-1">
       <PortalPageHeader
@@ -28,8 +36,24 @@ export default function TenantPortalHomePage() {
         description="Self-service for maintenance and documents. You do not need a staff login to use these pages."
       />
 
+      {session ? (
+        <p className={`${SURFACE_CARD} mb-6 px-4 py-3 text-sm text-neutral-700`}>
+          Signed in as <span className="font-medium text-neutral-900">{session.email}</span>.{" "}
+          <Link href="/portal/dashboard" className="font-medium underline">
+            Open dashboard
+          </Link>{" "}
+          or{" "}
+          <Link href="/portal/logout" className="font-medium underline">
+            sign out
+          </Link>
+          .
+        </p>
+      ) : null}
+
       <ul className="mt-8 flex list-none flex-col gap-3 p-0">
-        {links.map((item) => (
+        {links
+          .filter((item) => !(session && item.href === "/portal/login"))
+          .map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}

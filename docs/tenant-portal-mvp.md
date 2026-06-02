@@ -49,19 +49,23 @@ Deferred until tenant auth:
 - `/portal/documents` shows “coming soon” only.
 - `Document.storageKey` is never exposed on public routes.
 
-## Deferred (future tenant auth)
+## Tenant auth (Product PR 2)
 
-- NextAuth (or magic link) for `TenancyContact` / tenant role
+- Email + one-time code for contacts with `portalAccessEnabled` — see [tenant-auth-mvp.md](./tenant-auth-mvp.md)
+- Routes: `/portal/login`, `/portal/dashboard`, `/portal/logout`
+- Public intake and reference lookup **unchanged**
+
+## Still deferred
+
 - Signed-in document list filtered by tenancy
 - Maintenance history for logged-in tenant without re-entering reference
-- Rate limiting / CAPTCHA on public lookup
 - `tenantVisibleNote` on `MaintenanceRequest` for PM → tenant messages
 
 ## Staff vs tenant
 
 | Area | Staff (`/maintenance`, `/inbox`) | Tenant (`/portal`) |
 |------|----------------------------------|---------------------|
-| Auth | NextAuth required | None (lookup gated by email) |
+| Auth | NextAuth required | Optional tenant session; public intake/lookup unchanged |
 | Maintenance | Full queue + workflow | Submit + limited status |
 | Documents | Future staff UI | Placeholder |
 
