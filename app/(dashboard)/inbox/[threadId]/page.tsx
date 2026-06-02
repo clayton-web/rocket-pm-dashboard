@@ -78,13 +78,13 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
     },
   });
 
-  const openAiConfigured = Boolean(process.env.OPENAI_API_KEY?.trim());
+  const geminiConfigured = Boolean(process.env.GEMINI_API_KEY?.trim());
 
   return (
     <div className="mx-auto max-w-6xl">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
         <ThreadMessages thread={thread} mailboxQuery={mailboxQuery} />
-        <ResponderPanel threadId={thread.id} draft={latestDraft} openAiConfigured={openAiConfigured} />
+        <ResponderPanel threadId={thread.id} draft={latestDraft} geminiConfigured={geminiConfigured} />
       </div>
     </div>
   );

@@ -1,7 +1,11 @@
 import { getAppBaseUrl } from "@/lib/gmail/app-base-url";
 
+// Required by `users.drafts.create`; `gmail.send` alone is not sufficient.
+export const GMAIL_COMPOSE_SCOPE = "https://www.googleapis.com/auth/gmail.compose";
+
 export const GMAIL_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
+  GMAIL_COMPOSE_SCOPE,
   "https://www.googleapis.com/auth/gmail.send",
 ] as const;
 

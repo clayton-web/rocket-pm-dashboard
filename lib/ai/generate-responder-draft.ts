@@ -4,7 +4,11 @@ import {
   type ThreadWithMessages,
 } from "@/lib/ai/assemble-responder-context";
 import { mergeSensitivityFlags, scanTextForSensitivity, shouldForceReview } from "@/lib/ai/bc-safety";
-import { createChatJsonCompletion } from "@/lib/ai/openai-client";
+import {
+  assertGeminiApiKeyConfigured,
+  createChatJsonCompletion,
+  getGeminiResponderModel,
+} from "@/lib/ai/gemini-client";
 import type { ResponderContext } from "@/lib/ai/context-builder";
 import type { Prisma } from "@prisma/client";
 
@@ -162,6 +166,8 @@ export async function generateAndPersistResponderDraft(args: {
   thread: ThreadWithMessages;
   userId: string;
 }): Promise<{ draftId: string }> {
+  assertGeminiApiKeyConfigured();
+
   const context = await assembleResponderContextForThread({
     thread: args.thread,
     userId: args.userId,
@@ -219,7 +225,7 @@ export async function generateAndPersistResponderDraft(args: {
         organizationId: args.thread.organizationId,
         threadId: args.thread.id,
         createdByUserId: args.userId,
-        model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+        model: getGeminiResponderModel(),
         promptVersion: GENERATION_PROMPT_VERSION,
         status: "DRAFT",
         draftText: parsed.draft_reply,

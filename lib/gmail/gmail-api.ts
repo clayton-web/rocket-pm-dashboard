@@ -76,3 +76,76 @@ export async function getThreadFull(accessToken: string, threadId: string) {
 
   return (await response.json()) as GmailThreadResource;
 }
+
+export function getHeaderValue(
+  headers: { name: string; value: string }[] | undefined,
+  name: string,
+): string | null {
+  if (!headers) return null;
+  const found = headers.find((h) => h.name.toLowerCase() === name.toLowerCase());
+  const v = found?.value?.trim();
+  return v || null;
+}
+
+export async function getMessageMetadata(accessToken: string, providerMessageId: string): Promise<GmailMessageResource> {
+  const params = new URLSearchParams();
+  params.set("format", "metadata");
+  params.append("metadataHeaders", "Message-ID");
+
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(
+    providerMessageId,
+  )}?${params.toString()}`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+
+  assertOk(response);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`messages.get failed (${response.status}): ${text}`);
+  }
+
+  return (await response.json()) as GmailMessageResource;
+}
+
+export async function createGmailDraft(args: {
+  accessToken: string;
+  gmailThreadId: string;
+  rawRfc822: string;
+}): Promise<{ id: string }> {
+  const url = "https://gmail.googleapis.com/gmail/v1/users/me/drafts";
+  const raw = Buffer.from(args.rawRfc822, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      message: {
+        threadId: args.gmailThreadId,
+        raw,
+      },
+    }),
+    cache: "no-store",
+  });
+
+  assertOk(response);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`drafts.create failed (${response.status}): ${text}`);
+  }
+
+  const body = (await response.json()) as { id?: string };
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!id) {
+    throw new Error("drafts.create succeeded but draft id missing.");
+  }
+  return { id };
+}

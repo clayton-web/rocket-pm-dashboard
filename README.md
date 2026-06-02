@@ -16,7 +16,7 @@ An inbox and AI-assisted responder dashboard for property management operations 
 - Next.js (App Router)
 - Prisma + PostgreSQL
 - Gmail API
-- OpenAI
+- Google Gemini API (`@google/genai`)
 
 ## Setup
 
@@ -24,12 +24,12 @@ An inbox and AI-assisted responder dashboard for property management operations 
 
 2. Set the required environment variables:
 
-   - `DATABASE_URL`
+   - `DATABASE_URL` and `DIRECT_URL` (see `.env.example`; `DIRECT_URL` is required by Prisma for migrations)
    - `NEXTAUTH_SECRET` or `AUTH_SECRET`
    - `NEXTAUTH_URL` or `AUTH_URL`
-   - `OPENAI_API_KEY`
+   - `GEMINI_API_KEY` (optional: `GEMINI_MODEL`)
 
-   Gmail OAuth, token encryption, and other options are documented in `.env.example`.
+   Gmail OAuth, token encryption, and other options are documented in `.env.example`. Path A merge planning: `docs/schema-merge-plan.md`.
 
 3. Install dependencies and prepare the database:
 

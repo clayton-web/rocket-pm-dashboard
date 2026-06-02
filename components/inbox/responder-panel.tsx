@@ -3,10 +3,20 @@
 import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { AiDraftResponse } from "@prisma/client";
-import { generateAiDraftAction, type GenerateState } from "@/app/(dashboard)/inbox/[threadId]/actions";
+import {
+  generateAiDraftAction,
+  loadAiDraftToGmailAction,
+  type GenerateState,
+  type LoadGmailDraftState,
+} from "@/app/(dashboard)/inbox/[threadId]/actions";
 import type { ResponderClassification, ResponderCitations } from "@/lib/ai/generate-responder-draft";
 
-const initialState: GenerateState = { error: null, completedAt: 0 };
+const initialGenerateState: GenerateState = { error: null, completedAt: 0 };
+const initialLoadGmailState: LoadGmailDraftState = {
+  error: null,
+  successMessage: null,
+  completedAt: 0,
+};
 
 function asClassification(raw: unknown): ResponderClassification | null {
   if (!raw || typeof raw !== "object") return null;
@@ -26,11 +36,15 @@ export function ResponderPanel(props: {
     AiDraftResponse,
     "id" | "draftText" | "classification" | "citations" | "model" | "promptVersion" | "createdAt"
   > | null;
-  openAiConfigured: boolean;
+  geminiConfigured: boolean;
 }) {
-  const { threadId, draft, openAiConfigured } = props;
+  const { threadId, draft, geminiConfigured } = props;
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(generateAiDraftAction, initialState);
+  const [state, formAction, isPending] = useActionState(generateAiDraftAction, initialGenerateState);
+  const [loadState, loadGmailAction, loadPending] = useActionState(
+    loadAiDraftToGmailAction,
+    initialLoadGmailState,
+  );
   const lastCompleted = useRef(0);
 
   useEffect(() => {
@@ -50,9 +64,10 @@ export function ResponderPanel(props: {
         <p className="text-xs text-neutral-500">Draft assist only. Sending email is not enabled.</p>
       </div>
 
-      {!openAiConfigured ? (
+      {!geminiConfigured ? (
         <p className="text-xs text-amber-900">
-          Set <code className="rounded bg-amber-50 px-1">OPENAI_API_KEY</code> to generate drafts.
+          Set <code className="rounded bg-amber-50 px-1">GEMINI_API_KEY</code>{" "}
+          (optional: <code className="rounded bg-amber-50 px-1">GEMINI_MODEL</code>) to generate drafts.
         </p>
       ) : null}
 
@@ -60,7 +75,7 @@ export function ResponderPanel(props: {
         <input type="hidden" name="threadId" value={threadId} />
         <button
           type="submit"
-          disabled={!openAiConfigured || isPending}
+          disabled={!geminiConfigured || isPending}
           className="w-full rounded-md bg-neutral-900 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Generating…" : "Generate draft"}
@@ -120,6 +135,27 @@ export function ResponderPanel(props: {
             <div className="mt-1 whitespace-pre-wrap rounded-md border border-neutral-100 bg-neutral-50 p-2 text-sm text-neutral-900">
               {draft.draftText}
             </div>
+            <form action={loadGmailAction} className="mt-2">
+              <input type="hidden" name="threadId" value={threadId} />
+              <input type="hidden" name="draftId" value={draft.id} />
+              <button
+                type="submit"
+                disabled={loadPending}
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-900 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadPending ? "Saving to Gmail…" : "Load to Gmail Drafts"}
+              </button>
+            </form>
+            {loadState.error ? (
+              <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+                {loadState.error}
+              </div>
+            ) : null}
+            {loadState.successMessage ? (
+              <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950">
+                {loadState.successMessage}
+              </div>
+            ) : null}
           </section>
 
           {citations?.model_notes?.length ? (
