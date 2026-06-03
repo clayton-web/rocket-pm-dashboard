@@ -10,6 +10,9 @@ Public routes under `/portal/*` bypass staff NextAuth middleware. They are scope
 | `/portal/maintenance/new` | Submit maintenance (existing; PR 11 adds confirmation links) |
 | `/portal/maintenance/status` | Lookup status by reference + email |
 | `/portal/documents` | Placeholder — no public document listing |
+| `/portal/maintenance` | Signed-in list (tenant session; PR 3) |
+| `/portal/maintenance/[requestId]` | Signed-in detail (PR 3) |
+| `/portal/dashboard` | Signed-in home (PR 2/3) |
 
 ## API (public)
 
@@ -55,18 +58,33 @@ Deferred until tenant auth:
 - Routes: `/portal/login`, `/portal/dashboard`, `/portal/logout`
 - Public intake and reference lookup **unchanged**
 
+## Signed-in maintenance (Product PR 3)
+
+Requires tenant session ([tenant-auth-mvp.md](./tenant-auth-mvp.md)).
+
+**Scoping** (`lib/portal/tenant-maintenance.ts`):
+
+- `organizationId` = session `organizationId`
+- AND (`tenancyId` = session `tenancyId` OR `submittedByContactId` = session `contactId`)
+
+**Tenant-safe fields:** `id` (reference), `title`, friendly `statusLabel`, `urgency`, `trade`, `submittedAt`, `scheduledWorkAt`, `completedAt`.
+
+**Hidden:** `description`, `triageSummary`, `guidedMeta`, `accessNotes`, `completionNote`, `assignedVendorName`, `assignedToUserId`, owner approval, invoice fields, property/unit ids, attachments.
+
+Public `/portal/maintenance/status` and `POST /api/portal/maintenance/lookup` remain available.
+
 ## Still deferred
 
 - Signed-in document list filtered by tenancy
-- Maintenance history for logged-in tenant without re-entering reference
-- `tenantVisibleNote` on `MaintenanceRequest` for PM → tenant messages
+- Photo attachments on tenant views
+- Tenant comments / `tenantVisibleNote` on requests
 
 ## Staff vs tenant
 
 | Area | Staff (`/maintenance`, `/inbox`) | Tenant (`/portal`) |
 |------|----------------------------------|---------------------|
 | Auth | NextAuth required | Optional tenant session; public intake/lookup unchanged |
-| Maintenance | Full queue + workflow | Submit + limited status |
+| Maintenance | Full queue + workflow | Submit + public lookup + signed-in list/detail |
 | Documents | Future staff UI | Placeholder |
 
 ## Regression

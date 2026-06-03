@@ -34,7 +34,7 @@ export function isLikelyRequestId(id: string): boolean {
   return t.length >= 20 && t.length <= 30 && /^[a-z0-9]+$/i.test(t);
 }
 
-function toTenantView(row: {
+export function toTenantMaintenanceView(row: {
   id: string;
   title: string;
   status: MaintenanceRequestStatus;
@@ -109,5 +109,18 @@ export async function lookupMaintenanceForTenant(
     return null;
   }
 
-  return toTenantView(request);
+  return toTenantMaintenanceView(request);
 }
+
+const TENANT_MAINTENANCE_SELECT = {
+  id: true,
+  title: true,
+  status: true,
+  urgency: true,
+  trade: true,
+  submittedAt: true,
+  scheduledWorkAt: true,
+  completedAt: true,
+} as const;
+
+export { TENANT_MAINTENANCE_SELECT };

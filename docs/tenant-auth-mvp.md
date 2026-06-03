@@ -38,7 +38,9 @@ Server helpers: `getTenantSession()`, `getVerifiedTenantSession()` in `lib/porta
 |-------|------|---------|
 | `/portal/login` | Public | Email + code UI |
 | `/portal/logout` | Public | Clear session |
-| `/portal/dashboard` | Tenant session | MVP shell (no documents yet) |
+| `/portal/dashboard` | Tenant session | Home — recent maintenance + links |
+| `/portal/maintenance` | Tenant session | List scoped maintenance requests |
+| `/portal/maintenance/[requestId]` | Tenant session | Tenant-safe detail (PR 3) |
 | `POST /api/portal/auth/start` | Public | Issue OTP |
 | `POST /api/portal/auth/verify` | Public | Verify OTP, set cookie |
 
@@ -71,14 +73,15 @@ In-memory limiter (see `docs/deployment-checklist.md`).
 - OTPs are in-memory per process (lost on restart; not multi-instance safe).
 - No real email in production until a mailer is wired (production users need `TENANT_AUTH_DEV_SHOW_CODE=true` on staging or email delivery).
 - One contact per email wins (`findFirst` by `updatedAt`) if duplicates exist.
-- Tenant session does not yet gate maintenance lookup or documents.
+- Signed-in list/detail (PR 3) does not remove public reference lookup.
+- Documents and tenant-visible PM notes remain deferred.
 
 ## Future upgrades
 
 1. Send OTP via transactional email (Resend, SES, etc.) — keep `storePendingOtp` / `verifyPendingOtp` API.
 2. Redis (or DB) OTP store for serverless.
 3. Magic link as alternative to typed code.
-4. Scope maintenance history + documents to `tenancyId` from session.
+4. ~~Scope maintenance history~~ (PR 3) — documents and attachments next.
 5. Optional NextAuth credentials provider linked to `User` + `RoleKey.tenant` (longer term).
 
 ## Environment
