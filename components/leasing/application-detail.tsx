@@ -213,7 +213,15 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
       {hasTenancy ? (
         <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
           <h2 className="text-sm font-semibold text-neutral-900">Tenancy created</h2>
-          <p className="mt-2 font-mono text-xs text-neutral-600">Tenancy · {detail.tenancyId}</p>
+          <p className="mt-2 font-mono text-xs text-neutral-600">
+            Tenancy ·{" "}
+            <Link
+              href={`/leasing/tenancies/${detail.tenancyId}`}
+              className="font-medium underline"
+            >
+              {detail.tenancyId}
+            </Link>
+          </p>
           {detail.tenancyStatus ? (
             <p className="mt-2 text-sm text-neutral-700">
               <span className="text-neutral-500">Status · </span>
