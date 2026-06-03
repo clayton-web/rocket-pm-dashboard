@@ -28,6 +28,8 @@ export type ApplicationStaffDetail = {
   consentCreditCheck: boolean;
   consentSignatureName: string | null;
   consentSignedAt: string | null;
+  tenancyId: string | null;
+  tenancyStatus: string | null;
 };
 
 export function formatApplicationDetailStatus(status: string): string {
@@ -44,13 +46,27 @@ export function isApplicationReviewable(status: string): boolean {
   return status === "submitted" || status === "under_review";
 }
 
+export function formatTenancyStatus(status: string): string {
+  if (status === "pending_move_in") return "Pending move-in";
+  if (status === "active") return "Active";
+  if (status === "notice_received") return "Notice received";
+  if (status === "move_out_scheduled") return "Move-out scheduled";
+  if (status === "ended") return "Ended";
+  if (status === "archived") return "Archived";
+  return status;
+}
+
+export function canConvertApplicationToTenancy(detail: ApplicationStaffDetail): boolean {
+  return detail.status === "approved" && detail.tenancyId == null;
+}
+
 export async function getApplicationDetailForStaff(
   ctx: StaffContext,
   applicationId: string,
 ): Promise<ApplicationStaffDetail> {
   const app = await getApplicationById(prisma, ctx, applicationId);
 
-  const [property, unit] = await Promise.all([
+  const [property, unit, tenancy] = await Promise.all([
     prisma.property.findUnique({
       where: { id: app.propertyId },
       select: { name: true },
@@ -58,6 +74,10 @@ export async function getApplicationDetailForStaff(
     prisma.unit.findUnique({
       where: { id: app.unitId },
       select: { unitNumber: true },
+    }),
+    prisma.tenancy.findUnique({
+      where: { applicationId: app.id },
+      select: { id: true, status: true },
     }),
   ]);
 
@@ -87,5 +107,7 @@ export async function getApplicationDetailForStaff(
     consentCreditCheck: app.consentCreditCheck,
     consentSignatureName: app.consentSignatureName,
     consentSignedAt: app.consentSignedAt?.toISOString() ?? null,
+    tenancyId: tenancy?.id ?? null,
+    tenancyStatus: tenancy?.status ?? null,
   };
 }

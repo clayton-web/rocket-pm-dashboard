@@ -1,6 +1,9 @@
 "use client";
 
-import { setApplicationReviewAction } from "@/app/(dashboard)/leasing/applications/actions";
+import {
+  convertApprovedApplicationAction,
+  setApplicationReviewAction,
+} from "@/app/(dashboard)/leasing/applications/actions";
 import {
   FormField,
   FormSection,
@@ -10,7 +13,9 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import {
+  canConvertApplicationToTenancy,
   formatApplicationDetailStatus,
+  formatTenancyStatus,
   isApplicationReviewable,
   type ApplicationStaffDetail,
 } from "@/lib/leasing/application-staff-detail";
@@ -79,14 +84,46 @@ export function ApplicationDetail({
 
 function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
   const router = useRouter();
+  const moveInDefault = detail.desiredMoveInDate ?? "";
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [convertPending, startConvertTransition] = useTransition();
+  const [leaseStartDate, setLeaseStartDate] = useState(moveInDefault);
+  const [moveInDate, setMoveInDate] = useState(moveInDefault);
+  const [leaseEndDate, setLeaseEndDate] = useState("");
+  const [moveOutDate, setMoveOutDate] = useState("");
+  const [monthlyRent, setMonthlyRent] = useState("");
+  const [securityDeposit, setSecurityDeposit] = useState("0");
+  const [petDeposit, setPetDeposit] = useState("");
 
   const reviewable = isApplicationReviewable(detail.status);
+  const canConvert = canConvertApplicationToTenancy(detail);
+  const hasTenancy = detail.tenancyId != null;
   const displayName = formatName(detail);
   const decided =
     detail.status === "approved" || detail.status === "declined";
+
+  function onConvertSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setActionError(null);
+    startConvertTransition(async () => {
+      const result = await convertApprovedApplicationAction(detail.id, {
+        leaseStartDate,
+        moveInDate,
+        leaseEndDate: leaseEndDate || undefined,
+        moveOutDate: moveOutDate || undefined,
+        monthlyRent,
+        securityDeposit,
+        petDeposit: petDeposit || undefined,
+      });
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   function runReview(status: "under_review" | "approved" | "declined") {
     setActionError(null);
@@ -170,6 +207,128 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
             </PrimaryButton>
           </div>
         </FormSection>
+        </div>
+      ) : null}
+
+      {hasTenancy ? (
+        <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
+          <h2 className="text-sm font-semibold text-neutral-900">Tenancy created</h2>
+          <p className="mt-2 font-mono text-xs text-neutral-600">Tenancy · {detail.tenancyId}</p>
+          {detail.tenancyStatus ? (
+            <p className="mt-2 text-sm text-neutral-700">
+              <span className="text-neutral-500">Status · </span>
+              {formatTenancyStatus(detail.tenancyStatus)}
+            </p>
+          ) : null}
+          <p className="mt-3 text-sm text-neutral-600">
+            A primary tenant contact was created with portal access enabled. The tenant cannot sign in
+            until this tenancy is set to <span className="font-medium">Active</span> (not available in
+            this release).
+          </p>
+        </div>
+      ) : null}
+
+      {canConvert ? (
+        <div className="mb-8">
+          <FormSection legend="Create tenancy">
+            <p className="text-sm text-neutral-600">
+              Creates a tenancy in <span className="font-medium">Pending move-in</span> status and a
+              primary tenant contact with portal access enabled. Tenant login will not work until the
+              tenancy is later set to Active outside this screen.
+            </p>
+            <form className="mt-4 flex flex-col gap-4" onSubmit={onConvertSubmit} noValidate>
+              <FormField label="Lease start date (required)" htmlFor="lease-start">
+                <input
+                  id="lease-start"
+                  type="date"
+                  value={leaseStartDate}
+                  onChange={(e) => setLeaseStartDate(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  required
+                />
+              </FormField>
+              <FormField label="Move-in date (required)" htmlFor="move-in">
+                <input
+                  id="move-in"
+                  type="date"
+                  value={moveInDate}
+                  onChange={(e) => setMoveInDate(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  required
+                />
+              </FormField>
+              <FormField label="Lease end date (optional)" htmlFor="lease-end">
+                <input
+                  id="lease-end"
+                  type="date"
+                  value={leaseEndDate}
+                  onChange={(e) => setLeaseEndDate(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Move-out date (optional)" htmlFor="move-out">
+                <input
+                  id="move-out"
+                  type="date"
+                  value={moveOutDate}
+                  onChange={(e) => setMoveOutDate(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField
+                label="Monthly rent (required)"
+                htmlFor="monthly-rent"
+                helper="Enter the lease rent — not prefilled from applicant income."
+              >
+                <input
+                  id="monthly-rent"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={monthlyRent}
+                  onChange={(e) => setMonthlyRent(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  required
+                />
+              </FormField>
+              <FormField label="Security deposit (required)" htmlFor="security-deposit">
+                <input
+                  id="security-deposit"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={securityDeposit}
+                  onChange={(e) => setSecurityDeposit(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  required
+                />
+              </FormField>
+              {detail.hasPets ? (
+                <FormField label="Pet deposit (optional)" htmlFor="pet-deposit">
+                  <input
+                    id="pet-deposit"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={petDeposit}
+                    onChange={(e) => setPetDeposit(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  />
+                </FormField>
+              ) : null}
+              <div className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-600`}>
+                <p className="font-medium text-neutral-800">Tenant contact (from application)</p>
+                <p className="mt-1">
+                  {detail.firstName} {detail.lastName} · {detail.email}
+                  {detail.phone ? ` · ${detail.phone}` : ""}
+                </p>
+                <p className="mt-2">Role: Tenant · Portal access: Enabled</p>
+              </div>
+              <PrimaryButton type="submit" disabled={convertPending} className="!w-auto px-6">
+                {convertPending ? "Creating…" : "Create tenancy"}
+              </PrimaryButton>
+            </form>
+          </FormSection>
         </div>
       ) : null}
 
