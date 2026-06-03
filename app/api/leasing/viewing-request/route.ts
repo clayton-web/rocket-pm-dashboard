@@ -8,13 +8,16 @@ import {
   getRequestClientKey,
   rateLimitedJsonResponse,
 } from "@/lib/security/rate-limit";
-import { createPublicProspect } from "@/lib/services/prospect.service";
+import {
+  submitPublicViewingRequest,
+  viewingRequestDateFromIso,
+} from "@/lib/services/prospect.service";
 import { NotFoundError } from "@/lib/services/errors";
 import { parsePostViewingRequestBody } from "@/lib/validation/leasing";
 
 const PUBLIC_VIEWING_POST_LIMIT = { windowMs: 60_000, max: 8 } as const;
 
-/** Public viewing request — creates a Prospect only (no Showing/Application). */
+/** Public viewing request — creates or updates a Prospect (no Showing/Application). */
 export async function POST(request: Request) {
   const rateKey = getRequestClientKey(request, "POST:/api/leasing/viewing-request");
   const limited = checkRateLimit(rateKey, PUBLIC_VIEWING_POST_LIMIT);
@@ -31,13 +34,20 @@ export async function POST(request: Request) {
 
     await assertPropertyInPublicPortalOrg(parsed.propertyId);
 
-    const row = await createPublicProspect(prisma, {
+    const row = await submitPublicViewingRequest(prisma, {
       propertyId: parsed.propertyId,
       unitId: parsed.unitId ?? null,
       email: parsed.email,
-      firstName: parsed.firstName ?? null,
-      lastName: parsed.lastName ?? null,
+      firstName: parsed.firstName,
+      lastName: parsed.lastName,
       phone: parsed.phone ?? null,
+      occupantCount: parsed.occupantCount,
+      hasPets: parsed.hasPets,
+      petDetails: parsed.petDetails ?? null,
+      smokerStatus: parsed.smokerStatus,
+      householdIncomeRange: parsed.householdIncomeRange,
+      desiredMoveInDate: viewingRequestDateFromIso(parsed.desiredMoveInDate),
+      preferredViewingNotes: parsed.preferredViewingNotes ?? null,
       message: parsed.message ?? null,
     });
 

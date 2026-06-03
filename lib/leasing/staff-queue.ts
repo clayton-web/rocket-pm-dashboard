@@ -1,4 +1,7 @@
 import prisma from "@/lib/db/prisma";
+import {
+  formatHouseholdIncomeRange,
+} from "@/lib/leasing/prospect-intake";
 import { ForbiddenError } from "@/lib/services/errors";
 import { listPropertiesForUser, listProspectsForProperty } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
@@ -13,6 +16,11 @@ export type ProspectQueueRow = {
   lastName: string | null;
   email: string;
   phone: string | null;
+  occupantCount: number | null;
+  hasPets: boolean;
+  desiredMoveInDate: string | null;
+  householdIncomeRangeLabel: string | null;
+  preferredViewingNotes: string | null;
   messagePreview: string | null;
 };
 
@@ -51,6 +59,13 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
         lastName: p.lastName,
         email: p.email,
         phone: p.phone,
+        occupantCount: p.occupantCount,
+        hasPets: p.hasPets,
+        desiredMoveInDate: p.desiredMoveInDate?.toISOString().slice(0, 10) ?? null,
+        householdIncomeRangeLabel: p.householdIncomeRange
+          ? formatHouseholdIncomeRange(p.householdIncomeRange)
+          : null,
+        preferredViewingNotes: p.preferredViewingNotes,
         messagePreview: p.message,
       });
     }

@@ -132,6 +132,12 @@ async function seedAxfordLeasingTenancy(args: {
         lastName: "Prospect",
         phone: "604-555-0101",
         message: "Interested in a showing for unit 101.",
+        occupantCount: 2,
+        hasPets: false,
+        smokerStatus: "non_smoker",
+        householdIncomeRange: "5000_7499",
+        desiredMoveInDate: new Date("2026-09-01"),
+        preferredViewingNotes: "Weekday afternoons",
         status: "new",
       },
     });

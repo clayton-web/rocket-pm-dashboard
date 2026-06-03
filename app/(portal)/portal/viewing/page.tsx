@@ -9,6 +9,10 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { PortalBackLink } from "@/components/portal/portal-nav";
+import {
+  HOUSEHOLD_INCOME_RANGES,
+  SMOKER_STATUSES,
+} from "@/lib/leasing/prospect-intake";
 import { parseCreatedProspectId } from "@/lib/validation/leasing";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
@@ -19,6 +23,22 @@ type LeasingSubmitOption = {
   units: { unitId: string; unitNumber: string }[];
 };
 
+const INCOME_LABELS: Record<(typeof HOUSEHOLD_INCOME_RANGES)[number], string> = {
+  under_3000: "Under $3,000 / month",
+  "3000_4999": "$3,000 – $4,999",
+  "5000_7499": "$5,000 – $7,499",
+  "7500_9999": "$7,500 – $9,999",
+  "10000_plus": "$10,000+",
+  prefer_not_to_say: "Prefer not to say",
+};
+
+const SMOKER_LABELS: Record<(typeof SMOKER_STATUSES)[number], string> = {
+  non_smoker: "Non-smoker",
+  smoker: "Smoker",
+  occasional: "Occasional smoker",
+  prefer_not_to_say: "Prefer not to say",
+};
+
 export default function ViewingRequestPage() {
   const propertySelectId = useId();
   const unitSelectId = useId();
@@ -26,6 +46,13 @@ export default function ViewingRequestPage() {
   const lastNameId = useId();
   const emailId = useId();
   const phoneId = useId();
+  const occupantCountId = useId();
+  const hasPetsId = useId();
+  const petDetailsId = useId();
+  const smokerStatusId = useId();
+  const incomeRangeId = useId();
+  const moveInId = useId();
+  const preferredViewingId = useId();
   const messageId = useId();
 
   const [options, setOptions] = useState<LeasingSubmitOption[]>([]);
@@ -36,6 +63,13 @@ export default function ViewingRequestPage() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [occupantCount, setOccupantCount] = useState("1");
+  const [hasPets, setHasPets] = useState(false);
+  const [petDetails, setPetDetails] = useState("");
+  const [smokerStatus, setSmokerStatus] = useState("");
+  const [householdIncomeRange, setHouseholdIncomeRange] = useState("");
+  const [desiredMoveInDate, setDesiredMoveInDate] = useState("");
+  const [preferredViewingNotes, setPreferredViewingNotes] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +106,34 @@ export default function ViewingRequestPage() {
         setError("Please select a property.");
         return;
       }
-
+      if (!firstName.trim() || !lastName.trim()) {
+        setError("Please enter your first and last name.");
+        return;
+      }
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
         setError("Please enter your email address.");
+        return;
+      }
+      const occupants = Number(occupantCount);
+      if (!Number.isInteger(occupants) || occupants < 1) {
+        setError("Please enter the number of occupants.");
+        return;
+      }
+      if (!smokerStatus) {
+        setError("Please select your smoking status.");
+        return;
+      }
+      if (!householdIncomeRange) {
+        setError("Please select your household income range.");
+        return;
+      }
+      if (!desiredMoveInDate) {
+        setError("Please enter your desired move-in date.");
+        return;
+      }
+      if (hasPets && !petDetails.trim()) {
+        setError("Please describe your pets.");
         return;
       }
 
@@ -88,9 +146,16 @@ export default function ViewingRequestPage() {
             propertyId: selectedPropertyId,
             unitId: selectedUnitId || undefined,
             email: trimmedEmail,
-            firstName: firstName.trim() || undefined,
-            lastName: lastName.trim() || undefined,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
             phone: phone.trim() || undefined,
+            occupantCount: occupants,
+            hasPets,
+            petDetails: hasPets ? petDetails.trim() : undefined,
+            smokerStatus,
+            householdIncomeRange,
+            desiredMoveInDate,
+            preferredViewingNotes: preferredViewingNotes.trim() || undefined,
             message: message.trim() || undefined,
           }),
         });
@@ -117,7 +182,22 @@ export default function ViewingRequestPage() {
         setLoading(false);
       }
     },
-    [email, firstName, lastName, message, phone, selectedPropertyId, selectedUnitId],
+    [
+      desiredMoveInDate,
+      email,
+      firstName,
+      hasPets,
+      householdIncomeRange,
+      lastName,
+      message,
+      occupantCount,
+      petDetails,
+      phone,
+      preferredViewingNotes,
+      selectedPropertyId,
+      selectedUnitId,
+      smokerStatus,
+    ],
   );
 
   if (submittedProspectId !== null) {
@@ -127,7 +207,7 @@ export default function ViewingRequestPage() {
         <PortalPageHeader
           eyebrow="Viewing request"
           title="We've received your request"
-          description="Our team will review your message and follow up by email. No account is required."
+          description="Our team will review your details and follow up by email. No account is required."
         />
         <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4`}>
           <p className="text-xs text-neutral-500">Your reference</p>
@@ -151,7 +231,7 @@ export default function ViewingRequestPage() {
       <PortalPageHeader
         eyebrow="Tenant portal"
         title="Request a viewing"
-        description="Tell us which home you're interested in and how to reach you. No login required."
+        description="Tell us about your household and when you'd like to see the home. No login required."
       />
 
       <form className="flex flex-col gap-8" onSubmit={onSubmit} noValidate>
@@ -202,7 +282,7 @@ export default function ViewingRequestPage() {
           </FormField>
         ) : null}
 
-        <FormField htmlFor={firstNameId} label="First name (optional)">
+        <FormField htmlFor={firstNameId} label="First name">
           <input
             id={firstNameId}
             type="text"
@@ -210,10 +290,11 @@ export default function ViewingRequestPage() {
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            required
           />
         </FormField>
 
-        <FormField htmlFor={lastNameId} label="Last name (optional)">
+        <FormField htmlFor={lastNameId} label="Last name">
           <input
             id={lastNameId}
             type="text"
@@ -221,10 +302,11 @@ export default function ViewingRequestPage() {
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            required
           />
         </FormField>
 
-        <FormField htmlFor={emailId} label="Email (required)" helper="We'll use this to follow up about your viewing.">
+        <FormField htmlFor={emailId} label="Email" helper="We'll use this to follow up about your viewing.">
           <input
             id={emailId}
             type="email"
@@ -236,7 +318,7 @@ export default function ViewingRequestPage() {
           />
         </FormField>
 
-        <FormField htmlFor={phoneId} label="Phone (optional)">
+        <FormField htmlFor={phoneId} label="Phone">
           <input
             id={phoneId}
             type="tel"
@@ -247,17 +329,111 @@ export default function ViewingRequestPage() {
           />
         </FormField>
 
+        <FormField htmlFor={occupantCountId} label="Number of occupants">
+          <input
+            id={occupantCountId}
+            type="number"
+            min={1}
+            max={50}
+            value={occupantCount}
+            onChange={(e) => setOccupantCount(e.target.value)}
+            className="w-full max-w-[8rem] rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            required
+          />
+        </FormField>
+
+        <FormField htmlFor={hasPetsId} label="Pets">
+          <label className="flex items-center gap-2 text-sm text-neutral-800">
+            <input
+              id={hasPetsId}
+              type="checkbox"
+              checked={hasPets}
+              onChange={(e) => setHasPets(e.target.checked)}
+              className="h-4 w-4 rounded border-neutral-300"
+            />
+            I have pets
+          </label>
+        </FormField>
+
+        {hasPets ? (
+          <FormField htmlFor={petDetailsId} label="Pet details">
+            <textarea
+              id={petDetailsId}
+              value={petDetails}
+              onChange={(e) => setPetDetails(e.target.value)}
+              rows={3}
+              className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              required
+            />
+          </FormField>
+        ) : null}
+
+        <FormField htmlFor={smokerStatusId} label="Smoking">
+          <select
+            id={smokerStatusId}
+            value={smokerStatus}
+            onChange={(e) => setSmokerStatus(e.target.value)}
+            className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+            required
+          >
+            <option value="">Select…</option>
+            {SMOKER_STATUSES.map((v) => (
+              <option key={v} value={v}>
+                {SMOKER_LABELS[v]}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <FormField htmlFor={incomeRangeId} label="Household income range (monthly)">
+          <select
+            id={incomeRangeId}
+            value={householdIncomeRange}
+            onChange={(e) => setHouseholdIncomeRange(e.target.value)}
+            className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+            required
+          >
+            <option value="">Select…</option>
+            {HOUSEHOLD_INCOME_RANGES.map((v) => (
+              <option key={v} value={v}>
+                {INCOME_LABELS[v]}
+              </option>
+            ))}
+          </select>
+        </FormField>
+
+        <FormField htmlFor={moveInId} label="Desired move-in date">
+          <input
+            id={moveInId}
+            type="date"
+            value={desiredMoveInDate}
+            onChange={(e) => setDesiredMoveInDate(e.target.value)}
+            className="w-full max-w-xs rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            required
+          />
+        </FormField>
+
         <FormField
-          htmlFor={messageId}
-          label="Message (optional)"
-          helper="Preferred times, move-in date, pets, or other questions."
+          htmlFor={preferredViewingId}
+          label="Preferred viewing time"
+          helper="e.g. weekday afternoons, Saturday morning, or specific dates."
         >
+          <textarea
+            id={preferredViewingId}
+            value={preferredViewingNotes}
+            onChange={(e) => setPreferredViewingNotes(e.target.value)}
+            rows={3}
+            className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+          />
+        </FormField>
+
+        <FormField htmlFor={messageId} label="Additional notes (optional)">
           <textarea
             id={messageId}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            rows={4}
-            className="min-h-[8.5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            rows={3}
+            className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
           />
         </FormField>
 

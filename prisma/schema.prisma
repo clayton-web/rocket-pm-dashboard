@@ -273,7 +273,16 @@ model Prospect {
   firstName String?
   lastName  String?
   phone     String?
-  message   String? @db.Text
+
+  /// Public viewing-request intake (master record until application snapshot).
+  occupantCount         Int?
+  hasPets               Boolean   @default(false)
+  petDetails            String?   @db.Text
+  smokerStatus          String?
+  householdIncomeRange  String?
+  desiredMoveInDate     DateTime? @db.Date
+  preferredViewingNotes String?   @db.Text
+  message               String?   @db.Text
 
   status ProspectStatus @default(new)
 

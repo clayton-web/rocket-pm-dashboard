@@ -23,6 +23,12 @@ function formatSubmittedAt(iso: string) {
   };
 }
 
+function formatDate(iso: string) {
+  const d = new Date(`${iso}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
 function formatName(firstName: string | null, lastName: string | null, email: string) {
   const name = [firstName, lastName].filter(Boolean).join(" ").trim();
   return name || email;
@@ -155,8 +161,34 @@ export function ProspectQueueList({
                         {prospect.phone}
                       </p>
                     ) : null}
+                    {prospect.occupantCount != null ? (
+                      <p className="mt-2 text-sm text-neutral-600">
+                        <span className="text-neutral-500">Occupants · </span>
+                        {prospect.occupantCount}
+                        {prospect.hasPets ? " · Pets" : ""}
+                      </p>
+                    ) : null}
+                    {prospect.desiredMoveInDate ? (
+                      <p className="mt-1 text-sm text-neutral-600">
+                        <span className="text-neutral-500">Desired move-in · </span>
+                        {formatDate(prospect.desiredMoveInDate)}
+                      </p>
+                    ) : null}
+                    {prospect.householdIncomeRangeLabel ? (
+                      <p className="mt-1 text-sm text-neutral-600">
+                        <span className="text-neutral-500">Income range · </span>
+                        {prospect.householdIncomeRangeLabel}
+                      </p>
+                    ) : null}
+                    {prospect.preferredViewingNotes ? (
+                      <p className="mt-2 line-clamp-2 text-sm text-neutral-700" title={prospect.preferredViewingNotes}>
+                        <span className="text-neutral-500">Preferred viewing · </span>
+                        {prospect.preferredViewingNotes}
+                      </p>
+                    ) : null}
                     {prospect.messagePreview ? (
-                      <p className="mt-3 line-clamp-3 text-sm text-neutral-700" title={prospect.messagePreview}>
+                      <p className="mt-2 line-clamp-2 text-sm text-neutral-700" title={prospect.messagePreview}>
+                        <span className="text-neutral-500">Notes · </span>
                         {prospect.messagePreview}
                       </p>
                     ) : null}

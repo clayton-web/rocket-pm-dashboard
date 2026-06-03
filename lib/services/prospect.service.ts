@@ -4,20 +4,31 @@ import type {
   Prospect,
   ProspectStatus,
 } from "@prisma/client";
+import { toDateOnlyUTC } from "@/lib/leasing/notice-rules";
 import type { StaffContext } from "./staff-context";
 import { requireLeasingAccess, requireStaff } from "./property-access";
 import { NotFoundError } from "./errors";
 import { logPropertyActivity, pickForAudit } from "./activityLog.service";
 
-export type CreatePublicProspectInput = {
+export type SubmitPublicViewingRequestInput = {
   propertyId: string;
   unitId?: string | null;
   email: string;
-  firstName?: string | null;
-  lastName?: string | null;
+  firstName: string;
+  lastName: string;
   phone?: string | null;
+  occupantCount: number;
+  hasPets: boolean;
+  petDetails?: string | null;
+  smokerStatus: string;
+  householdIncomeRange: string;
+  desiredMoveInDate: Date;
+  preferredViewingNotes?: string | null;
   message?: string | null;
 };
+
+/** @deprecated Use SubmitPublicViewingRequestInput — kept for type re-exports during transition. */
+export type CreatePublicProspectInput = SubmitPublicViewingRequestInput;
 
 export type UpdateProspectInput = {
   firstName?: string | null;
@@ -34,45 +45,83 @@ function trimRequiredEmail(email: string): string {
   return v;
 }
 
-/**
- * Public viewing request — **no auth principal**.
- * Validates active property and optional unit belongs to property.
- */
-export async function createPublicProspect(
+function buildIntakeData(
+  input: SubmitPublicViewingRequestInput,
+  unitId: string | null,
+  email: string,
+): Prisma.ProspectUncheckedCreateInput {
+  return {
+    propertyId: input.propertyId,
+    unitId,
+    email,
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    phone: input.phone?.trim() || null,
+    occupantCount: input.occupantCount,
+    hasPets: input.hasPets,
+    petDetails: input.hasPets ? input.petDetails?.trim() || null : null,
+    smokerStatus: input.smokerStatus,
+    householdIncomeRange: input.householdIncomeRange,
+    desiredMoveInDate: input.desiredMoveInDate,
+    preferredViewingNotes: input.preferredViewingNotes?.trim() || null,
+    message: input.message?.trim() || null,
+    status: "new",
+  };
+}
+
+async function resolveUnitId(
   prisma: PrismaClient,
-  input: CreatePublicProspectInput
+  propertyId: string,
+  unitId: string | null | undefined,
+): Promise<string | null> {
+  if (!unitId) return null;
+  const unit = await prisma.unit.findFirst({
+    where: { id: unitId, propertyId, isActive: true },
+  });
+  if (!unit) throw new NotFoundError("Unit not found, inactive, or not on this property");
+  return unit.id;
+}
+
+/**
+ * Public viewing request — creates or updates a `new` prospect for the same property + email.
+ */
+export async function submitPublicViewingRequest(
+  prisma: PrismaClient,
+  input: SubmitPublicViewingRequestInput,
 ): Promise<Prospect> {
   const property = await prisma.property.findFirst({
     where: { id: input.propertyId, isActive: true },
   });
   if (!property) throw new NotFoundError("Property not found or inactive");
 
-  let unitId: string | null = null;
-  if (input.unitId) {
-    const unit = await prisma.unit.findFirst({
-      where: {
-        id: input.unitId,
-        propertyId: input.propertyId,
-        isActive: true,
-      },
-    });
-    if (!unit) throw new NotFoundError("Unit not found, inactive, or not on this property");
-    unitId = unit.id;
-  }
+  const unitId = await resolveUnitId(prisma, input.propertyId, input.unitId);
+  const email = trimRequiredEmail(input.email);
+  const data = buildIntakeData(input, unitId, email);
 
-  return prisma.prospect.create({
-    data: {
+  const existing = await prisma.prospect.findFirst({
+    where: {
       propertyId: input.propertyId,
-      unitId,
-      email: trimRequiredEmail(input.email),
-      firstName: input.firstName?.trim() || null,
-      lastName: input.lastName?.trim() || null,
-      phone: input.phone?.trim() || null,
-      message: input.message?.trim() || null,
+      email,
       status: "new",
     },
+    orderBy: { createdAt: "desc" },
   });
+
+  if (existing) {
+    return prisma.prospect.update({
+      where: { id: existing.id },
+      data: {
+        ...data,
+        status: "new",
+      },
+    });
+  }
+
+  return prisma.prospect.create({ data });
 }
+
+/** Alias for {@link submitPublicViewingRequest}. */
+export const createPublicProspect = submitPublicViewingRequest;
 
 async function getProspectRow(prisma: PrismaClient, prospectId: string): Promise<Prospect> {
   const row = await prisma.prospect.findUnique({ where: { id: prospectId } });
@@ -84,7 +133,7 @@ async function getProspectRow(prisma: PrismaClient, prospectId: string): Promise
 export async function getProspectById(
   prisma: PrismaClient,
   principal: StaffContext,
-  prospectId: string
+  prospectId: string,
 ): Promise<Prospect> {
   requireStaff(principal);
   const row = await getProspectRow(prisma, prospectId);
@@ -101,7 +150,7 @@ export async function listProspectsForProperty(
   prisma: PrismaClient,
   principal: StaffContext,
   propertyId: string,
-  options?: ListProspectsForPropertyOptions
+  options?: ListProspectsForPropertyOptions,
 ): Promise<Prospect[]> {
   requireStaff(principal);
   await requireLeasingAccess(prisma, principal, propertyId);
@@ -122,7 +171,7 @@ export async function updateProspect(
   prisma: PrismaClient,
   principal: StaffContext,
   prospectId: string,
-  input: UpdateProspectInput
+  input: UpdateProspectInput,
 ): Promise<Prospect> {
   requireStaff(principal);
   const existing = await getProspectRow(prisma, prospectId);
@@ -159,4 +208,9 @@ export async function updateProspect(
     newValues: pickForAudit(row, ["status", "unitId"]),
   });
   return row;
+}
+
+/** Parse ISO date string to Date-only for service input. */
+export function viewingRequestDateFromIso(iso: string): Date {
+  return toDateOnlyUTC(iso);
 }
