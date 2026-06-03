@@ -13,6 +13,13 @@ function isPublicMaintenanceApi(req: NextRequest): boolean {
   return false;
 }
 
+function isPublicLeasingApi(req: NextRequest): boolean {
+  const pathname = req.nextUrl.pathname;
+  if (pathname === "/api/leasing/submit-options") return true;
+  if (pathname === "/api/leasing/viewing-request" && req.method === "POST") return true;
+  return false;
+}
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const isLogin = pathname.startsWith("/login");
@@ -20,9 +27,10 @@ export async function middleware(req: NextRequest) {
   const isHealth = pathname === "/api/health";
   const isPortal = pathname.startsWith("/portal");
   const isPublicMaintenance = isPublicMaintenanceApi(req);
+  const isPublicLeasing = isPublicLeasingApi(req);
   const isPublicPortalApiRoute = isPublicPortalApi(pathname);
 
-  if (isAuthApi || isHealth || isPortal || isPublicMaintenance || isPublicPortalApiRoute) {
+  if (isAuthApi || isHealth || isPortal || isPublicMaintenance || isPublicLeasing || isPublicPortalApiRoute) {
     return NextResponse.next();
   }
 

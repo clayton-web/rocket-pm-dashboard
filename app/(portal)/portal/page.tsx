@@ -4,6 +4,11 @@ import Link from "next/link";
 
 const publicLinks = [
   {
+    href: "/portal/viewing",
+    title: "Request a viewing",
+    description: "Ask to tour a rental home. No account required.",
+  },
+  {
     href: "/portal/maintenance/new",
     title: "Submit a maintenance request",
     description: "Report an issue at your home. No account required.",
