@@ -1,4 +1,8 @@
 import type { Prisma, PrismaClient, RetentionStatus, Tenancy, TenancyStatus } from "@prisma/client";
+import {
+  assertValidRentDueDay,
+  deriveRentDueDayFromLeaseStart,
+} from "@/lib/leasing/notice-rules";
 import type { StaffContext } from "./staff-context";
 import { requirePropertyManagerAccess, requireStaff } from "./property-access";
 import { NotFoundError } from "./errors";
@@ -35,6 +39,7 @@ export type UpdateTenancyInput = {
   leaseEndDate?: Date | null;
   moveInDate?: Date;
   moveOutDate?: Date | null;
+  rentDueDay?: number;
   monthlyRent?: number;
   securityDeposit?: number;
   petDeposit?: number | null;
@@ -91,6 +96,8 @@ export async function createTenancyFromApprovedApplication(
   const status = input.status ?? "pending_move_in";
   assertTenancyStatus(status);
 
+  const rentDueDay = deriveRentDueDayFromLeaseStart(input.leaseStartDate);
+
   const row = await prisma.tenancy.create({
     data: {
       propertyId: application.propertyId,
@@ -101,13 +108,21 @@ export async function createTenancyFromApprovedApplication(
       leaseEndDate: input.leaseEndDate ?? null,
       moveInDate: input.moveInDate,
       moveOutDate: input.moveOutDate ?? null,
+      rentDueDay,
       monthlyRent: input.monthlyRent,
       securityDeposit: input.securityDeposit,
       petDeposit: input.petDeposit ?? null,
     },
   });
   await logPropertyActivity(prisma, principal, row.propertyId, "Tenancy", row.id, "tenancy.created", {
-    newValues: pickForAudit(row, ["applicationId", "status", "leaseStartDate", "moveInDate", "monthlyRent"]),
+    newValues: pickForAudit(row, [
+      "applicationId",
+      "status",
+      "leaseStartDate",
+      "moveInDate",
+      "monthlyRent",
+      "rentDueDay",
+    ]),
   });
   return row;
 }
@@ -167,6 +182,10 @@ export async function updateTenancy(
   if (input.leaseEndDate !== undefined) data.leaseEndDate = input.leaseEndDate;
   if (input.moveInDate !== undefined) data.moveInDate = input.moveInDate;
   if (input.moveOutDate !== undefined) data.moveOutDate = input.moveOutDate;
+  if (input.rentDueDay !== undefined) {
+    assertValidRentDueDay(input.rentDueDay);
+    data.rentDueDay = input.rentDueDay;
+  }
   if (input.monthlyRent !== undefined) {
     if (input.monthlyRent < 0) throw new Error("monthlyRent must be non-negative");
     data.monthlyRent = input.monthlyRent;
@@ -200,6 +219,7 @@ export async function updateTenancy(
     "leaseEndDate",
     "moveInDate",
     "moveOutDate",
+    "rentDueDay",
     "monthlyRent",
     "securityDeposit",
     "petDeposit",

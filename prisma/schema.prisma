@@ -414,6 +414,9 @@ model Tenancy {
   moveInDate     DateTime  @db.Date
   moveOutDate    DateTime? @db.Date
 
+  /// Day of month (1–31) when each rental period begins; used for notice and move-out date validation.
+  rentDueDay Int @default(1)
+
   monthlyRent     Decimal  @db.Decimal(12, 2)
   securityDeposit Decimal  @db.Decimal(12, 2)
   petDeposit      Decimal? @db.Decimal(12, 2)
@@ -484,6 +487,9 @@ model Notice {
 
   serviceMethod String?
   servedAt      DateTime?
+
+  /// Tenant-selected tenancy end date (rental-period boundary). Not stored in body.
+  tenantRequestedMoveOutDate DateTime? @db.Date
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   unit     Unit?    @relation(fields: [unitId], references: [id], onDelete: SetNull)
