@@ -42,6 +42,11 @@ const signedInLinks = [
     description: "Your signed-in home — maintenance history and account links.",
   },
   {
+    href: "/portal/notice/new",
+    title: "Notice to end tenancy",
+    description: "Submit your intended move-out date for property manager review.",
+  },
+  {
     href: "/portal/maintenance",
     title: "My maintenance requests",
     description: "View requests for your tenancy without a reference number.",

@@ -24,8 +24,18 @@ export default async function TenantPortalDashboardPage() {
       />
 
       <Link
-        href="/portal/maintenance"
+        href="/portal/notice/new"
         className={`${SURFACE_CARD} mt-6 block px-4 py-4 transition-colors hover:border-neutral-400`}
+      >
+        <span className="text-sm font-semibold text-neutral-900">Notice to end tenancy</span>
+        <span className="mt-1 block text-sm text-neutral-600">
+          Submit your intended move-out date for property manager review.
+        </span>
+      </Link>
+
+      <Link
+        href="/portal/maintenance"
+        className={`${SURFACE_CARD} mt-4 block px-4 py-4 transition-colors hover:border-neutral-400`}
       >
         <span className="text-sm font-semibold text-neutral-900">My maintenance requests</span>
         <span className="mt-1 block text-sm text-neutral-600">
@@ -55,6 +65,11 @@ export default async function TenantPortalDashboardPage() {
       ) : null}
 
       <ul className="mt-8 flex flex-col gap-2 text-sm text-neutral-700">
+        <li>
+          <Link href="/portal/notice/new" className="font-medium underline">
+            Notice to end tenancy
+          </Link>
+        </li>
         <li>
           <Link href="/portal/maintenance/new" className="font-medium underline">
             Submit maintenance
