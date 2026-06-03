@@ -9,6 +9,11 @@ const publicLinks = [
     description: "Ask to tour a rental home. No account required.",
   },
   {
+    href: "/portal/application",
+    title: "Apply for a rental",
+    description: "Submit a rental application. No account required.",
+  },
+  {
     href: "/portal/maintenance/new",
     title: "Submit a maintenance request",
     description: "Report an issue at your home. No account required.",

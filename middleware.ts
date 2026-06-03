@@ -17,6 +17,11 @@ function isPublicLeasingApi(req: NextRequest): boolean {
   const pathname = req.nextUrl.pathname;
   if (pathname === "/api/leasing/submit-options") return true;
   if (pathname === "/api/leasing/viewing-request" && req.method === "POST") return true;
+  if (pathname === "/api/leasing/application" && req.method === "POST") return true;
+  if (pathname.startsWith("/api/leasing/application/")) {
+    if (req.method === "PATCH") return true;
+    if (req.method === "POST" && pathname.endsWith("/submit")) return true;
+  }
   return false;
 }
 

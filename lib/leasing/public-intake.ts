@@ -58,3 +58,17 @@ export async function assertPropertyInPublicPortalOrg(propertyId: string): Promi
     throw new NotFoundError("Property not found or inactive");
   }
 }
+
+/** Active unit on a public portal property (call after {@link assertPropertyInPublicPortalOrg}). */
+export async function assertUnitInPublicPortalProperty(
+  propertyId: string,
+  unitId: string,
+): Promise<void> {
+  const unit = await prisma.unit.findFirst({
+    where: { id: unitId, propertyId, isActive: true },
+    select: { id: true },
+  });
+  if (!unit) {
+    throw new NotFoundError("Unit not found, inactive, or not on this property");
+  }
+}
