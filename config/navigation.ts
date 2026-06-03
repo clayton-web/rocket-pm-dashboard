@@ -104,10 +104,10 @@ export const navigationItems: NavItem[] = [
     minimumRole: "MEMBER",
   },
   {
-    id: "nav-leasing-notices",
+    id: "nav-leasing-offboarding",
     moduleId: "leasing",
-    label: "Notices",
-    href: "/leasing/notices",
+    label: "Offboarding",
+    href: "/leasing/offboarding",
     enabled: true,
     section: "operations",
     minimumRole: "MEMBER",

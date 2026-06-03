@@ -14,6 +14,7 @@ import {
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import { OffboardingSummary } from "@/components/leasing/offboarding-summary";
 import {
   formatTenancyStatus,
   type TenancyStaffDetail,
@@ -191,28 +192,26 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
         ) : null}
       </div>
 
-      {detail.status === "notice_received" && detail.acceptedNoticeId ? (
-        <div className={`${SURFACE_CARD} mb-6 px-4 py-4 text-sm text-neutral-700`}>
-          <p>
-            Schedule move-out from the{" "}
-            <Link
-              href={`/leasing/notices/${detail.acceptedNoticeId}`}
-              className="font-medium text-neutral-900 underline"
-            >
-              accepted tenant notice
-            </Link>{" "}
-            before advancing lifecycle status.
-          </p>
-        </div>
+      {detail.showOffboardingSummary ? (
+        <OffboardingSummary
+          steps={detail.offboardingSteps}
+          nextStep={detail.offboardingNextStep}
+          requestedMoveOutDate={detail.requestedMoveOutDate}
+          scheduledMoveOutDate={detail.moveOutDate}
+          inspectionDate={detail.inspectionDate}
+          inspectionReportUrl={detail.inspectionReportUrl}
+          inspectionNotes={detail.inspectionNotes}
+          acceptedNoticeId={detail.acceptedNoticeId}
+          missingAcceptedNotice={detail.missingAcceptedNotice}
+        />
       ) : null}
 
       {detail.canScheduleInspection ? (
-        <div className="mb-8">
+        <div className="mb-8" id="offboarding-schedule-inspection">
           <FormSection legend="Schedule move-out inspection">
             <p className="text-sm text-neutral-600">
               Record the inspection date and move this tenancy to inspection scheduled. Completion
-              can happen in Rocket Inspection, with a third party, manually, or via a report link
-              later.
+              can happen with a third party, manually, or via a report link later.
             </p>
             <div className="mt-4">
               <FormField label="Inspection date" htmlFor="inspection-date-schedule">
@@ -249,7 +248,7 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
       ) : null}
 
       {detail.canCompleteInspection ? (
-        <div className="mb-8">
+        <div className="mb-8" id="offboarding-complete-inspection">
           <FormSection legend="Complete move-out inspection">
             <p className="text-sm text-neutral-600">
               Confirm the inspection is done and optionally attach a report URL or notes.
@@ -304,43 +303,8 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
         </div>
       ) : null}
 
-      {(detail.inspectionDate ||
-        detail.inspectionReportUrl ||
-        detail.inspectionNotes) &&
-      !detail.canScheduleInspection &&
-      !detail.canCompleteInspection ? (
-        <div className="mb-8">
-          <FormSection legend="Move-out inspection">
-            <div className={`${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-3`}>
-              <DetailRow label="Inspection date">{formatDate(detail.inspectionDate)}</DetailRow>
-              <DetailRow label="Report URL">
-                {detail.inspectionReportUrl ? (
-                  <a
-                    href={detail.inspectionReportUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium underline"
-                  >
-                    View report
-                  </a>
-                ) : (
-                  "—"
-                )}
-              </DetailRow>
-              <DetailRow label="Notes">
-                {detail.inspectionNotes ? (
-                  <span className="whitespace-pre-wrap">{detail.inspectionNotes}</span>
-                ) : (
-                  "—"
-                )}
-              </DetailRow>
-            </div>
-          </FormSection>
-        </div>
-      ) : null}
-
       {detail.advanceStatusLabel && detail.nextStatus ? (
-        <div className="mb-8">
+        <div className="mb-8" id="offboarding-lifecycle">
           <FormSection legend="Lifecycle">
             <PrimaryButton
               type="button"
@@ -354,6 +318,19 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
               <p className="mt-3 text-sm text-neutral-600">
                 Marking active allows tenant portal sign-in when portal access is enabled on a
                 contact (see below).
+              </p>
+            ) : null}
+            {detail.status === "inspection_completed" && detail.nextStatus === "ended" ? (
+              <p className="mt-3 text-sm text-neutral-600">
+                Mark ended when the tenant has vacated and the move-out inspection is recorded. This
+                does not process deposits or close financials.
+              </p>
+            ) : null}
+            {detail.status === "ended" && detail.nextStatus === "archived" ? (
+              <p className="mt-3 text-sm text-neutral-600">
+                Archive when this tenancy record is fully closed in your process and no further staff
+                actions are needed. Archived tenancies remain searchable; portal access rules still
+                apply to contacts.
               </p>
             ) : null}
           </FormSection>

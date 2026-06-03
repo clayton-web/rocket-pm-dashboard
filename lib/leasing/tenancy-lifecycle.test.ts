@@ -33,7 +33,9 @@ describe("tenancy lifecycle — move-out inspection", () => {
     );
   });
 
-  it("does not offer advance labels for inspection-only steps", () => {
+  it("does not offer staff advance labels for offboarding steps", () => {
+    assert.equal(getAdvanceTenancyStatusLabel("active"), null);
+    assert.equal(getAdvanceTenancyStatusLabel("notice_received"), null);
     assert.equal(getAdvanceTenancyStatusLabel("move_out_scheduled"), null);
     assert.equal(getAdvanceTenancyStatusLabel("inspection_scheduled"), null);
     assert.equal(getAdvanceTenancyStatusLabel("inspection_completed"), "Mark ended");

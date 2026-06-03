@@ -18,7 +18,7 @@ export async function acceptTenantNoticeAction(noticeId: string): Promise<Notice
   try {
     const ctx = await requireStaffContextFromSession();
     const row = await acceptTenantEndNotice(prisma, ctx, trimmedId);
-    revalidatePath("/leasing/notices");
+    revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/notices/${trimmedId}`);
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${row.tenancyId}`);
@@ -59,7 +59,7 @@ export async function scheduleMoveOutFromNoticeAction(
       trimmedId,
       toDateOnlyUTC(trimmedDate),
     );
-    revalidatePath("/leasing/notices");
+    revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/notices/${trimmedId}`);
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${tenancy.id}`);

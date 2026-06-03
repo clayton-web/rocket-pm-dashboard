@@ -12,11 +12,17 @@ const NEXT_STATUS: Partial<Record<TenancyStatus, TenancyStatus>> = {
 
 const ADVANCE_LABELS: Partial<Record<TenancyStatus, string>> = {
   pending_move_in: "Mark active",
-  active: "Notice received",
-  notice_received: "Schedule move-out",
   inspection_completed: "Mark ended",
   ended: "Archive",
 };
+
+/** Statuses staff cannot set via generic lifecycle advance (dedicated flows required). */
+export const STAFF_BLOCKED_ADVANCE_TARGETS: ReadonlySet<TenancyStatus> = new Set([
+  "notice_received",
+  "move_out_scheduled",
+  "inspection_scheduled",
+  "inspection_completed",
+]);
 
 export function getNextTenancyStatus(current: TenancyStatus): TenancyStatus | null {
   return NEXT_STATUS[current] ?? null;

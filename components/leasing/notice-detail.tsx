@@ -161,6 +161,23 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
         </div>
       ) : null}
 
+      {detail.scheduledMoveOutDate && detail.tenancyStatus === "move_out_scheduled" ? (
+        <div className={`${SURFACE_CARD} mb-8 px-4 py-4 text-sm text-neutral-700`}>
+          <p className="font-medium text-neutral-900">Move-out scheduled</p>
+          <p className="mt-2">
+            Continue on the tenancy to schedule the move-out inspection and complete offboarding.
+          </p>
+          <p className="mt-3">
+            <Link
+              href={`/leasing/tenancies/${detail.tenancyId}#offboarding-summary`}
+              className="font-medium text-neutral-900 underline"
+            >
+              Open tenancy offboarding →
+            </Link>
+          </p>
+        </div>
+      ) : null}
+
       {detail.canSchedule ? (
         <div className="mb-8">
           <FormSection legend="Schedule move-out">

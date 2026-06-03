@@ -3,8 +3,16 @@ import prisma from "@/lib/db/prisma";
 import { getTenancyById, listTenancyContacts } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
 import {
+  getOffboardingNextStep,
+  getOffboardingSteps,
+  showsOffboardingSummary,
+  type OffboardingNextStep,
+  type OffboardingStep,
+} from "@/lib/leasing/offboarding-progress";
+import {
   getAdvanceTenancyStatusLabel,
   getNextTenancyStatus,
+  STAFF_BLOCKED_ADVANCE_TARGETS,
 } from "@/lib/leasing/tenancy-lifecycle";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
 import {
@@ -47,6 +55,10 @@ export type TenancyStaffDetail = {
   canScheduleInspection: boolean;
   canCompleteInspection: boolean;
   defaultInspectionDate: string | null;
+  showOffboardingSummary: boolean;
+  offboardingSteps: OffboardingStep[];
+  offboardingNextStep: OffboardingNextStep;
+  missingAcceptedNotice: boolean;
   contacts: TenancyContactRow[];
 };
 
@@ -75,15 +87,18 @@ export async function getTenancyDetailForStaff(
   const acceptedNotice = await getAcceptedTenantEndNoticeForTenancy(tenancy.id);
 
   const hideGenericAdvance =
-    nextStatus === "move_out_scheduled" ||
-    nextStatus === "inspection_scheduled" ||
-    nextStatus === "inspection_completed";
+    nextStatus != null && STAFF_BLOCKED_ADVANCE_TARGETS.has(nextStatus);
 
-  const advanceStatusLabel = hideGenericAdvance
-    ? null
-    : nextStatus
-      ? getAdvanceTenancyStatusLabel(status)
+  const advanceStatusLabel =
+    hideGenericAdvance || !nextStatus ? null : getAdvanceTenancyStatusLabel(status);
+
+  const showOffboardingSummary = showsOffboardingSummary(status);
+  const awaitingScheduleNoticeId =
+    status === "notice_received" && tenancy.moveOutDate == null && acceptedNotice
+      ? acceptedNotice.id
       : null;
+  const missingAcceptedNotice =
+    status === "notice_received" && acceptedNotice == null;
 
   const canScheduleInspection = status === "move_out_scheduled";
   const canCompleteInspection = status === "inspection_scheduled";
@@ -119,6 +134,15 @@ export async function getTenancyDetailForStaff(
     canScheduleInspection,
     canCompleteInspection,
     defaultInspectionDate,
+    showOffboardingSummary,
+    offboardingSteps: showOffboardingSummary ? getOffboardingSteps(status) : [],
+    offboardingNextStep: showOffboardingSummary
+      ? getOffboardingNextStep(status, {
+          acceptedNoticeId: acceptedNotice?.id ?? null,
+          awaitingScheduleNoticeId,
+        })
+      : { kind: "none", title: "", description: "" },
+    missingAcceptedNotice,
     contacts: contacts.map((c) => ({
       id: c.id,
       firstName: c.firstName,

@@ -6,6 +6,7 @@ import { requireStaffContextFromSession, StaffAuthError } from "@/lib/auth/staff
 import {
   getNextTenancyStatus,
   isValidTenancyStatusTransition,
+  STAFF_BLOCKED_ADVANCE_TARGETS,
 } from "@/lib/leasing/tenancy-lifecycle";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
 import { toDateOnlyUTC } from "@/lib/leasing/notice-rules";
@@ -41,30 +42,42 @@ export async function advanceTenancyStatusAction(
       return { ok: false, error: "Invalid status transition" };
     }
 
-    if (next === "move_out_scheduled") {
+    if (next != null && STAFF_BLOCKED_ADVANCE_TARGETS.has(next)) {
+      if (next === "notice_received") {
+        return {
+          ok: false,
+          error:
+            "Accept a tenant notice on Offboarding before updating status. Manual notice received is not supported.",
+        };
+      }
+      if (next === "move_out_scheduled") {
+        return {
+          ok: false,
+          error:
+            "Schedule move-out from the accepted tenant notice on Offboarding before advancing status.",
+        };
+      }
+      if (next === "inspection_scheduled") {
+        return {
+          ok: false,
+          error: "Schedule the move-out inspection on this tenancy before advancing status.",
+        };
+      }
+      if (next === "inspection_completed") {
+        return {
+          ok: false,
+          error: "Complete the move-out inspection on this tenancy before advancing status.",
+        };
+      }
       return {
         ok: false,
-        error:
-          "Schedule move-out from the accepted tenant notice on the Notices page before advancing status.",
-      };
-    }
-
-    if (current === "move_out_scheduled") {
-      return {
-        ok: false,
-        error: "Schedule the move-out inspection on this tenancy before advancing status.",
-      };
-    }
-
-    if (current === "inspection_scheduled") {
-      return {
-        ok: false,
-        error: "Complete the move-out inspection on this tenancy before advancing status.",
+        error: "Use the dedicated offboarding actions on this tenancy before advancing status.",
       };
     }
 
     await updateTenancy(prisma, ctx, trimmedId, { status: next });
     revalidatePath("/leasing/tenancies");
+    revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
     return { ok: true };
   } catch (e) {
@@ -99,6 +112,7 @@ export async function scheduleMoveOutInspectionAction(
       notes: notes?.trim() || null,
     });
     revalidatePath("/leasing/tenancies");
+    revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
     return { ok: true };
   } catch (e) {
@@ -135,6 +149,7 @@ export async function completeMoveOutInspectionAction(
       notes: notes?.trim() || null,
     });
     revalidatePath("/leasing/tenancies");
+    revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
     return { ok: true };
   } catch (e) {
