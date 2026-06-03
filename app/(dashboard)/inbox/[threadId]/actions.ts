@@ -222,7 +222,8 @@ export async function loadAiDraftToGmailAction(
   revalidatePath(`/inbox/${threadId}`);
   return {
     error: null,
-    successMessage: "Draft loaded to Gmail. Review and send from Gmail.",
+    successMessage:
+      "Reply draft created in the original Gmail thread. Open Gmail to review, edit, and send.",
     completedAt,
   };
 }

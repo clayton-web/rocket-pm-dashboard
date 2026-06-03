@@ -61,7 +61,14 @@ export function ResponderPanel(props: {
     <aside className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
       <div>
         <h2 className="text-sm font-semibold text-neutral-900">AI responder</h2>
-        <p className="text-xs text-neutral-500">Draft assist only. Sending email is not enabled.</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-neutral-600">
+          <li>Rocket PM generates the draft below.</li>
+          <li>
+            <span className="font-medium text-neutral-800">Load to Gmail</span> creates a reply draft in the original
+            Gmail thread.
+          </li>
+          <li>Review, edit, and send in Gmail — sending from Rocket PM is not available.</li>
+        </ol>
       </div>
 
       {!geminiConfigured ? (
@@ -87,7 +94,9 @@ export function ResponderPanel(props: {
       ) : null}
 
       {!draft ? (
-        <p className="text-xs text-neutral-600">Run generate to store a draft on this thread.</p>
+        <p className="text-xs text-neutral-600">
+          Generate a draft, then load it to Gmail when you are ready to reply.
+        </p>
       ) : (
         <div className="space-y-3 text-xs text-neutral-700">
           {classification?.review_required ? (
@@ -143,7 +152,7 @@ export function ResponderPanel(props: {
                 disabled={loadPending}
                 className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-900 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loadPending ? "Saving to Gmail…" : "Load to Gmail Drafts"}
+                {loadPending ? "Loading into Gmail…" : "Load to Gmail"}
               </button>
             </form>
             {loadState.error ? (

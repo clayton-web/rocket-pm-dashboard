@@ -12,13 +12,24 @@ type ThreadRow = {
 export function ThreadList(props: {
   mailboxId: string;
   threads: ThreadRow[];
+  lastSyncedAt: Date | null;
 }) {
-  const { threads, mailboxId } = props;
+  const { threads, mailboxId, lastSyncedAt } = props;
 
   if (!threads.length) {
+    if (lastSyncedAt == null) {
+      return (
+        <p className="text-sm text-neutral-600">
+          This mailbox has not been synced yet. Run <span className="font-medium">Sync now</span> above to pull recent
+          Gmail threads into Rocket PM.
+        </p>
+      );
+    }
+
     return (
       <p className="text-sm text-neutral-600">
-        No threads synced yet. Choose a mailbox above and run <span className="font-medium">Sync now</span>.
+        No threads in this inbox right now. Try <span className="font-medium">Sync now</span> again if you expect new
+        mail, or check the thread in Gmail directly.
       </p>
     );
   }

@@ -40,6 +40,9 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const mailboxParam = params.mailbox;
   const selectedMailboxId =
     mailboxParam && mailboxes.some((m) => m.id === mailboxParam) ? mailboxParam : mailboxes[0]?.id ?? null;
+  const selectedMailbox = selectedMailboxId
+    ? mailboxes.find((m) => m.id === selectedMailboxId) ?? null
+    : null;
 
   const threads =
     selectedMailboxId == null
@@ -78,7 +81,11 @@ export default async function InboxPage({ searchParams }: PageProps) {
       {selectedMailboxId ? (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-neutral-900">Threads</h2>
-          <ThreadList mailboxId={selectedMailboxId} threads={threads} />
+          <ThreadList
+            mailboxId={selectedMailboxId}
+            threads={threads}
+            lastSyncedAt={selectedMailbox?.lastSyncedAt ?? null}
+          />
         </div>
       ) : null}
     </div>

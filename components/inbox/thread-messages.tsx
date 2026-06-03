@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { EmailMessage, EmailThread } from "@prisma/client";
+import { buildGmailThreadUrl } from "@/lib/inbox/gmail-web-url";
 
 type Thread = EmailThread & {
   messages: EmailMessage[];
@@ -17,6 +18,10 @@ function htmlToPlainText(html: string) {
 
 export function ThreadMessages(props: { thread: Thread; mailboxQuery: string }) {
   const { thread, mailboxQuery } = props;
+  const gmailThreadUrl = buildGmailThreadUrl({
+    mailboxEmail: thread.connectedAccount.email,
+    providerThreadId: thread.providerThreadId,
+  });
 
   return (
     <div className="space-y-4">
@@ -27,7 +32,19 @@ export function ThreadMessages(props: { thread: Thread; mailboxQuery: string }) 
         >
           ← Back to inbox
         </Link>
-        <div className="text-xs text-neutral-500">{thread.connectedAccount.email}</div>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
+          <span>{thread.connectedAccount.email}</span>
+          {gmailThreadUrl ? (
+            <a
+              href={gmailThreadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-neutral-700 hover:text-neutral-900"
+            >
+              Open in Gmail
+            </a>
+          ) : null}
+        </div>
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white p-4">
