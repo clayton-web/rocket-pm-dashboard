@@ -10,9 +10,20 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { PortalBackLink } from "@/components/portal/portal-nav";
+import type { PublicProspectPrefillFields } from "@/lib/leasing/prospect-prefill";
 import { parseCreatedApplicationId } from "@/lib/validation/application";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
+
+type ApplicationStep = "lookup" | "application";
+
+type ProspectPrefillApiResponse =
+  | { found: false }
+  | {
+      found: true;
+      prospectId: string;
+      prefill: PublicProspectPrefillFields;
+    };
 
 type LeasingSubmitOption = {
   propertyId: string;
@@ -71,9 +82,43 @@ export default function RentalApplicationPage() {
   const [employmentNotes, setEmploymentNotes] = useState("");
   const [consentCreditCheck, setConsentCreditCheck] = useState(false);
   const [consentSignatureName, setConsentSignatureName] = useState("");
+  const [step, setStep] = useState<ApplicationStep>("lookup");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [matchedProspectId, setMatchedProspectId] = useState<string | null>(null);
+  const [householdIncomeRangeLabel, setHouseholdIncomeRangeLabel] = useState<string | null>(
+    null,
+  );
+  const [lookupContextKey, setLookupContextKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submittedApplicationId, setSubmittedApplicationId] = useState<string | null>(null);
+
+  const clearProspectMatch = useCallback(() => {
+    setMatchedProspectId(null);
+    setHouseholdIncomeRangeLabel(null);
+    setLookupContextKey(null);
+  }, []);
+
+  const applyProspectPrefill = useCallback((prefill: PublicProspectPrefillFields) => {
+    if (prefill.firstName) setFirstName(prefill.firstName);
+    if (prefill.lastName) setLastName(prefill.lastName);
+    if (prefill.phone) setPhone(prefill.phone);
+    if (prefill.desiredMoveInDate) setDesiredMoveInDate(prefill.desiredMoveInDate);
+    if (prefill.occupantCount != null) setOccupantCount(String(prefill.occupantCount));
+    setHasPets(prefill.hasPets);
+    if (prefill.petDetails) setPetDetails(prefill.petDetails);
+    if (prefill.smokerStatus) setSmokerStatus(prefill.smokerStatus);
+    setHouseholdIncomeRangeLabel(prefill.householdIncomeRangeLabel);
+  }, []);
+
+  useEffect(() => {
+    if (step !== "application" || !lookupContextKey) return;
+    const current = `${selectedPropertyId}|${selectedUnitId}|${email.trim().toLowerCase()}`;
+    if (current !== lookupContextKey) {
+      clearProspectMatch();
+    }
+  }, [step, selectedPropertyId, selectedUnitId, email, lookupContextKey, clearProspectMatch]);
 
   useEffect(() => {
     fetch("/api/leasing/submit-options")
@@ -96,6 +141,59 @@ export default function RentalApplicationPage() {
     () => options.find((o) => o.propertyId === selectedPropertyId) ?? null,
     [options, selectedPropertyId],
   );
+
+  const onContinueLookup = useCallback(async () => {
+    setLookupError(null);
+    setError(null);
+
+    if (!selectedPropertyId || !selectedUnitId) {
+      setLookupError("Please select a property and unit.");
+      return;
+    }
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setLookupError("Please enter your email address.");
+      return;
+    }
+
+    setLookupLoading(true);
+    clearProspectMatch();
+    try {
+      const params = new URLSearchParams({
+        propertyId: selectedPropertyId,
+        unitId: selectedUnitId,
+        email: trimmedEmail,
+      });
+      const res = await fetch(`/api/leasing/prospect-prefill?${params.toString()}`);
+      const body: unknown = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLookupError(apiErrorMessage(body, "Could not look up your information. Try again."));
+        return;
+      }
+
+      const parsed = body as ProspectPrefillApiResponse;
+      if (parsed.found) {
+        setMatchedProspectId(parsed.prospectId);
+        applyProspectPrefill(parsed.prefill);
+      }
+
+      setLookupContextKey(
+        `${selectedPropertyId}|${selectedUnitId}|${trimmedEmail.toLowerCase()}`,
+      );
+      setStep("application");
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
+  }, [
+    applyProspectPrefill,
+    clearProspectMatch,
+    email,
+    selectedPropertyId,
+    selectedUnitId,
+  ]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -138,6 +236,7 @@ export default function RentalApplicationPage() {
             propertyId: selectedPropertyId,
             unitId: selectedUnitId,
             email: trimmedEmail,
+            prospectId: matchedProspectId ?? undefined,
             firstName: firstName.trim() || undefined,
             lastName: lastName.trim() || undefined,
             phone: phone.trim() || undefined,
@@ -222,6 +321,7 @@ export default function RentalApplicationPage() {
       occupantCount,
       petDetails,
       phone,
+      matchedProspectId,
       selectedPropertyId,
       selectedUnitId,
       smokerStatus,
@@ -259,10 +359,18 @@ export default function RentalApplicationPage() {
       <PortalPageHeader
         eyebrow="Tenant portal"
         title="Apply for a rental"
-        description="Complete the form below to apply for an available unit. No login required."
+        description={
+          step === "lookup"
+            ? "Select the unit and enter the email you used for a viewing request, if any. No login required."
+            : "Review and complete your application. Fields may be prefilled from your viewing request."
+        }
       />
 
-      <form className="flex flex-col gap-8" onSubmit={onSubmit} noValidate>
+      <form
+        className="flex flex-col gap-8"
+        onSubmit={step === "lookup" ? (e) => e.preventDefault() : onSubmit}
+        noValidate
+      >
         <FormSection legend="Rental">
           <FormField
             htmlFor={propertySelectId}
@@ -309,7 +417,83 @@ export default function RentalApplicationPage() {
           ) : selectedProperty ? (
             <InlineAlert>No active units are available for this property.</InlineAlert>
           ) : null}
+
+          <FormField
+            htmlFor={emailId}
+            label="Email (required)"
+            helper={
+              step === "lookup"
+                ? "We use this to match a prior viewing request and prefill your application."
+                : "Must match the email you entered in the previous step."
+            }
+          >
+            <input
+              id={emailId}
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              required
+            />
+          </FormField>
         </FormSection>
+
+        {step === "lookup" ? (
+          <>
+            {lookupError ? <InlineAlert>{lookupError}</InlineAlert> : null}
+            <StickyFormFooter>
+              <PrimaryButton
+                type="button"
+                disabled={
+                  lookupLoading || options.length === 0 || !selectedProperty?.units.length
+                }
+                onClick={() => void onContinueLookup()}
+              >
+                {lookupLoading ? "Looking up…" : "Continue to application"}
+              </PrimaryButton>
+            </StickyFormFooter>
+          </>
+        ) : null}
+
+        {step === "application" ? (
+          <>
+            {matchedProspectId ? (
+              <div className={`${SURFACE_PANEL} px-3.5 py-4 text-sm text-neutral-700`}>
+                We found information linked to your viewing request. Review the fields below and
+                update anything that has changed.
+              </div>
+            ) : null}
+
+            {householdIncomeRangeLabel ? (
+              <div className={`${SURFACE_PANEL} px-3.5 py-4`}>
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  From your viewing request
+                </p>
+                <p className="mt-1 text-sm text-neutral-800">
+                  Household income range (approximate): {householdIncomeRangeLabel}
+                </p>
+                <p className="mt-2 text-xs text-neutral-600">
+                  Enter your exact monthly household income below. We do not copy a range into that
+                  field.
+                </p>
+              </div>
+            ) : null}
+
+            <p className="text-sm">
+              <button
+                type="button"
+                className="font-medium text-neutral-700 underline"
+                onClick={() => {
+                  clearProspectMatch();
+                  setStep("lookup");
+                  setLookupError(null);
+                  setError(null);
+                }}
+              >
+                Change property, unit, or email
+              </button>
+            </p>
 
         <FormSection legend="Contact">
           <FormField htmlFor={firstNameId} label="First name (required)">
@@ -331,18 +515,6 @@ export default function RentalApplicationPage() {
               autoComplete="family-name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-              required
-            />
-          </FormField>
-
-          <FormField htmlFor={emailId} label="Email (required)" helper="Must match the email you use on this form.">
-            <input
-              id={emailId}
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
               required
             />
@@ -421,6 +593,7 @@ export default function RentalApplicationPage() {
               <option value="">Select…</option>
               <option value="non_smoker">Non-smoker</option>
               <option value="smoker">Smoker</option>
+              <option value="occasional">Occasional smoker</option>
               <option value="prefer_not_to_say">Prefer not to say</option>
             </select>
           </FormField>
@@ -530,6 +703,8 @@ export default function RentalApplicationPage() {
             {loading ? "Submitting…" : "Submit application"}
           </PrimaryButton>
         </StickyFormFooter>
+          </>
+        ) : null}
       </form>
     </div>
   );

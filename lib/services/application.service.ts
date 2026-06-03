@@ -1,17 +1,25 @@
-import type { Application, ApplicationStatus, Prisma, PrismaClient } from "@prisma/client";
+import type { Application, ApplicationStatus, Prisma, PrismaClient, Prospect } from "@prisma/client";
 import type { StaffContext } from "./staff-context";
 import { requirePropertyManagerAccess, requireStaff } from "./property-access";
 import { NotFoundError } from "./errors";
 import { logActivity, logStaffActivity } from "./activityLog.service";
+import { normalizeApplicationEmail } from "@/lib/leasing/application-email";
+import {
+  assertProspectForApplicationStart,
+  findProspectForApplicationMatch,
+} from "@/lib/leasing/prospect-match";
 
 export type StartPublicApplicationInput = {
   propertyId: string;
   unitId: string;
   email: string;
+  prospectId?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   phone?: string | null;
 };
+
+export { normalizeApplicationEmail } from "@/lib/leasing/application-email";
 
 export type UpdateDraftApplicationInput = Partial<
   Pick<
@@ -46,10 +54,6 @@ export type SetApplicationReviewInput = {
 export type ListApplicationsForPropertyOptions = {
   status?: ApplicationStatus;
 };
-
-export function normalizeApplicationEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
 
 async function getApplicationOrThrow(prisma: PrismaClient, id: string): Promise<Application> {
   const row = await prisma.application.findUnique({ where: { id } });
@@ -108,19 +112,37 @@ export async function startPublicApplication(
   const email = normalizeApplicationEmail(input.email);
   if (!email) throw new Error("Email is required");
 
+  let prospect: Prospect | null = null;
+  if (input.prospectId?.trim()) {
+    prospect = await assertProspectForApplicationStart(prisma, {
+      prospectId: input.prospectId.trim(),
+      propertyId: input.propertyId,
+      unitId: input.unitId,
+      email,
+    });
+  }
+
   const app = await prisma.application.create({
     data: {
       propertyId: input.propertyId,
       unitId: input.unitId,
       email,
-      firstName: input.firstName?.trim() || null,
-      lastName: input.lastName?.trim() || null,
-      phone: input.phone?.trim() || null,
+      prospectId: prospect?.id ?? null,
+      firstName: input.firstName?.trim() || prospect?.firstName || null,
+      lastName: input.lastName?.trim() || prospect?.lastName || null,
+      phone: input.phone?.trim() || prospect?.phone || null,
+      desiredMoveInDate: prospect?.desiredMoveInDate ?? null,
+      occupantCount: prospect?.occupantCount ?? null,
+      hasPets: prospect?.hasPets ?? false,
+      petDetails: prospect?.petDetails ?? null,
+      smokerStatus: prospect?.smokerStatus ?? null,
       status: "draft",
     },
   });
 
-  await maybeLinkProspectForDraftApplication(prisma, app.id, app.email);
+  if (!prospect) {
+    await maybeLinkProspectForDraftApplication(prisma, app.id, app.email);
+  }
   return getApplicationOrThrow(prisma, app.id);
 }
 
@@ -215,19 +237,10 @@ export async function maybeLinkProspectForDraftApplication(
   const app = await getApplicationOrThrow(prisma, applicationId);
   assertPublicDraftAccess(app, expectedEmail);
 
-  const prospects = await prisma.prospect.findMany({
-    where: {
-      propertyId: app.propertyId,
-      email: normalizeApplicationEmail(app.email),
-      status: "new",
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const match = prospects.find((p) => {
-    if (!app.unitId) return true;
-    if (!p.unitId) return true;
-    return p.unitId === app.unitId;
+  const match = await findProspectForApplicationMatch(prisma, {
+    propertyId: app.propertyId,
+    unitId: app.unitId,
+    email: app.email,
   });
 
   if (!match) {

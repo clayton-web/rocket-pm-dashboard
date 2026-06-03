@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       propertyId: parsed.propertyId,
       unitId: parsed.unitId,
       email: parsed.email,
+      prospectId: parsed.prospectId ?? null,
       firstName: parsed.firstName ?? null,
       lastName: parsed.lastName ?? null,
       phone: parsed.phone ?? null,
@@ -46,6 +47,9 @@ export async function POST(request: Request) {
     return NextResponse.json(toPublicApplicationPayload(row));
   } catch (e) {
     if (e instanceof NotFoundError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    if (e instanceof Error && e.message === "Prospect not found") {
       return NextResponse.json({ error: e.message }, { status: 400 });
     }
     if (e instanceof Error && e.message === "Email is required") {

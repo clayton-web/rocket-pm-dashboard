@@ -5,6 +5,7 @@ export type PostStartApplicationBody = {
   propertyId: string;
   unitId: string;
   email: string;
+  prospectId?: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
@@ -93,10 +94,14 @@ export function parsePostStartApplicationBody(
   const phone = parseOptionalString(o.phone, "phone", 50);
   if (typeof phone === "object") return phone;
 
+  const prospectId = parseOptionalString(o.prospectId, "prospectId", 64);
+  if (typeof prospectId === "object") return prospectId;
+
   return {
     propertyId,
     unitId,
     email: emailResult,
+    prospectId,
     firstName,
     lastName,
     phone,
