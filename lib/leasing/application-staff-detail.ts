@@ -51,6 +51,8 @@ export function formatTenancyStatus(status: string): string {
   if (status === "active") return "Active";
   if (status === "notice_received") return "Notice received";
   if (status === "move_out_scheduled") return "Move-out scheduled";
+  if (status === "inspection_scheduled") return "Inspection scheduled";
+  if (status === "inspection_completed") return "Inspection completed";
   if (status === "ended") return "Ended";
   if (status === "archived") return "Archived";
   return status;

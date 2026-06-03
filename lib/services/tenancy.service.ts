@@ -13,8 +13,16 @@ const TENANCY_STATUSES: ReadonlySet<TenancyStatus> = new Set([
   "active",
   "notice_received",
   "move_out_scheduled",
+  "inspection_scheduled",
+  "inspection_completed",
   "ended",
   "archived",
+]);
+
+const DEDICATED_TRANSITION_STATUSES: ReadonlySet<TenancyStatus> = new Set([
+  "move_out_scheduled",
+  "inspection_scheduled",
+  "inspection_completed",
 ]);
 
 function assertTenancyStatus(value: TenancyStatus): void {
@@ -173,6 +181,11 @@ export async function updateTenancy(
 
   if (input.status !== undefined) {
     assertTenancyStatus(input.status);
+    if (DEDICATED_TRANSITION_STATUSES.has(input.status)) {
+      throw new Error(
+        "Use dedicated move-out and inspection actions instead of setting this status directly",
+      );
+    }
     data.status = input.status;
     if (input.status === "archived" && input.archivedAt === undefined && !existing.archivedAt) {
       data.archivedAt = new Date();

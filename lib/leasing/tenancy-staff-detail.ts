@@ -41,6 +41,12 @@ export type TenancyStaffDetail = {
   advanceStatusLabel: string | null;
   acceptedNoticeId: string | null;
   requestedMoveOutDate: string | null;
+  inspectionDate: string | null;
+  inspectionReportUrl: string | null;
+  inspectionNotes: string | null;
+  canScheduleInspection: boolean;
+  canCompleteInspection: boolean;
+  defaultInspectionDate: string | null;
   contacts: TenancyContactRow[];
 };
 
@@ -68,12 +74,23 @@ export async function getTenancyDetailForStaff(
   const nextStatus = getNextTenancyStatus(status);
   const acceptedNotice = await getAcceptedTenantEndNoticeForTenancy(tenancy.id);
 
-  const advanceStatusLabel =
-    nextStatus === "move_out_scheduled"
-      ? null
-      : nextStatus
-        ? getAdvanceTenancyStatusLabel(status)
-        : null;
+  const hideGenericAdvance =
+    nextStatus === "move_out_scheduled" ||
+    nextStatus === "inspection_scheduled" ||
+    nextStatus === "inspection_completed";
+
+  const advanceStatusLabel = hideGenericAdvance
+    ? null
+    : nextStatus
+      ? getAdvanceTenancyStatusLabel(status)
+      : null;
+
+  const canScheduleInspection = status === "move_out_scheduled";
+  const canCompleteInspection = status === "inspection_scheduled";
+  const defaultInspectionDate =
+    tenancy.moveOutDate?.toISOString().slice(0, 10) ??
+    tenancy.inspectionDate?.toISOString().slice(0, 10) ??
+    null;
 
   return {
     id: tenancy.id,
@@ -96,6 +113,12 @@ export async function getTenancyDetailForStaff(
     requestedMoveOutDate: acceptedNotice?.tenantRequestedMoveOutDate
       ? formatMoveOutDateLabel(acceptedNotice.tenantRequestedMoveOutDate)
       : null,
+    inspectionDate: tenancy.inspectionDate?.toISOString().slice(0, 10) ?? null,
+    inspectionReportUrl: tenancy.inspectionReportUrl,
+    inspectionNotes: tenancy.inspectionNotes,
+    canScheduleInspection,
+    canCompleteInspection,
+    defaultInspectionDate,
     contacts: contacts.map((c) => ({
       id: c.id,
       firstName: c.firstName,

@@ -243,6 +243,8 @@ enum TenancyStatus {
   active
   notice_received
   move_out_scheduled
+  inspection_scheduled
+  inspection_completed
   ended
   archived
 }
@@ -414,6 +416,11 @@ model Tenancy {
   moveInDate     DateTime  @db.Date
   /// Confirmed scheduled vacate date (set when staff schedules move-out after notice acceptance).
   moveOutDate    DateTime? @db.Date
+
+  /// Move-out inspection workflow (staff-entered; not synced externally).
+  inspectionDate      DateTime? @db.Date
+  inspectionReportUrl String?   @db.Text
+  inspectionNotes     String?   @db.Text
 
   /// Day of month (1–31) when each rental period begins; used for notice and move-out date validation.
   rentDueDay Int @default(1)

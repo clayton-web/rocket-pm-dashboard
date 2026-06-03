@@ -2,6 +2,8 @@
 
 import {
   advanceTenancyStatusAction,
+  completeMoveOutInspectionAction,
+  scheduleMoveOutInspectionAction,
   setTenancyContactPortalAccessAction,
 } from "@/app/(dashboard)/leasing/tenancies/actions";
 import {
@@ -78,6 +80,14 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
   const [statusPending, startStatusTransition] = useTransition();
   const [contactPendingId, setContactPendingId] = useState<string | null>(null);
   const [contactPending, startContactTransition] = useTransition();
+  const [schedulePending, startScheduleTransition] = useTransition();
+  const [completePending, startCompleteTransition] = useTransition();
+  const [inspectionDate, setInspectionDate] = useState(
+    detail.defaultInspectionDate ?? detail.inspectionDate ?? "",
+  );
+  const [scheduleNotes, setScheduleNotes] = useState(detail.inspectionNotes ?? "");
+  const [completeReportUrl, setCompleteReportUrl] = useState(detail.inspectionReportUrl ?? "");
+  const [completeNotes, setCompleteNotes] = useState(detail.inspectionNotes ?? "");
 
   const primaryContact =
     detail.contacts.find((c) => c.contactType === "tenant") ?? detail.contacts[0];
@@ -90,6 +100,47 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
     setActionError(null);
     startStatusTransition(async () => {
       const result = await advanceTenancyStatusAction(detail.id);
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function onScheduleInspection() {
+    setActionError(null);
+    if (!inspectionDate) {
+      setActionError("Please enter an inspection date.");
+      return;
+    }
+    startScheduleTransition(async () => {
+      const result = await scheduleMoveOutInspectionAction(
+        detail.id,
+        inspectionDate,
+        scheduleNotes,
+      );
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function onCompleteInspection() {
+    setActionError(null);
+    if (!inspectionDate) {
+      setActionError("Please enter an inspection date.");
+      return;
+    }
+    startCompleteTransition(async () => {
+      const result = await completeMoveOutInspectionAction(
+        detail.id,
+        inspectionDate,
+        completeReportUrl,
+        completeNotes,
+      );
       if (!result.ok) {
         setActionError(result.error);
         return;
@@ -152,6 +203,139 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
             </Link>{" "}
             before advancing lifecycle status.
           </p>
+        </div>
+      ) : null}
+
+      {detail.canScheduleInspection ? (
+        <div className="mb-8">
+          <FormSection legend="Schedule move-out inspection">
+            <p className="text-sm text-neutral-600">
+              Record the inspection date and move this tenancy to inspection scheduled. Completion
+              can happen in Rocket Inspection, with a third party, manually, or via a report link
+              later.
+            </p>
+            <div className="mt-4">
+              <FormField label="Inspection date" htmlFor="inspection-date-schedule">
+                <input
+                  id="inspection-date-schedule"
+                  type="date"
+                  value={inspectionDate}
+                  onChange={(e) => setInspectionDate(e.target.value)}
+                  className="w-full max-w-xs rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </FormField>
+            </div>
+            <div className="mt-4">
+              <FormField label="Notes (optional)" htmlFor="inspection-notes-schedule">
+              <textarea
+                id="inspection-notes-schedule"
+                rows={3}
+                value={scheduleNotes}
+                onChange={(e) => setScheduleNotes(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
+              </FormField>
+            </div>
+            <PrimaryButton
+              type="button"
+              className="mt-4 !w-auto px-6"
+              disabled={schedulePending}
+              onClick={onScheduleInspection}
+            >
+              {schedulePending ? "Scheduling…" : "Schedule inspection"}
+            </PrimaryButton>
+          </FormSection>
+        </div>
+      ) : null}
+
+      {detail.canCompleteInspection ? (
+        <div className="mb-8">
+          <FormSection legend="Complete move-out inspection">
+            <p className="text-sm text-neutral-600">
+              Confirm the inspection is done and optionally attach a report URL or notes.
+            </p>
+            <div className="mt-4">
+              <FormField label="Inspection date" htmlFor="inspection-date-complete">
+                <input
+                  id="inspection-date-complete"
+                  type="date"
+                  value={inspectionDate}
+                  onChange={(e) => setInspectionDate(e.target.value)}
+                  className="w-full max-w-xs rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </FormField>
+            </div>
+            <div className="mt-4">
+              <FormField
+                label="Report URL (optional)"
+                htmlFor="inspection-report-url"
+                helper="Link to an external report (vendor portal, cloud storage, etc.)."
+              >
+                <input
+                  id="inspection-report-url"
+                  type="url"
+                  value={completeReportUrl}
+                  onChange={(e) => setCompleteReportUrl(e.target.value)}
+                  placeholder="https://"
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </FormField>
+            </div>
+            <div className="mt-4">
+              <FormField label="Notes (optional)" htmlFor="inspection-notes-complete">
+                <textarea
+                  id="inspection-notes-complete"
+                  rows={3}
+                  value={completeNotes}
+                  onChange={(e) => setCompleteNotes(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </FormField>
+            </div>
+            <PrimaryButton
+              type="button"
+              className="mt-4 !w-auto px-6"
+              disabled={completePending}
+              onClick={onCompleteInspection}
+            >
+              {completePending ? "Completing…" : "Complete inspection"}
+            </PrimaryButton>
+          </FormSection>
+        </div>
+      ) : null}
+
+      {(detail.inspectionDate ||
+        detail.inspectionReportUrl ||
+        detail.inspectionNotes) &&
+      !detail.canScheduleInspection &&
+      !detail.canCompleteInspection ? (
+        <div className="mb-8">
+          <FormSection legend="Move-out inspection">
+            <div className={`${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-3`}>
+              <DetailRow label="Inspection date">{formatDate(detail.inspectionDate)}</DetailRow>
+              <DetailRow label="Report URL">
+                {detail.inspectionReportUrl ? (
+                  <a
+                    href={detail.inspectionReportUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline"
+                  >
+                    View report
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </DetailRow>
+              <DetailRow label="Notes">
+                {detail.inspectionNotes ? (
+                  <span className="whitespace-pre-wrap">{detail.inspectionNotes}</span>
+                ) : (
+                  "—"
+                )}
+              </DetailRow>
+            </div>
+          </FormSection>
         </div>
       ) : null}
 

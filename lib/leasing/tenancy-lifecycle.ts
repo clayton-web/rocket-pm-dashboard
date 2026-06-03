@@ -4,7 +4,9 @@ const NEXT_STATUS: Partial<Record<TenancyStatus, TenancyStatus>> = {
   pending_move_in: "active",
   active: "notice_received",
   notice_received: "move_out_scheduled",
-  move_out_scheduled: "ended",
+  move_out_scheduled: "inspection_scheduled",
+  inspection_scheduled: "inspection_completed",
+  inspection_completed: "ended",
   ended: "archived",
 };
 
@@ -12,7 +14,7 @@ const ADVANCE_LABELS: Partial<Record<TenancyStatus, string>> = {
   pending_move_in: "Mark active",
   active: "Notice received",
   notice_received: "Schedule move-out",
-  move_out_scheduled: "Mark ended",
+  inspection_completed: "Mark ended",
   ended: "Archive",
 };
 

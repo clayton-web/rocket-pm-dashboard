@@ -8,6 +8,11 @@ import {
   isValidTenancyStatusTransition,
 } from "@/lib/leasing/tenancy-lifecycle";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
+import { toDateOnlyUTC } from "@/lib/leasing/notice-rules";
+import {
+  completeMoveOutInspection,
+  scheduleMoveOutInspection,
+} from "@/lib/services/move-out-inspection.service";
 import { getTenancyById, updateTenancy } from "@/lib/services/tenancy.service";
 import { updateTenancyContact } from "@/lib/services/tenancyContact.service";
 import type { TenancyStatus } from "@prisma/client";
@@ -44,6 +49,20 @@ export async function advanceTenancyStatusAction(
       };
     }
 
+    if (current === "move_out_scheduled") {
+      return {
+        ok: false,
+        error: "Schedule the move-out inspection on this tenancy before advancing status.",
+      };
+    }
+
+    if (current === "inspection_scheduled") {
+      return {
+        ok: false,
+        error: "Complete the move-out inspection on this tenancy before advancing status.",
+      };
+    }
+
     await updateTenancy(prisma, ctx, trimmedId, { status: next });
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
@@ -59,6 +78,76 @@ export async function advanceTenancyStatusAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not update tenancy status";
+    return { ok: false, error: message };
+  }
+}
+
+export async function scheduleMoveOutInspectionAction(
+  tenancyId: string,
+  inspectionDate: string,
+  notes?: string,
+): Promise<TenancyActionResult> {
+  const trimmedId = tenancyId.trim();
+  const trimmedDate = inspectionDate.trim();
+  if (!trimmedId) return { ok: false, error: "Invalid tenancy id" };
+  if (!trimmedDate) return { ok: false, error: "Inspection date is required" };
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    await scheduleMoveOutInspection(prisma, ctx, trimmedId, {
+      inspectionDate: toDateOnlyUTC(trimmedDate),
+      notes: notes?.trim() || null,
+    });
+    revalidatePath("/leasing/tenancies");
+    revalidatePath(`/leasing/tenancies/${trimmedId}`);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not schedule inspection";
+    return { ok: false, error: message };
+  }
+}
+
+export async function completeMoveOutInspectionAction(
+  tenancyId: string,
+  inspectionDate: string,
+  reportUrl?: string,
+  notes?: string,
+): Promise<TenancyActionResult> {
+  const trimmedId = tenancyId.trim();
+  const trimmedDate = inspectionDate.trim();
+  if (!trimmedId) return { ok: false, error: "Invalid tenancy id" };
+  if (!trimmedDate) return { ok: false, error: "Inspection date is required" };
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    await completeMoveOutInspection(prisma, ctx, trimmedId, {
+      inspectionDate: toDateOnlyUTC(trimmedDate),
+      reportUrl: reportUrl?.trim() || null,
+      notes: notes?.trim() || null,
+    });
+    revalidatePath("/leasing/tenancies");
+    revalidatePath(`/leasing/tenancies/${trimmedId}`);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not complete inspection";
     return { ok: false, error: message };
   }
 }

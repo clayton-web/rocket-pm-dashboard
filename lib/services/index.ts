@@ -13,6 +13,7 @@ export * from "./signatureRequest.service";
 export * from "./checklist.service";
 export * from "./clientProfile.service";
 export * from "./notice.service";
+export * from "./move-out-inspection.service";
 export type { StaffContext } from "./staff-context";
 export { loadStaffContext } from "./staff-context";
 export {
