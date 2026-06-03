@@ -412,6 +412,7 @@ model Tenancy {
   leaseStartDate DateTime  @db.Date
   leaseEndDate   DateTime? @db.Date
   moveInDate     DateTime  @db.Date
+  /// Confirmed scheduled vacate date (set when staff schedules move-out after notice acceptance).
   moveOutDate    DateTime? @db.Date
 
   /// Day of month (1–31) when each rental period begins; used for notice and move-out date validation.

@@ -7,6 +7,10 @@ import {
   getNextTenancyStatus,
 } from "@/lib/leasing/tenancy-lifecycle";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
+import {
+  formatMoveOutDateLabel,
+  getAcceptedTenantEndNoticeForTenancy,
+} from "@/lib/leasing/tenant-notice";
 
 export type TenancyContactRow = {
   id: string;
@@ -35,6 +39,8 @@ export type TenancyStaffDetail = {
   archivedAt: string | null;
   nextStatus: TenancyStatus | null;
   advanceStatusLabel: string | null;
+  acceptedNoticeId: string | null;
+  requestedMoveOutDate: string | null;
   contacts: TenancyContactRow[];
 };
 
@@ -60,6 +66,14 @@ export async function getTenancyDetailForStaff(
 
   const status = tenancy.status as TenancyStatus;
   const nextStatus = getNextTenancyStatus(status);
+  const acceptedNotice = await getAcceptedTenantEndNoticeForTenancy(tenancy.id);
+
+  const advanceStatusLabel =
+    nextStatus === "move_out_scheduled"
+      ? null
+      : nextStatus
+        ? getAdvanceTenancyStatusLabel(status)
+        : null;
 
   return {
     id: tenancy.id,
@@ -77,7 +91,11 @@ export async function getTenancyDetailForStaff(
     petDeposit: tenancy.petDeposit?.toString() ?? null,
     archivedAt: tenancy.archivedAt?.toISOString() ?? null,
     nextStatus,
-    advanceStatusLabel: nextStatus ? getAdvanceTenancyStatusLabel(status) : null,
+    advanceStatusLabel,
+    acceptedNoticeId: acceptedNotice?.id ?? null,
+    requestedMoveOutDate: acceptedNotice?.tenantRequestedMoveOutDate
+      ? formatMoveOutDateLabel(acceptedNotice.tenantRequestedMoveOutDate)
+      : null,
     contacts: contacts.map((c) => ({
       id: c.id,
       firstName: c.firstName,

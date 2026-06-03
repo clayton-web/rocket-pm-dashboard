@@ -1,10 +1,11 @@
-import type { Notice, Prisma, PrismaClient, TenancyStatus } from "@prisma/client";
+import type { Notice, Prisma, PrismaClient, Tenancy, TenancyStatus } from "@prisma/client";
 import { isValidTenancyStatusTransition } from "@/lib/leasing/tenancy-lifecycle";
 import {
   isMoveOutDateValid,
   toDateOnlyUTC,
 } from "@/lib/leasing/notice-rules";
 import {
+  isAcceptedTenantEndNotice,
   isPendingTenantEndNotice,
   pendingTenantEndNoticeWhere,
   TENANT_NOTICE_DEFAULT_TITLE,
@@ -328,4 +329,77 @@ export async function acceptTenantEndNotice(
   });
 
   return row;
+}
+
+/**
+ * Staff schedules move-out from an accepted tenant notice: sets confirmed vacate date and
+ * notice_received → move_out_scheduled.
+ */
+export async function scheduleMoveOutFromAcceptedNotice(
+  prisma: PrismaClient,
+  principal: StaffContext,
+  noticeId: string,
+  scheduledMoveOutDate: Date,
+): Promise<{ notice: Notice; tenancy: Tenancy }> {
+  requireStaff(principal);
+  const existing = await getNoticeOrThrow(prisma, noticeId);
+  await requirePropertyManagerAccess(prisma, principal, existing.propertyId);
+
+  if (!isAcceptedTenantEndNotice(existing)) {
+    throw new Error("Notice must be accepted before scheduling move-out");
+  }
+
+  const tenancy = await prisma.tenancy.findUnique({ where: { id: existing.tenancyId } });
+  if (!tenancy) throw new NotFoundError("Tenancy not found");
+
+  if (tenancy.status !== "notice_received") {
+    throw new Error("Tenancy must be in notice received status to schedule move-out");
+  }
+  if (tenancy.moveOutDate != null) {
+    throw new Error("Move-out is already scheduled for this tenancy");
+  }
+
+  const moveOutDate = toDateOnlyUTC(scheduledMoveOutDate);
+  const validation = isMoveOutDateValid(
+    moveOutDate,
+    existing.createdAt,
+    tenancyToNoticeRules(tenancy),
+  );
+  if (!validation.valid) {
+    throw new Error(validation.errors.join(" "));
+  }
+
+  const next: TenancyStatus = "move_out_scheduled";
+  if (!isValidTenancyStatusTransition("notice_received", next)) {
+    throw new Error("Invalid status transition");
+  }
+
+  const updatedTenancy = await prisma.tenancy.update({
+    where: { id: tenancy.id },
+    data: {
+      moveOutDate,
+      status: next,
+    },
+  });
+
+  await logPropertyActivity(
+    prisma,
+    principal,
+    updatedTenancy.propertyId,
+    "Tenancy",
+    updatedTenancy.id,
+    "tenancy.move_out_scheduled",
+    {
+      oldValues: pickForAudit(tenancy, ["status", "moveOutDate"]),
+      newValues: pickForAudit(updatedTenancy, ["status", "moveOutDate"]),
+    },
+  );
+  await logPropertyActivity(prisma, principal, existing.propertyId, "Notice", existing.id, "notice.move_out_scheduled", {
+    newValues: {
+      noticeId: existing.id,
+      scheduledMoveOutDate: moveOutDate.toISOString().slice(0, 10),
+    },
+  });
+
+  return { notice: existing, tenancy: updatedTenancy };
 }

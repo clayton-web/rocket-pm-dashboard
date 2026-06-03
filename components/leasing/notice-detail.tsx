@@ -1,7 +1,11 @@
 "use client";
 
-import { acceptTenantNoticeAction } from "@/app/(dashboard)/leasing/notices/actions";
 import {
+  acceptTenantNoticeAction,
+  scheduleMoveOutFromNoticeAction,
+} from "@/app/(dashboard)/leasing/notices/actions";
+import {
+  FormField,
   FormSection,
   InlineNotice,
   PrimaryButton,
@@ -35,6 +39,19 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+function statusBadge(detail: NoticeStaffDetail) {
+  if (detail.canAccept) {
+    return { label: "Pending review", className: "border-amber-200 bg-amber-50 text-amber-900" };
+  }
+  if (detail.canSchedule) {
+    return { label: "Awaiting schedule", className: "border-sky-200 bg-sky-50 text-sky-900" };
+  }
+  if (detail.scheduledMoveOutDate) {
+    return { label: "Move-out scheduled", className: "border-emerald-200 bg-emerald-50 text-emerald-900" };
+  }
+  return { label: "Reviewed", className: "border-neutral-300 bg-white text-neutral-800" };
+}
+
 export function NoticeDetail({
   initialDetail,
   loadError,
@@ -62,11 +79,33 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [acceptPending, startAcceptTransition] = useTransition();
+  const [schedulePending, startScheduleTransition] = useTransition();
+  const [scheduleDate, setScheduleDate] = useState(
+    detail.defaultScheduleDate ?? detail.scheduleDateOptions[0]?.value ?? "",
+  );
+
+  const badge = statusBadge(detail);
 
   function onAccept() {
     setActionError(null);
     startAcceptTransition(async () => {
       const result = await acceptTenantNoticeAction(detail.id);
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function onSchedule() {
+    setActionError(null);
+    if (!scheduleDate) {
+      setActionError("Please select a scheduled move-out date.");
+      return;
+    }
+    startScheduleTransition(async () => {
+      const result = await scheduleMoveOutFromNoticeAction(detail.id, scheduleDate);
       if (!result.ok) {
         setActionError(result.error);
         return;
@@ -94,13 +133,9 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
 
       <div className={`${SURFACE_CARD} mb-6 px-4 py-4`}>
         <span
-          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${
-            detail.canAccept
-              ? "border-amber-200 bg-amber-50 text-amber-900"
-              : "border-neutral-300 bg-white text-neutral-800"
-          }`}
+          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${badge.className}`}
         >
-          {detail.canAccept ? "Pending review" : "Reviewed"}
+          {badge.label}
         </span>
         <p className="mt-3 text-sm text-neutral-600">
           Tenancy status · {formatTenancyStatus(detail.tenancyStatus)}
@@ -111,8 +146,8 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
         <div className="mb-8">
           <FormSection legend="Review">
             <p className="text-sm text-neutral-600">
-              Accepting records the notice and updates the tenancy to notice received. Follow up
-              with the tenant on move-out details.
+              Accepting records the notice and updates the tenancy to notice received. You can
+              schedule move-out after acceptance.
             </p>
             <PrimaryButton
               type="button"
@@ -126,13 +161,58 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
         </div>
       ) : null}
 
+      {detail.canSchedule ? (
+        <div className="mb-8">
+          <FormSection legend="Schedule move-out">
+            <p className="text-sm text-neutral-600">
+              Confirm the scheduled move-out date for this tenancy. This sets the tenancy scheduled
+              vacate date and updates status to move-out scheduled.
+            </p>
+            <FormField
+              label="Scheduled move-out date"
+              htmlFor="schedule-move-out"
+              helper="Defaults to the tenant requested date. Override only when valid for notice rules."
+            >
+              <select
+                id="schedule-move-out"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+              >
+                {detail.scheduleDateOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <PrimaryButton
+              type="button"
+              className="mt-4 !w-auto px-6"
+              disabled={schedulePending || detail.scheduleDateOptions.length === 0}
+              onClick={onSchedule}
+            >
+              {schedulePending ? "Scheduling…" : "Schedule move-out"}
+            </PrimaryButton>
+          </FormSection>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-8">
         <FormSection legend="Notice">
           <div className={`${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-3`}>
             <DetailRow label="Submitted">{formatDateTime(detail.submittedAt)}</DetailRow>
-            <DetailRow label="Requested tenancy end">
+            {detail.acceptedAt ? (
+              <DetailRow label="Accepted">{formatDateTime(detail.acceptedAt)}</DetailRow>
+            ) : null}
+            <DetailRow label="Requested move-out date">
               {formatDate(detail.tenantRequestedMoveOutDate)}
             </DetailRow>
+            {detail.scheduledMoveOutDate ? (
+              <DetailRow label="Scheduled move-out date (tenancy)">
+                {formatDate(detail.scheduledMoveOutDate)}
+              </DetailRow>
+            ) : null}
             <DetailRow label="Title">{detail.title}</DetailRow>
           </div>
         </FormSection>

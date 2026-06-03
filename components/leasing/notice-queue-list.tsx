@@ -25,41 +25,104 @@ function formatMoveOutDate(iso: string) {
   return d.toLocaleDateString(undefined, { dateStyle: "medium" });
 }
 
-export function NoticeQueueList({
-  initialNotices,
-  loadError,
+function NoticeListSection({
+  title,
+  badgeLabel,
+  badgeClassName,
+  notices,
+  propertyFilter,
+  emptyMessage,
 }: {
-  initialNotices: NoticeQueueRow[];
-  loadError: string | null;
+  title: string;
+  badgeLabel: string;
+  badgeClassName: string;
+  notices: NoticeQueueRow[];
+  propertyFilter: string;
+  emptyMessage: string;
 }) {
-  const [notices] = useState(initialNotices);
-  const [propertyFilter, setPropertyFilter] = useState<string>("all");
-
-  const propertyOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const n of notices) {
-      map.set(n.propertyId, n.propertyName);
-    }
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [notices]);
-
   const visible = useMemo(() => {
     if (propertyFilter === "all") return notices;
     return notices.filter((n) => n.propertyId === propertyFilter);
   }, [notices, propertyFilter]);
 
   return (
+    <FormSection legend={title}>
+      {notices.length === 0 ? (
+        <InlineNotice>{emptyMessage}</InlineNotice>
+      ) : visible.length === 0 ? (
+        <InlineNotice>No notices match this filter.</InlineNotice>
+      ) : (
+        <ul className="flex list-none flex-col gap-3 p-0">
+          {visible.map((notice) => {
+            const submitted = formatSubmittedAt(notice.submittedAt);
+            return (
+              <li key={notice.id}>
+                <Link
+                  href={`/leasing/notices/${notice.id}`}
+                  className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${badgeClassName}`}
+                    >
+                      {badgeLabel}
+                    </span>
+                    <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
+                      {submitted.label}
+                    </time>
+                  </div>
+                  <h2 className="mt-3 text-sm font-semibold text-neutral-900">
+                    {notice.tenantLabel ?? "Tenant"}
+                  </h2>
+                  <p className="mt-1 text-xs font-medium text-neutral-700">{notice.propertyName}</p>
+                  <p className="mt-2 text-sm text-neutral-600">{notice.unitLabel}</p>
+                  <p className="mt-2 text-sm text-neutral-600">
+                    <span className="text-neutral-500">Requested move-out · </span>
+                    {formatMoveOutDate(notice.tenantRequestedMoveOutDate)}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </FormSection>
+  );
+}
+
+export function NoticeQueueList({
+  initialPendingNotices,
+  initialAwaitingSchedule,
+  loadError,
+}: {
+  initialPendingNotices: NoticeQueueRow[];
+  initialAwaitingSchedule: NoticeQueueRow[];
+  loadError: string | null;
+}) {
+  const [pendingNotices] = useState(initialPendingNotices);
+  const [awaitingSchedule] = useState(initialAwaitingSchedule);
+  const [propertyFilter, setPropertyFilter] = useState<string>("all");
+
+  const propertyOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const n of [...pendingNotices, ...awaitingSchedule]) {
+      map.set(n.propertyId, n.propertyName);
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [pendingNotices, awaitingSchedule]);
+
+  return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900">Tenant notices</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Review notices to end tenancy submitted from the tenant portal.
+          Review tenant notices to end tenancy, then schedule confirmed move-out dates.
         </p>
       </div>
 
       {loadError ? <InlineNotice className="mb-4">{loadError}</InlineNotice> : null}
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-10">
         {propertyOptions.length > 1 ? (
           <FormSection legend="Filter by property">
             <div className="flex flex-wrap gap-2">
@@ -86,43 +149,23 @@ export function NoticeQueueList({
           </FormSection>
         ) : null}
 
-        {notices.length === 0 ? (
-          <InlineNotice>No pending tenant notices.</InlineNotice>
-        ) : visible.length === 0 ? (
-          <InlineNotice>No notices match this filter.</InlineNotice>
-        ) : (
-          <ul className="flex list-none flex-col gap-3 p-0">
-            {visible.map((notice) => {
-              const submitted = formatSubmittedAt(notice.submittedAt);
-              return (
-                <li key={notice.id}>
-                  <Link
-                    href={`/leasing/notices/${notice.id}`}
-                    className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
-                        Pending review
-                      </span>
-                      <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
-                        {submitted.label}
-                      </time>
-                    </div>
-                    <h2 className="mt-3 text-sm font-semibold text-neutral-900">
-                      {notice.tenantLabel ?? "Tenant"}
-                    </h2>
-                    <p className="mt-1 text-xs font-medium text-neutral-700">{notice.propertyName}</p>
-                    <p className="mt-2 text-sm text-neutral-600">{notice.unitLabel}</p>
-                    <p className="mt-2 text-sm text-neutral-600">
-                      <span className="text-neutral-500">Requested end · </span>
-                      {formatMoveOutDate(notice.tenantRequestedMoveOutDate)}
-                    </p>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <NoticeListSection
+          title="Pending review"
+          badgeLabel="Pending review"
+          badgeClassName="border-amber-200 bg-amber-50 text-amber-900"
+          notices={pendingNotices}
+          propertyFilter={propertyFilter}
+          emptyMessage="No pending tenant notices."
+        />
+
+        <NoticeListSection
+          title="Awaiting schedule"
+          badgeLabel="Awaiting schedule"
+          badgeClassName="border-sky-200 bg-sky-50 text-sky-900"
+          notices={awaitingSchedule}
+          propertyFilter={propertyFilter}
+          emptyMessage="No accepted notices awaiting move-out scheduling."
+        />
       </div>
     </div>
   );

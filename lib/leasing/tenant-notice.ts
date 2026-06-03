@@ -1,4 +1,5 @@
 import type { Notice, Prisma, Tenancy } from "@prisma/client";
+import prisma from "@/lib/db/prisma";
 import type { NoticeRulesTenancy } from "@/lib/leasing/notice-rules";
 import { toDateOnlyUTC } from "@/lib/leasing/notice-rules";
 
@@ -17,6 +18,16 @@ export function isPendingTenantEndNotice(notice: Pick<Notice, "noticeType" | "se
   return notice.noticeType === TENANT_NOTICE_TO_END_TYPE && notice.servedAt == null;
 }
 
+export function isAcceptedTenantEndNotice(
+  notice: Pick<Notice, "noticeType" | "servedAt" | "tenantRequestedMoveOutDate">,
+): boolean {
+  return (
+    notice.noticeType === TENANT_NOTICE_TO_END_TYPE &&
+    notice.servedAt != null &&
+    notice.tenantRequestedMoveOutDate != null
+  );
+}
+
 export function pendingTenantEndNoticeWhere(tenancyId: string): Prisma.NoticeWhereInput {
   return {
     tenancyId,
@@ -27,4 +38,17 @@ export function pendingTenantEndNoticeWhere(tenancyId: string): Prisma.NoticeWhe
 
 export function formatMoveOutDateLabel(date: Date): string {
   return toDateOnlyUTC(date).toISOString().slice(0, 10);
+}
+
+/** Latest accepted tenant end-notice for a tenancy (for staff schedule / tenancy detail). */
+export async function getAcceptedTenantEndNoticeForTenancy(tenancyId: string) {
+  return prisma.notice.findFirst({
+    where: {
+      tenancyId,
+      noticeType: TENANT_NOTICE_TO_END_TYPE,
+      servedAt: { not: null },
+      tenantRequestedMoveOutDate: { not: null },
+    },
+    orderBy: { servedAt: "desc" },
+  });
 }

@@ -140,6 +140,21 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
         ) : null}
       </div>
 
+      {detail.status === "notice_received" && detail.acceptedNoticeId ? (
+        <div className={`${SURFACE_CARD} mb-6 px-4 py-4 text-sm text-neutral-700`}>
+          <p>
+            Schedule move-out from the{" "}
+            <Link
+              href={`/leasing/notices/${detail.acceptedNoticeId}`}
+              className="font-medium text-neutral-900 underline"
+            >
+              accepted tenant notice
+            </Link>{" "}
+            before advancing lifecycle status.
+          </p>
+        </div>
+      ) : null}
+
       {detail.advanceStatusLabel && detail.nextStatus ? (
         <div className="mb-8">
           <FormSection legend="Lifecycle">
@@ -175,7 +190,24 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
             <DetailRow label="Lease start">{formatDate(detail.leaseStartDate)}</DetailRow>
             <DetailRow label="Lease end">{formatDate(detail.leaseEndDate)}</DetailRow>
             <DetailRow label="Move-in">{formatDate(detail.moveInDate)}</DetailRow>
-            <DetailRow label="Move-out">{formatDate(detail.moveOutDate)}</DetailRow>
+            <DetailRow label="Scheduled move-out">{formatDate(detail.moveOutDate)}</DetailRow>
+            {detail.requestedMoveOutDate ? (
+              <DetailRow label="Requested move-out (notice)">
+                {formatDate(detail.requestedMoveOutDate)}
+                {detail.acceptedNoticeId ? (
+                  <>
+                    {" "}
+                    ·{" "}
+                    <Link
+                      href={`/leasing/notices/${detail.acceptedNoticeId}`}
+                      className="font-medium underline"
+                    >
+                      View notice
+                    </Link>
+                  </>
+                ) : null}
+              </DetailRow>
+            ) : null}
             <DetailRow label="Monthly rent">${detail.monthlyRent}</DetailRow>
             <DetailRow label="Security deposit">${detail.securityDeposit}</DetailRow>
             <DetailRow label="Pet deposit">

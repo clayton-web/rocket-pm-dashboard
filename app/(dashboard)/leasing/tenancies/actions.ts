@@ -36,6 +36,14 @@ export async function advanceTenancyStatusAction(
       return { ok: false, error: "Invalid status transition" };
     }
 
+    if (next === "move_out_scheduled") {
+      return {
+        ok: false,
+        error:
+          "Schedule move-out from the accepted tenant notice on the Notices page before advancing status.",
+      };
+    }
+
     await updateTenancy(prisma, ctx, trimmedId, { status: next });
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);

@@ -178,6 +178,13 @@ export async function updateTenancy(
       data.archivedAt = new Date();
     }
   }
+
+  const resultingStatus = (data.status as TenancyStatus | undefined) ?? existing.status;
+  const resultingMoveOut =
+    input.moveOutDate !== undefined ? input.moveOutDate : existing.moveOutDate;
+  if (resultingStatus === "move_out_scheduled" && resultingMoveOut == null) {
+    throw new Error("Scheduled move-out date is required before marking move-out scheduled");
+  }
   if (input.leaseStartDate !== undefined) data.leaseStartDate = input.leaseStartDate;
   if (input.leaseEndDate !== undefined) data.leaseEndDate = input.leaseEndDate;
   if (input.moveInDate !== undefined) data.moveInDate = input.moveInDate;

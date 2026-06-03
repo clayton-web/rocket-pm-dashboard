@@ -274,7 +274,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
                 />
               </FormField>
-              <FormField label="Move-out date (optional)" htmlFor="move-out">
+              <FormField label="Anticipated move-out (optional)" htmlFor="move-out">
                 <input
                   id="move-out"
                   type="date"
