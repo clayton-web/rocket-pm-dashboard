@@ -2,9 +2,11 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { InboxCommandCenter } from "@/components/inbox/inbox-command-center";
 import { InboxToolbar } from "@/components/inbox/inbox-toolbar";
+import { getActiveGmailSyncAccountIds } from "@/lib/gmail/enqueue-gmail-sync";
+import { getSyncFreshness } from "@/lib/gmail/sync-freshness";
+import { listMailboxesForInbox } from "@/lib/gmail/sync-permissions";
 import { getInboxCommandCenter } from "@/lib/inbox/inbox-command-center.service";
 import { isInboxQueueParam } from "@/lib/inbox/inbox-thread-queues";
-import { listMailboxesForInbox } from "@/lib/gmail/sync-permissions";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
 
 type PageProps = {
@@ -33,10 +35,27 @@ export default async function InboxPage({ searchParams }: PageProps) {
   }
 
   const params = await searchParams;
-  const mailboxes = await listMailboxesForInbox({
+  const mailboxesRaw = await listMailboxesForInbox({
     userId: session.user.id,
     organizationId: active.id,
     activeRole: active.role,
+  });
+
+  const syncingAccountIds = await getActiveGmailSyncAccountIds({
+    organizationId: active.id,
+    connectedAccountIds: mailboxesRaw.map((m) => m.id),
+  });
+
+  const mailboxes = mailboxesRaw.map((mailbox) => {
+    const freshness = getSyncFreshness({
+      lastSyncedAt: mailbox.lastSyncedAt,
+      syncInProgress: syncingAccountIds.has(mailbox.id),
+    });
+    return {
+      ...mailbox,
+      syncFreshnessLabel: freshness.label,
+      syncFreshnessLevel: freshness.level,
+    };
   });
 
   const mailboxParam = params.mailbox;
@@ -63,7 +82,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
       <div>
         <h1 className="text-lg font-semibold text-neutral-900">Inbox</h1>
         <p className="text-sm text-neutral-600">
-          PM work queue from synced Gmail threads. Manual sync only in this phase.
+          PM work queue from synced Gmail threads. Sync runs in the background via the job queue.
         </p>
       </div>
 
@@ -71,7 +90,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
         <InboxToolbar
           mailboxes={mailboxes}
           selectedMailboxId={selectedMailboxId}
-          syncOk={params.sync === "ok"}
+          syncEnqueued={params.sync === "enqueued"}
+          syncQueued={params.sync === "queued"}
           syncError={params.sync_error}
         />
       </div>

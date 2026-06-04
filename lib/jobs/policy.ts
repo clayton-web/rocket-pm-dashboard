@@ -1,8 +1,8 @@
-import { isAgentJobType, PHASE0_ALLOWED_JOB_TYPES } from "@/lib/jobs/types";
+import { isAgentJobType, PHASE1_ALLOWED_JOB_TYPES } from "@/lib/jobs/types";
 
 /**
  * When false (default), agent.* jobs cannot be enqueued or processed.
- * Does not affect system.noop or future gmail.sync.
+ * Does not affect system.noop or gmail.sync.
  */
 export function isAgentAutomationEnabled(): boolean {
   const raw = process.env.AGENT_AUTOMATION_ENABLED?.trim().toLowerCase();
@@ -16,9 +16,9 @@ export function assertJobTypeAllowedForPhase(jobType: string): void {
     );
   }
 
-  if (!PHASE0_ALLOWED_JOB_TYPES.has(jobType)) {
+  if (!PHASE1_ALLOWED_JOB_TYPES.has(jobType)) {
     throw new Error(
-      `Job type "${jobType}" is not enabled in Phase 0. Allowed: ${[...PHASE0_ALLOWED_JOB_TYPES].join(", ")}.`,
+      `Job type "${jobType}" is not enabled. Allowed: ${[...PHASE1_ALLOWED_JOB_TYPES].join(", ")}.`,
     );
   }
 }

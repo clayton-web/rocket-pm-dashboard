@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { syncGmailMailboxAction } from "@/app/(dashboard)/inbox/actions";
+import type { SyncFreshnessLevel } from "@/lib/gmail/sync-freshness";
 import type { ConnectedEmailAccountStatus } from "@prisma/client";
 
 type Mailbox = {
@@ -8,23 +9,18 @@ type Mailbox = {
   status: ConnectedEmailAccountStatus;
   lastSyncedAt: Date | null;
   lastError: string | null;
+  syncFreshnessLabel: string;
+  syncFreshnessLevel: SyncFreshnessLevel;
 };
-
-function formatTimestamp(date: Date | null) {
-  if (!date) return "Never";
-  return new Intl.DateTimeFormat("en-CA", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 export function InboxToolbar(props: {
   mailboxes: Mailbox[];
   selectedMailboxId: string | null;
-  syncOk?: boolean;
+  syncEnqueued?: boolean;
+  syncQueued?: boolean;
   syncError?: string;
 }) {
-  const { mailboxes, selectedMailboxId, syncOk, syncError } = props;
+  const { mailboxes, selectedMailboxId, syncEnqueued, syncQueued, syncError } = props;
   const selectedMailbox = selectedMailboxId
     ? mailboxes.find((m) => m.id === selectedMailboxId) ?? null
     : null;
@@ -44,9 +40,15 @@ export function InboxToolbar(props: {
         </Link>
       </div>
 
-      {syncOk ? (
+      {syncEnqueued ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-          Sync finished.
+          Sync queued — processing in the background.
+        </div>
+      ) : null}
+
+      {syncQueued ? (
+        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          A sync is already in progress for this mailbox.
         </div>
       ) : null}
 
@@ -103,9 +105,18 @@ export function InboxToolbar(props: {
 
       {selectedMailboxId ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-3">
-          <div className="text-xs text-neutral-500">
-            Last synced:{" "}
-            <span className="text-neutral-700">{formatTimestamp(selectedMailbox?.lastSyncedAt ?? null)}</span>
+          <div className="text-xs">
+            <span
+              className={
+                selectedMailbox?.syncFreshnessLevel === "overdue"
+                  ? "font-medium text-amber-800"
+                  : selectedMailbox?.syncFreshnessLevel === "in_progress"
+                    ? "font-medium text-sky-800"
+                    : "text-neutral-500"
+              }
+            >
+              {selectedMailbox?.syncFreshnessLabel ?? "Never synced"}
+            </span>
             {selectedMailbox?.lastError && !needsReconnect ? (
               <span className="ml-2 text-amber-800">{selectedMailbox.lastError}</span>
             ) : null}
@@ -114,10 +125,10 @@ export function InboxToolbar(props: {
             <input type="hidden" name="connectedAccountId" value={selectedMailboxId} />
             <button
               type="submit"
-              disabled={syncDisabled}
+              disabled={syncDisabled || selectedMailbox?.syncFreshnessLevel === "in_progress"}
               className="rounded-md bg-neutral-900 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Sync now
+              {selectedMailbox?.syncFreshnessLevel === "in_progress" ? "Syncing…" : "Sync now"}
             </button>
           </form>
         </div>

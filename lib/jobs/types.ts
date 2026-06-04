@@ -1,6 +1,7 @@
 /**
- * Registered background job types. Phase 0: system.noop only.
- * Future: gmail.sync, agent.triage, agent.draft.generate (blocked until automation enabled).
+ * Registered background job types.
+ * Phase 1: system.noop + gmail.sync (production Gmail sync workload).
+ * Future: agent.triage, agent.draft.generate (blocked until automation enabled).
  */
 export const JOB_TYPES = {
   SYSTEM_NOOP: "system.noop",
@@ -11,7 +12,13 @@ export const JOB_TYPES = {
 
 export type JobType = (typeof JOB_TYPES)[keyof typeof JOB_TYPES];
 
-export const PHASE0_ALLOWED_JOB_TYPES: ReadonlySet<string> = new Set([JOB_TYPES.SYSTEM_NOOP]);
+/** @deprecated Use PHASE1_ALLOWED_JOB_TYPES */
+export const PHASE0_ALLOWED_JOB_TYPES: ReadonlySet<string> = new Set([
+  JOB_TYPES.SYSTEM_NOOP,
+  JOB_TYPES.GMAIL_SYNC,
+]);
+
+export const PHASE1_ALLOWED_JOB_TYPES: ReadonlySet<string> = PHASE0_ALLOWED_JOB_TYPES;
 
 export function isAgentJobType(jobType: string): boolean {
   return jobType.startsWith("agent.");

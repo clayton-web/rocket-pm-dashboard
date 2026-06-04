@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
-import { runManualGmailSync } from "@/lib/gmail/manual-sync";
+import { enqueueGmailSyncJob } from "@/lib/gmail/enqueue-gmail-sync";
 import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { requireActiveOrganization } from "@/lib/org/active-organization";
 
@@ -36,14 +36,19 @@ export async function syncGmailMailboxAction(formData: FormData) {
   });
 
   try {
-    await runManualGmailSync({ account, actorUserId: session.user.id });
+    const result = await enqueueGmailSyncJob({
+      organizationId: active.id,
+      connectedAccountId: account.id,
+      triggeredByUserId: session.user.id,
+    });
+
+    revalidatePath("/inbox");
+    const query = result.alreadyQueued ? "sync=queued" : "sync=enqueued";
+    redirect(`/inbox?mailbox=${encodeURIComponent(account.id)}&${query}`);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "sync_failed";
+    const msg = error instanceof Error ? error.message : "sync_enqueue_failed";
     redirect(
       `/inbox?mailbox=${encodeURIComponent(account.id)}&sync_error=${encodeURIComponent(msg.slice(0, 240))}`,
     );
   }
-
-  revalidatePath("/inbox");
-  redirect(`/inbox?mailbox=${encodeURIComponent(account.id)}&sync=ok`);
 }

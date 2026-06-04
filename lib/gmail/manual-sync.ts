@@ -1,147 +1,52 @@
-import prisma from "@/lib/db/prisma";
 import type { ConnectedEmailAccount } from "@prisma/client";
-import { getValidGmailAccessToken, markAccountNeedsReauth } from "@/lib/gmail/gmail-access";
-import { GmailAuthError, isGmailAuthError } from "@/lib/gmail/gmail-errors";
-import { getThreadFull, listInboxThreads } from "@/lib/gmail/gmail-api";
-import { parseGmailThread } from "@/lib/gmail/gmail-message-parser";
-import { upsertSyncedThread } from "@/lib/gmail/persist-thread-sync";
+import {
+  auditGmailSyncCompleted,
+  auditGmailSyncFailed,
+  auditGmailSyncStarted,
+} from "@/lib/gmail/gmail-sync-audit";
+import {
+  recordGmailSyncFailure,
+  runGmailMailboxSync,
+  type GmailSyncResult,
+} from "@/lib/gmail/gmail-sync-core";
 
-function clampInt(value: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, Math.floor(value)));
-}
+export { getSyncLabelIds, getSyncMaxThreads } from "@/lib/gmail/gmail-sync-core";
 
-export function getSyncMaxThreads(): number {
-  const raw = Number(process.env.GMAIL_SYNC_MAX_THREADS ?? "50");
-  return clampInt(raw, 1, 100);
-}
+export type ManualSyncResult = GmailSyncResult;
 
-export function getSyncLabelIds(): string[] {
-  const raw = process.env.GMAIL_SYNC_LABEL_IDS?.trim();
-  if (!raw) {
-    return ["INBOX"];
-  }
-  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  return parts.length ? parts : ["INBOX"];
-}
-
-async function gmailCallWithRetry<T>(accountId: string, fn: (accessToken: string) => Promise<T>): Promise<T> {
-  try {
-    const accessToken = await getValidGmailAccessToken(accountId);
-    return await fn(accessToken);
-  } catch (error) {
-    if (error instanceof GmailAuthError && error.code === "unauthorized") {
-      const accessToken = await getValidGmailAccessToken(accountId, { forceRefresh: true });
-      return await fn(accessToken);
-    }
-    throw error;
-  }
-}
-
-export type ManualSyncResult = {
-  threadCount: number;
-  messageCount: number;
-};
-
+/** Direct (inline) Gmail sync with audit events — prefer enqueueGmailSyncJob for staff UI. */
 export async function runManualGmailSync(args: {
   account: ConnectedEmailAccount;
   actorUserId: string;
 }): Promise<ManualSyncResult> {
   const { account, actorUserId } = args;
 
-  await prisma.auditLog.create({
-    data: {
-      organizationId: account.organizationId,
-      actorUserId,
-      action: "gmail.sync.started",
-      resourceType: "ConnectedEmailAccount",
-      resourceId: account.id,
-      metadata: {
-        labelIds: getSyncLabelIds(),
-        maxThreads: getSyncMaxThreads(),
-      },
-    },
+  await auditGmailSyncStarted({
+    organizationId: account.organizationId,
+    actorUserId,
+    connectedAccountId: account.id,
   });
 
   try {
-    const labelIds = getSyncLabelIds();
-    const maxResults = getSyncMaxThreads();
+    const result = await runGmailMailboxSync({ account });
 
-    const listed = await gmailCallWithRetry(account.id, (token) =>
-      listInboxThreads(token, { maxResults, labelIds }),
-    );
-
-    const threadIds = listed.threads?.map((t) => t.id) ?? [];
-
-    let messageCount = 0;
-
-    for (const threadId of threadIds) {
-      const fullThread = await gmailCallWithRetry(account.id, (token) => getThreadFull(token, threadId));
-
-      const parsed = parseGmailThread(fullThread);
-      await upsertSyncedThread({
-        organizationId: account.organizationId,
-        connectedAccountId: account.id,
-        providerThreadId: parsed.providerThreadId,
-        subject: parsed.subject,
-        snippet: parsed.snippet,
-        lastMessageAt: parsed.lastMessageAt,
-        labelIds: parsed.labelIds,
-        isUnread: parsed.isUnread,
-        participantEmails: parsed.participantEmails,
-        messages: parsed.messages,
-      });
-
-      messageCount += parsed.messages.length;
-    }
-
-    await prisma.connectedEmailAccount.update({
-      where: { id: account.id },
-      data: {
-        lastSyncedAt: new Date(),
-        lastError: null,
-        status: "CONNECTED",
-      },
+    await auditGmailSyncCompleted({
+      organizationId: account.organizationId,
+      actorUserId,
+      connectedAccountId: account.id,
+      threadCount: result.threadCount,
+      messageCount: result.messageCount,
     });
 
-    await prisma.auditLog.create({
-      data: {
-        organizationId: account.organizationId,
-        actorUserId,
-        action: "gmail.sync.completed",
-        resourceType: "ConnectedEmailAccount",
-        resourceId: account.id,
-        metadata: {
-          threadCount: threadIds.length,
-          messageCount,
-        },
-      },
-    });
-
-    return { threadCount: threadIds.length, messageCount };
+    return result;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown_error";
+    const message = await recordGmailSyncFailure({ accountId: account.id, error });
 
-    if (isGmailAuthError(error)) {
-      await markAccountNeedsReauth(account.id, message);
-    } else {
-      await prisma.connectedEmailAccount.update({
-        where: { id: account.id },
-        data: {
-          lastError: message,
-        },
-      });
-    }
-
-    await prisma.auditLog.create({
-      data: {
-        organizationId: account.organizationId,
-        actorUserId,
-        action: "gmail.sync.failed",
-        resourceType: "ConnectedEmailAccount",
-        resourceId: account.id,
-        metadata: { message },
-      },
+    await auditGmailSyncFailed({
+      organizationId: account.organizationId,
+      actorUserId,
+      connectedAccountId: account.id,
+      message,
     });
 
     throw error;

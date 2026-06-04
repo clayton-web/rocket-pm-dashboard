@@ -23,8 +23,12 @@ describe("job policy", () => {
     assert.equal(isAgentAutomationEnabled(), false);
   });
 
-  it("allows system.noop in Phase 0", () => {
+  it("allows system.noop", () => {
     assert.doesNotThrow(() => assertJobTypeAllowedForPhase(JOB_TYPES.SYSTEM_NOOP));
+  });
+
+  it("allows gmail.sync in Phase 1", () => {
+    assert.doesNotThrow(() => assertJobTypeAllowedForPhase(JOB_TYPES.GMAIL_SYNC));
   });
 
   it("blocks agent.triage when automation is disabled", () => {
@@ -32,13 +36,6 @@ describe("job policy", () => {
     assert.throws(
       () => assertJobTypeAllowedForPhase(JOB_TYPES.AGENT_TRIAGE),
       /AGENT_AUTOMATION_ENABLED/,
-    );
-  });
-
-  it("blocks gmail.sync in Phase 0", () => {
-    assert.throws(
-      () => assertJobTypeAllowedForPhase(JOB_TYPES.GMAIL_SYNC),
-      /not enabled in Phase 0/,
     );
   });
 
@@ -72,7 +69,7 @@ describe("job policy — agent automation enabled", () => {
   it("still blocks agent jobs until Phase allows them", () => {
     assert.throws(
       () => assertJobTypeAllowedForPhase(JOB_TYPES.AGENT_DRAFT_GENERATE),
-      /not enabled in Phase 0/,
+      /not enabled/,
     );
   });
 });
