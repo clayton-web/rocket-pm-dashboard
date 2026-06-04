@@ -88,3 +88,75 @@ export async function listTenancyQueueForStaff(ctx: StaffContext): Promise<Tenan
   rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return rows;
 }
+
+export async function listPendingMoveInQueueForStaff(
+  ctx: StaffContext,
+): Promise<TenancyQueueRow[]> {
+  const properties = await listPropertiesForUser(prisma, ctx);
+  const rows: TenancyQueueRow[] = [];
+
+  for (const property of properties) {
+    let tenancies;
+    try {
+      tenancies = await listTenanciesForProperty(prisma, ctx, property.id, {
+        status: "pending_move_in",
+      });
+    } catch (e) {
+      if (e instanceof ForbiddenError) continue;
+      throw e;
+    }
+
+    if (tenancies.length === 0) continue;
+
+    const unitIds = [...new Set(tenancies.map((t) => t.unitId))];
+    const tenancyIds = tenancies.map((t) => t.id);
+
+    const [units, contacts] = await Promise.all([
+      prisma.unit.findMany({
+        where: { id: { in: unitIds } },
+        select: { id: true, unitNumber: true },
+      }),
+      prisma.tenancyContact.findMany({
+        where: { tenancyId: { in: tenancyIds } },
+        select: {
+          tenancyId: true,
+          contactType: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+        orderBy: [{ contactType: "asc" }, { lastName: "asc" }],
+      }),
+    ]);
+
+    const unitById = new Map(units.map((u) => [u.id, u.unitNumber]));
+    const contactsByTenancy = new Map<string, typeof contacts>();
+    for (const c of contacts) {
+      const list = contactsByTenancy.get(c.tenancyId) ?? [];
+      list.push(c);
+      contactsByTenancy.set(c.tenancyId, list);
+    }
+
+    for (const t of tenancies) {
+      const unitNumber = unitById.get(t.unitId);
+      rows.push({
+        id: t.id,
+        status: t.status,
+        propertyId: property.id,
+        propertyName: property.name,
+        unitLabel: unitNumber ? `Unit ${unitNumber}` : "Unit",
+        tenantLabel: formatTenantLabel(contactsByTenancy.get(t.id) ?? []),
+        moveInDate: t.moveInDate.toISOString().slice(0, 10),
+        monthlyRent: t.monthlyRent.toString(),
+        createdAt: t.createdAt.toISOString(),
+      });
+    }
+  }
+
+  rows.sort((a, b) => {
+    const aDate = a.moveInDate ?? "";
+    const bDate = b.moveInDate ?? "";
+    return aDate.localeCompare(bDate);
+  });
+  return rows;
+}

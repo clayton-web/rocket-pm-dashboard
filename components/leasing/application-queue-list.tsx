@@ -8,6 +8,7 @@ import {
   SURFACE_PANEL,
   toggleTileClasses,
 } from "@/components/portal/ui";
+import type { ApplicationConversionQueueRow } from "@/lib/leasing/application-conversion-staff-queue";
 import {
   formatApplicationQueueStatus,
   type ApplicationQueueRow,
@@ -37,14 +38,22 @@ function formatMoveInDate(iso: string | null) {
   return d.toLocaleDateString(undefined, { dateStyle: "medium" });
 }
 
-export function ApplicationQueueList({
-  initialApplications,
-  loadError,
-}: {
-  initialApplications: ApplicationQueueRow[];
+type ApplicationQueueListProps = {
   loadError: string | null;
-}) {
-  const [applications] = useState(initialApplications);
+} & (
+  | {
+      queueMode: "review";
+      initialApplications: ApplicationQueueRow[];
+    }
+  | {
+      queueMode: "conversion";
+      initialApplications: ApplicationConversionQueueRow[];
+    }
+);
+
+export function ApplicationQueueList(props: ApplicationQueueListProps) {
+  const { loadError, queueMode } = props;
+  const [applications] = useState(props.initialApplications);
   const [propertyFilter, setPropertyFilter] = useState<string>("all");
 
   const propertyOptions = useMemo(() => {
@@ -60,22 +69,44 @@ export function ApplicationQueueList({
     return applications.filter((a) => a.propertyId === propertyFilter);
   }, [applications, propertyFilter]);
 
+  const isConversion = queueMode === "conversion";
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">Rental applications</h1>
+        <h1 className="text-2xl font-semibold text-neutral-900">
+          {isConversion ? "Approved · ready to convert" : "Rental applications"}
+        </h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Submitted and in-review applications from public intake. Public form:{" "}
-          <Link href="/portal/application" className="font-medium underline">
-            /portal/application
-          </Link>
+          {isConversion ? (
+            <>
+              Approved applications waiting for tenancy conversion.{" "}
+              <Link href="/leasing/applications" className="font-medium underline">
+                View review queue
+              </Link>
+            </>
+          ) : (
+            <>
+              Submitted and in-review applications from public intake.{" "}
+              <Link href="/leasing/applications?queue=conversion" className="font-medium underline">
+                View conversion queue
+              </Link>
+              {" · Public form: "}
+              <Link href="/portal/application" className="font-medium underline">
+                /portal/application
+              </Link>
+            </>
+          )}
         </p>
       </div>
 
       {loadError ? <InlineNotice className="mb-4">{loadError}</InlineNotice> : null}
 
       <div className="flex flex-col gap-8">
-        <FormField label="Queue overview" htmlFor="application-queue-summary">
+        <FormField
+          label="Queue overview"
+          htmlFor="application-queue-summary"
+        >
           <output id="application-queue-summary" className={`block ${SURFACE_PANEL} px-3.5 py-3 text-sm`}>
             <span className="font-medium text-neutral-900">
               {applications.length} application{applications.length === 1 ? "" : "s"}
@@ -111,13 +142,22 @@ export function ApplicationQueueList({
         ) : null}
 
         {applications.length === 0 ? (
-          <InlineNotice>No submitted applications yet.</InlineNotice>
+          <InlineNotice>
+            {isConversion
+              ? "No approved applications waiting for conversion."
+              : "No submitted applications yet."}
+          </InlineNotice>
         ) : visible.length === 0 ? (
           <InlineNotice>No applications match this filter.</InlineNotice>
         ) : (
           <ul className="flex list-none flex-col gap-3 p-0">
             {visible.map((app) => {
-              const submitted = formatSubmittedAt(app.submittedAt);
+              const timestamp = isConversion
+                ? formatSubmittedAt(
+                    (app as ApplicationConversionQueueRow).decisionAt ??
+                      app.submittedAt,
+                  )
+                : formatSubmittedAt(app.submittedAt);
               const displayName = formatName(app.firstName, app.lastName, app.email);
               return (
                 <li key={app.id}>
@@ -126,11 +166,19 @@ export function ApplicationQueueList({
                     className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
-                        {formatApplicationQueueStatus(app.status)}
+                      <span
+                        className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${
+                          isConversion
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                            : "border-neutral-300 bg-white text-neutral-800"
+                        }`}
+                      >
+                        {isConversion
+                          ? "Ready to convert"
+                          : formatApplicationQueueStatus(app.status)}
                       </span>
-                      <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
-                        {submitted.label}
+                      <time className="text-xs text-neutral-500" dateTime={timestamp.dateTime}>
+                        {timestamp.label}
                       </time>
                     </div>
                     <h2 className="mt-3 text-sm font-semibold text-neutral-900">{displayName}</h2>

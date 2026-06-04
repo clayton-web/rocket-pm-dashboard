@@ -23,12 +23,15 @@ function formatMoveInDate(iso: string | null) {
 export function TenancyQueueList({
   initialTenancies,
   loadError,
+  statusFilter = "all",
 }: {
   initialTenancies: TenancyQueueRow[];
   loadError: string | null;
+  statusFilter?: "all" | "pending_move_in";
 }) {
   const [tenancies] = useState(initialTenancies);
   const [propertyFilter, setPropertyFilter] = useState<string>("all");
+  const isPendingMoveIn = statusFilter === "pending_move_in";
 
   const propertyOptions = useMemo(() => {
     const names = new Map<string, string>();
@@ -46,9 +49,28 @@ export function TenancyQueueList({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">Tenancies</h1>
+        <h1 className="text-2xl font-semibold text-neutral-900">
+          {isPendingMoveIn ? "Pending move-ins" : "Tenancies"}
+        </h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Manage lease lifecycle and tenant portal access for properties you oversee.
+          {isPendingMoveIn ? (
+            <>
+              Tenancies awaiting move-in.{" "}
+              <Link href="/leasing/tenancies" className="font-medium underline">
+                View all tenancies
+              </Link>
+            </>
+          ) : (
+            <>
+              Manage lease lifecycle and tenant portal access for properties you oversee.{" "}
+              <Link
+                href="/leasing/tenancies?status=pending_move_in"
+                className="font-medium underline"
+              >
+                View pending move-ins
+              </Link>
+            </>
+          )}
         </p>
       </div>
 
@@ -91,7 +113,11 @@ export function TenancyQueueList({
         ) : null}
 
         {tenancies.length === 0 ? (
-          <InlineNotice>No tenancies yet. Convert an approved application to create one.</InlineNotice>
+          <InlineNotice>
+            {isPendingMoveIn
+              ? "No tenancies pending move-in."
+              : "No tenancies yet. Convert an approved application to create one."}
+          </InlineNotice>
         ) : visible.length === 0 ? (
           <InlineNotice>No tenancies match this filter.</InlineNotice>
         ) : (
