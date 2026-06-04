@@ -60,6 +60,8 @@ model User {
   activityLogEntries          ActivityLog[]            @relation("ActivityLogActor")
   maintenanceRequestsAssigned MaintenanceRequest[]     @relation("MaintenanceRequestAssignedTo")
   auditLogs                   AuditLog[]
+  backgroundJobsTriggered     BackgroundJob[] @relation("BackgroundJobTriggeredBy")
+  agentRunsCreated            AgentRun[]      @relation("AgentRunCreatedBy")
   connectedEmailAccounts      ConnectedEmailAccount[]
   styleExamples               AiStyleExample[]
 
@@ -89,6 +91,9 @@ model Organization {
   responderRules         AiResponderRule[]
   styleExamples          AiStyleExample[]
   draftResponses         AiDraftResponse[]
+  backgroundJobs         BackgroundJob[]
+  agentRuns                AgentRun[]
+  aiPolicy                 OrganizationAiPolicy?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1065,4 +1070,109 @@ enum AiDraftStatus {
   DRAFT
   APPROVED
   SUPERSEDED
+}
+
+// --- Background jobs & agent runs (Phase 0 framework; no automatic AI in Phase 0) ---
+
+enum BackgroundJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum BackgroundJobTriggerSource {
+  USER
+  CRON
+  SYSTEM
+}
+
+enum AgentRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+/// Per-org AI automation policy (defaults off until explicitly enabled in a future phase).
+model OrganizationAiPolicy {
+  id             String @id @default(cuid())
+  organizationId String @unique
+
+  autoTriageEnabled         Boolean @default(false)
+  autoDraftEnabled          Boolean @default(false)
+  maxAgentRunsPerDay        Int     @default(100)
+  maxDraftGenerationsPerDay Int     @default(50)
+  allowedAgentKeys          String[] @default([])
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BackgroundJob {
+  id             String @id @default(cuid())
+  organizationId String
+
+  jobType         String
+  status          BackgroundJobStatus        @default(PENDING)
+  priority        Int                        @default(0)
+  idempotencyKey  String
+  payload         Json?
+  triggerSource   BackgroundJobTriggerSource
+  triggeredByUserId String?
+
+  scheduledAt DateTime  @default(now())
+  lockedAt    DateTime?
+  lockedBy    String?
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  lastError   String?   @db.Text
+  completedAt DateTime?
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  triggeredBy   User?        @relation("BackgroundJobTriggeredBy", fields: [triggeredByUserId], references: [id], onDelete: SetNull)
+  agentRun      AgentRun?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, jobType, idempotencyKey])
+  @@index([status, scheduledAt])
+  @@index([organizationId, createdAt])
+}
+
+model AgentRun {
+  id             String @id @default(cuid())
+  organizationId String
+
+  agentKey       String
+  agentVersion   String
+  status         AgentRunStatus @default(PENDING)
+  threadId       String?
+  messageId      String?
+  inputFingerprint String?
+  model          String?
+  tokenUsage     Json?
+  outputKind     String?
+  outputRefId    String?
+  errorCode      String?
+  errorMessage   String? @db.Text
+  metadata       Json?
+
+  createdByUserId  String?
+  backgroundJobId  String? @unique
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User?         @relation("AgentRunCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  backgroundJob  BackgroundJob? @relation(fields: [backgroundJobId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, threadId, createdAt])
+  @@index([agentKey, agentVersion, createdAt])
 }

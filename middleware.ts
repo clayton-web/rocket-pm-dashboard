@@ -30,12 +30,21 @@ export async function middleware(req: NextRequest) {
   const isLogin = pathname.startsWith("/login");
   const isAuthApi = pathname.startsWith("/api/auth");
   const isHealth = pathname === "/api/health";
+  const isInternalJobProcessor = pathname === "/api/internal/jobs/process";
   const isPortal = pathname.startsWith("/portal");
   const isPublicMaintenance = isPublicMaintenanceApi(req);
   const isPublicLeasing = isPublicLeasingApi(req);
   const isPublicPortalApiRoute = isPublicPortalApi(pathname);
 
-  if (isAuthApi || isHealth || isPortal || isPublicMaintenance || isPublicLeasing || isPublicPortalApiRoute) {
+  if (
+    isAuthApi ||
+    isHealth ||
+    isInternalJobProcessor ||
+    isPortal ||
+    isPublicMaintenance ||
+    isPublicLeasing ||
+    isPublicPortalApiRoute
+  ) {
     return NextResponse.next();
   }
 

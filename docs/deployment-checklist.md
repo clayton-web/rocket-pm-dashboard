@@ -86,8 +86,21 @@ Implementation: `lib/security/rate-limit.ts` (no Redis dependency).
 | Dev plaintext Gmail tokens | `decryptSecret` refuses `dev-plain:` payloads in production. |
 | Accidental production seed | `prisma/seed.ts` exits unless `ALLOW_PRODUCTION_SEED=true`. |
 
+## Background job processor (Phase 0)
+
+| Variable | Production |
+|----------|------------|
+| `JOB_PROCESSOR_SECRET` or `CRON_SECRET` | Required if Vercel Cron or scheduled drain is used |
+| `JOB_PROCESSOR_ACTOR_USER_ID` | Required for cron-driven processing (valid staff `User.id`) |
+| `AGENT_AUTOMATION_ENABLED` | `false` or unset until agent handlers are shipped |
+
+Route: `POST /api/internal/jobs/process` (session bypass; Bearer secret required).
+
+Details: [agent-job-framework.md](./agent-job-framework.md).
+
 ## Related docs
 
+- [Agent job framework](./agent-job-framework.md)
 - [Staff auth](./auth.md)
 - [Production smoke test](./production-smoke-test.md)
 - [Tenant portal MVP](./tenant-portal-mvp.md)
