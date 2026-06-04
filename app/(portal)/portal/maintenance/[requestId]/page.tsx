@@ -3,6 +3,7 @@ import { PortalBackLink } from "@/components/portal/portal-nav";
 import { TenantMaintenanceDetailPanel } from "@/components/portal/tenant-maintenance-card";
 import { PortalPageHeader } from "@/components/portal/ui";
 import { getTenantMaintenanceForSession } from "@/lib/portal/tenant-maintenance";
+import { tenantPortalLoginHref } from "@/lib/portal/portal-login-redirect";
 import { getVerifiedTenantSession } from "@/lib/portal/tenant-auth";
 import { notFound, redirect } from "next/navigation";
 
@@ -11,12 +12,11 @@ type PageProps = {
 };
 
 export default async function TenantMaintenanceDetailPage({ params }: PageProps) {
+  const { requestId } = await params;
   const session = await getVerifiedTenantSession();
   if (!session) {
-    redirect("/portal/login");
+    redirect(tenantPortalLoginHref(`/portal/maintenance/${requestId}`));
   }
-
-  const { requestId } = await params;
   const request = await getTenantMaintenanceForSession(session, requestId);
   if (!request) {
     notFound();

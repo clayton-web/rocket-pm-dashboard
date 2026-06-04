@@ -229,9 +229,9 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
             </p>
           ) : null}
           <p className="mt-3 text-sm text-neutral-600">
-            A primary tenant contact was created with portal access enabled. The tenant cannot sign in
-            until this tenancy is set to <span className="font-medium">Active</span> (not available in
-            this release).
+            A primary tenant contact was created with portal access enabled. The tenant signs the
+            lease through a secure email link before activation. Portal sign-in and Documents work
+            after this tenancy is set to <span className="font-medium">Active</span>.
           </p>
         </div>
       ) : null}
@@ -241,8 +241,8 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
           <FormSection legend="Create tenancy">
             <p className="text-sm text-neutral-600">
               Creates a tenancy in <span className="font-medium">Pending move-in</span> status and a
-              primary tenant contact with portal access enabled. Tenant login will not work until the
-              tenancy is later set to Active outside this screen.
+              primary tenant contact with portal access enabled. The tenant signs via email link;
+              portal login works after you mark the tenancy Active.
             </p>
             <form className="mt-4 flex flex-col gap-4" onSubmit={onConvertSubmit} noValidate>
               <FormField label="Lease start date (required)" htmlFor="lease-start">

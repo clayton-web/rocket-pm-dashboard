@@ -1,6 +1,7 @@
 import { PortalBackLink } from "@/components/portal/portal-nav";
 import { PortalPageHeader, SURFACE_CARD, SURFACE_PANEL } from "@/components/portal/ui";
 import { listTenantDocumentsForSession } from "@/lib/portal/tenant-documents";
+import { tenantPortalLoginHref } from "@/lib/portal/portal-login-redirect";
 import { getVerifiedTenantSession } from "@/lib/portal/tenant-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -14,7 +15,7 @@ function formatDate(iso: string) {
 export default async function TenantDocumentsPage() {
   const session = await getVerifiedTenantSession();
   if (!session) {
-    redirect("/portal/login?next=/portal/documents");
+    redirect(tenantPortalLoginHref("/portal/documents"));
   }
 
   const documents = await listTenantDocumentsForSession(session);
@@ -25,15 +26,15 @@ export default async function TenantDocumentsPage() {
       <PortalPageHeader
         eyebrow="Documents"
         title="Lease & agreements"
-        description="Signed lease documents for your active tenancy. Draft or unsigned files are not shown here."
+        description="Signed lease documents for your active tenancy. Available after your property manager activates your tenancy."
       />
 
       {documents.length === 0 ? (
         <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4 text-sm text-neutral-700`}>
           <p>No signed lease documents are available yet.</p>
           <p className="mt-3 text-neutral-600">
-            If you recently signed your lease, your property manager may still be completing
-            execution. Contact them if you need a copy today.
+            If you have not signed in before, confirm your property manager has marked your tenancy
+            active. If you recently signed your lease, they may still be completing execution.
           </p>
         </div>
       ) : (

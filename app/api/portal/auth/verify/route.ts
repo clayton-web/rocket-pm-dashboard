@@ -5,6 +5,7 @@ import {
   setTenantSessionCookie,
   verifyPendingOtp,
 } from "@/lib/portal/tenant-auth";
+import { resolveTenantPortalLoginRedirect } from "@/lib/portal/portal-login-redirect";
 import {
   checkRateLimit,
   getRequestClientKey,
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
     const o = body as Record<string, unknown>;
     const email = typeof o.email === "string" ? normalizePortalEmail(o.email) : "";
     const code = typeof o.code === "string" ? o.code.trim() : "";
+    const next = typeof o.next === "string" ? o.next : undefined;
 
     if (!email || !code) {
       return NextResponse.json({ error: "Email and code are required" }, { status: 400 });
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      redirectTo: "/portal/dashboard",
+      redirectTo: resolveTenantPortalLoginRedirect(next),
     });
   } catch (e) {
     console.error("[POST /api/portal/auth/verify]", e);

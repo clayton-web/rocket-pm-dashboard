@@ -1,13 +1,20 @@
 import { PortalBackLink } from "@/components/portal/portal-nav";
 import { PortalPageHeader } from "@/components/portal/ui";
 import { TenantLoginForm } from "@/components/portal/tenant-login-form";
+import { resolveTenantPortalLoginRedirect } from "@/lib/portal/portal-login-redirect";
 import { getVerifiedTenantSession } from "@/lib/portal/tenant-auth";
 import { redirect } from "next/navigation";
 
-export default async function TenantPortalLoginPage() {
+type PageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function TenantPortalLoginPage({ searchParams }: PageProps) {
+  const { next } = await searchParams;
+  const redirectTo = resolveTenantPortalLoginRedirect(next);
   const session = await getVerifiedTenantSession();
   if (session) {
-    redirect("/portal/dashboard");
+    redirect(redirectTo);
   }
 
   return (
@@ -16,9 +23,9 @@ export default async function TenantPortalLoginPage() {
       <PortalPageHeader
         eyebrow="Tenant portal"
         title="Sign in"
-        description="Use the email on your lease with portal access enabled. Sign-in works after your property manager marks the tenancy active."
+        description="Use the email on your lease with portal access enabled. Sign-in works after your property manager marks the tenancy active. Lease signing before activation uses the secure email link, not this login page."
       />
-      <TenantLoginForm />
+      <TenantLoginForm next={next} />
     </div>
   );
 }

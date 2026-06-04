@@ -187,6 +187,12 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
         <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
           {formatTenancyStatus(detail.status)}
         </span>
+        {detail.showOnboardingSummary && detail.onboardingNextStep.kind !== "none" ? (
+          <p className="mt-3 text-sm text-neutral-600">
+            <span className="text-neutral-500">Onboarding · </span>
+            {detail.onboardingNextStep.title}
+          </p>
+        ) : null}
         {detail.archivedAt ? (
           <p className="mt-3 text-sm text-neutral-600">
             Archived {formatDateTime(detail.archivedAt)}

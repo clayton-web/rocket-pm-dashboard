@@ -26,7 +26,7 @@ const publicLinks = [
   {
     href: "/portal/documents",
     title: "Lease & documents",
-    description: "View your signed lease after signing in (active tenancy required).",
+    description: "View your signed lease after sign-in (active tenancy required).",
   },
   {
     href: "/portal/login",
@@ -40,6 +40,11 @@ const signedInLinks = [
     href: "/portal/dashboard",
     title: "Go to dashboard",
     description: "Your signed-in home — maintenance history and account links.",
+  },
+  {
+    href: "/portal/documents",
+    title: "Lease & documents",
+    description: "View or download your executed lease agreement.",
   },
   {
     href: "/portal/notice/new",
@@ -64,7 +69,7 @@ export default async function TenantPortalHomePage() {
       <PortalPageHeader
         eyebrow="Tenant portal"
         title="Welcome"
-        description="Self-service for maintenance and documents. You do not need a staff login to use these pages."
+        description="Self-service for maintenance, documents, and notices. Sign in to view your executed lease after your tenancy is active."
       />
 
       {session ? (

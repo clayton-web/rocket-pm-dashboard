@@ -37,6 +37,8 @@ The server refuses to start in production if any dangerous dev flag above is `tr
 | `GMAIL_SYNC_LABEL_IDS` | Comma-separated Gmail label ids. |
 | `GMAIL_OAUTH_STATE_SECRET` | Defaults to auth secret. |
 | `SEED_STAFF_PASSWORD` | **Local seed only** — never set in production runtime. |
+| `LOCAL_DOCUMENT_STORAGE_ROOT` | **Dev/single-node only** — default `.data/documents`. Not durable on serverless; migrate to S3 before production leasing. See [leasing-production-readiness.md](./leasing-production-readiness.md). |
+| `TENANT_AUTH_DEV_SHOW_CODE` | **Never in production** — exposes OTP in API JSON. |
 
 ## Pre-deploy steps
 
@@ -52,7 +54,8 @@ The server refuses to start in production if any dangerous dev flag above is `tr
 
 1. [ ] `GET /api/health` → `200`, `ok: true`, `database: "ok"` (no secrets in body).
 2. [ ] Run [production smoke test](./production-smoke-test.md).
-3. [ ] Confirm public maintenance intake and portal lookup respond; abuse returns `429` when rate limited.
+3. [ ] Run [leasing smoke test runbook](./leasing-smoke-test-runbook.md) if leasing is enabled.
+4. [ ] Confirm public maintenance intake and portal lookup respond; abuse returns `429` when rate limited.
 
 ## Public API rate limiting (in-memory)
 

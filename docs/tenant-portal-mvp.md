@@ -9,7 +9,7 @@ Public routes under `/portal/*` bypass staff NextAuth middleware. They are scope
 | `/portal` | Entry hub — links to maintenance, status, documents |
 | `/portal/maintenance/new` | Submit maintenance (existing; PR 11 adds confirmation links) |
 | `/portal/maintenance/status` | Lookup status by reference + email |
-| `/portal/documents` | Placeholder — no public document listing |
+| `/portal/documents` | Signed-in executed lease list + download (active tenancy) |
 | `/portal/maintenance` | Signed-in list (tenant session; PR 3) |
 | `/portal/maintenance/[requestId]` | Signed-in detail (PR 3) |
 | `/portal/dashboard` | Signed-in home (PR 2/3) |
@@ -46,16 +46,20 @@ There is no `tenantVisibleNote` field yet — staff notes stay internal until sc
 
 ## Documents
 
-Deferred until tenant auth:
+Requires tenant session and **active** tenancy ([tenant-auth-mvp.md](./tenant-auth-mvp.md)).
 
-- No lookup by email alone (would risk exposing lease metadata).
-- `/portal/documents` shows “coming soon” only.
-- `Document.storageKey` is never exposed on public routes.
+- `/portal/documents` lists locked, signed `lease_rtb1_executed` documents for the signed-in tenancy
+- Download via `GET /api/portal/documents/[documentId]/download` (tenant-scoped; no `storageKey` in responses)
+- Draft and unsigned documents are never shown
+- Unauthenticated access redirects to `/portal/login?next=/portal/documents` (validated `next` on login)
+
+**Storage:** files live on local disk in development (`.data/documents`). Production requires S3-compatible storage — see [leasing-production-readiness.md](./leasing-production-readiness.md).
 
 ## Tenant auth (Product PR 2)
 
 - Email + one-time code for contacts with `portalAccessEnabled` — see [tenant-auth-mvp.md](./tenant-auth-mvp.md)
-- Routes: `/portal/login`, `/portal/dashboard`, `/portal/logout`
+- Routes: `/portal/login`, `/portal/dashboard`, `/portal/logout`, `/portal/documents`
+- Optional `?next=` on login (internal portal paths only; see `lib/portal/portal-login-redirect.ts`)
 - Public intake and reference lookup **unchanged**
 
 ## Signed-in maintenance (Product PR 3)
@@ -75,9 +79,9 @@ Public `/portal/maintenance/status` and `POST /api/portal/maintenance/lookup` re
 
 ## Still deferred
 
-- Signed-in document list filtered by tenancy
 - Photo attachments on tenant views
 - Tenant comments / `tenantVisibleNote` on requests
+- Additional document types beyond executed RTB-1
 
 ## Staff vs tenant
 
@@ -85,7 +89,7 @@ Public `/portal/maintenance/status` and `POST /api/portal/maintenance/lookup` re
 |------|----------------------------------|---------------------|
 | Auth | NextAuth required | Optional tenant session; public intake/lookup unchanged |
 | Maintenance | Full queue + workflow | Submit + public lookup + signed-in list/detail |
-| Documents | Future staff UI | Placeholder |
+| Documents | Staff download via `/api/leasing/documents/...` | Executed lease via `/portal/documents` |
 
 ## Regression
 

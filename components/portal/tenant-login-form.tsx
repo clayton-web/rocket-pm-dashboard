@@ -5,7 +5,7 @@ import { FormField, PrimaryButton, SURFACE_CARD } from "@/components/portal/ui";
 
 type Step = "email" | "code";
 
-export function TenantLoginForm() {
+export function TenantLoginForm({ next }: { next?: string | null }) {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -54,7 +54,7 @@ export function TenantLoginForm() {
       const res = await fetch("/api/portal/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
+        body: JSON.stringify({ email, code, next: next ?? undefined }),
       });
       const data: unknown = await res.json();
       if (!res.ok) {

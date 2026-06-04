@@ -3,13 +3,14 @@ import { PortalBackLink } from "@/components/portal/portal-nav";
 import { TenantMaintenanceCard } from "@/components/portal/tenant-maintenance-card";
 import { PortalPageHeader, SURFACE_CARD } from "@/components/portal/ui";
 import { listTenantMaintenanceForSession } from "@/lib/portal/tenant-maintenance";
+import { tenantPortalLoginHref } from "@/lib/portal/portal-login-redirect";
 import { getVerifiedTenantSession } from "@/lib/portal/tenant-auth";
 import { redirect } from "next/navigation";
 
 export default async function TenantPortalDashboardPage() {
   const session = await getVerifiedTenantSession();
   if (!session) {
-    redirect("/portal/login");
+    redirect(tenantPortalLoginHref("/portal/dashboard"));
   }
 
   const recentRequests = await listTenantMaintenanceForSession(session, { limit: 3 });
@@ -20,7 +21,7 @@ export default async function TenantPortalDashboardPage() {
       <PortalPageHeader
         eyebrow="Tenant portal"
         title={`Hello, ${session.firstName}`}
-        description="You are signed in. Public maintenance intake and reference lookup remain available without signing in."
+        description="You are signed in. View your executed lease under Documents, or submit maintenance and notices below."
       />
 
       <Link

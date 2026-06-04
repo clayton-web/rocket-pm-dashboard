@@ -50,7 +50,9 @@ export function TenantLeaseSigningClient({
           {propertyName} · {unitLabel}
         </p>
         <p className="text-sm text-neutral-700">
-          Review the RTB-1 draft, confirm your legal name, and sign below.
+          Review the RTB-1 draft, confirm your legal name, and sign below. This secure link is separate
+          from tenant portal login, which becomes available after your property manager activates your
+          tenancy.
         </p>
       </div>
 

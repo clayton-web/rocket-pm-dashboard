@@ -18,8 +18,15 @@ Separate from staff **NextAuth**. Tenants with `TenancyContact.portalAccessEnabl
 1. `POST /api/portal/auth/start` `{ email }` — generic success if no match (no enumeration).
 2. Server finds eligible `TenancyContact`, stores hashed 6-digit OTP in memory (10 min TTL).
 3. Dev/staging: response may include `devCode` when `NODE_ENV !== production` or `TENANT_AUTH_DEV_SHOW_CODE=true`.
-4. `POST /api/portal/auth/verify` `{ email, code }` — sets signed session cookie.
+4. `POST /api/portal/auth/verify` `{ email, code, next? }` — sets signed session cookie; redirects to validated `next` or `/portal/dashboard`.
 5. `GET /portal/logout` — clears cookie, redirects to `/portal`.
+
+### Login redirect (`next`)
+
+Protected pages may redirect to `/portal/login?next=/portal/documents` (etc.). The `next` value is validated server-side (`lib/portal/portal-login-redirect.ts`):
+
+- Must be an internal `/portal/...` path on the allowlist (dashboard, documents, maintenance, notice).
+- Open redirects, traversal, and `/portal/login` loops are rejected (fallback: dashboard).
 
 ## Session cookie
 
@@ -39,6 +46,7 @@ Server helpers: `getTenantSession()`, `getVerifiedTenantSession()` in `lib/porta
 | `/portal/login` | Public | Email + code UI |
 | `/portal/logout` | Public | Clear session |
 | `/portal/dashboard` | Tenant session | Home — recent maintenance + links |
+| `/portal/documents` | Tenant session | Executed lease list + download |
 | `/portal/maintenance` | Tenant session | List scoped maintenance requests |
 | `/portal/maintenance/[requestId]` | Tenant session | Tenant-safe detail (PR 3) |
 | `POST /api/portal/auth/start` | Public | Issue OTP |
@@ -74,14 +82,14 @@ In-memory limiter (see `docs/deployment-checklist.md`).
 - No real email in production until a mailer is wired (production users need `TENANT_AUTH_DEV_SHOW_CODE=true` on staging or email delivery).
 - One contact per email wins (`findFirst` by `updatedAt`) if duplicates exist.
 - Signed-in list/detail (PR 3) does not remove public reference lookup.
-- Documents and tenant-visible PM notes remain deferred.
+- Documents require active tenancy; signing uses token link before activation.
 
 ## Future upgrades
 
 1. Send OTP via transactional email (Resend, SES, etc.) — keep `storePendingOtp` / `verifyPendingOtp` API.
 2. Redis (or DB) OTP store for serverless.
 3. Magic link as alternative to typed code.
-4. ~~Scope maintenance history~~ (PR 3) — documents and attachments next.
+4. ~~Scope maintenance history~~ (PR 3) — ~~documents~~ (PR-C4) — attachments and additional doc types next.
 5. Optional NextAuth credentials provider linked to `User` + `RoleKey.tenant` (longer term).
 
 ## Environment

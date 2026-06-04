@@ -1,6 +1,13 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+/**
+ * Local filesystem document storage — development and single-node staging only.
+ *
+ * Production requires durable object storage (S3-compatible). Serverless hosts do not persist
+ * `.data/documents` across deploys or instances; executed RTB-1 leases must not rely on this path.
+ * See docs/leasing-production-readiness.md.
+ */
 const DEFAULT_STORAGE_ROOT = path.join(process.cwd(), ".data", "documents");
 
 export function getLocalDocumentStorageRoot(): string {
