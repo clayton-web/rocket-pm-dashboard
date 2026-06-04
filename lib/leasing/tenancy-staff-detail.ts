@@ -16,6 +16,7 @@ import {
 } from "@/lib/leasing/lease-setup-readiness";
 import { parseLeaseSetupJson, type LeaseSetupJson } from "@/lib/leasing/lease-setup";
 import { getOrganizationLandlordProfileForStaff } from "@/lib/org/organization-landlord-profile";
+import { RTB1_DOCUMENT_TYPE } from "@/lib/leasing/rtb1/constants";
 import {
   getOnboardingNextStep,
   getOnboardingSteps,
@@ -42,6 +43,14 @@ export type TenancyContactRow = {
   phone: string | null;
   contactType: string;
   portalAccessEnabled: boolean;
+};
+
+export type Rtb1DraftDocumentRow = {
+  id: string;
+  title: string;
+  fileName: string;
+  createdAt: string;
+  downloadHref: string;
 };
 
 export type TenancyStaffDetail = {
@@ -82,6 +91,7 @@ export type TenancyStaffDetail = {
   leaseSetupStatus: LeaseSetupReadinessStatus;
   leaseSetupStatusLabel: string;
   rentDueDay: number;
+  rtb1DraftDocuments: Rtb1DraftDocumentRow[];
 };
 
 export { formatTenancyStatus };
@@ -159,6 +169,20 @@ export async function getTenancyDetailForStaff(
     },
   });
 
+  const rtb1Drafts = await prisma.document.findMany({
+    where: {
+      tenancyId: tenancy.id,
+      documentType: RTB1_DOCUMENT_TYPE,
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      fileName: true,
+      createdAt: true,
+    },
+  });
+
   return {
     id: tenancy.id,
     status: tenancy.status,
@@ -212,5 +236,12 @@ export async function getTenancyDetailForStaff(
     leaseSetupStatus: leaseReadiness.status,
     leaseSetupStatusLabel: formatLeaseSetupReadinessStatus(leaseReadiness.status),
     rentDueDay: tenancy.rentDueDay,
+    rtb1DraftDocuments: rtb1Drafts.map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      fileName: doc.fileName,
+      createdAt: doc.createdAt.toISOString(),
+      downloadHref: `/api/leasing/documents/${doc.id}/download`,
+    })),
   };
 }

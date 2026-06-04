@@ -136,7 +136,7 @@ export function getOnboardingNextStep(opts: {
       kind: "ready_for_rtb1",
       title: "Ready for RTB-1 generation",
       description:
-        "Lease setup and landlord profile are complete. RTB-1 PDF generation will be available in a future release.",
+        "Lease setup and landlord profile are complete. Generate an RTB-1 draft on this tenancy when ready.",
       anchorId: "lease-setup",
     };
   }

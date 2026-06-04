@@ -21,6 +21,8 @@ out/
 # misc
 .DS_Store
 *.pem
+.data/
+.tmp-test-rtb1.pdf
 
 # debug
 npm-debug.log*

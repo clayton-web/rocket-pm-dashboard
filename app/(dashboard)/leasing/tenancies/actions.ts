@@ -20,9 +20,17 @@ import {
   leaseSetupFormToJson,
   parseLeaseSetupFormInput,
 } from "@/lib/validation/lease-setup";
+import {
+  generateRtb1DraftForTenancy,
+  Rtb1GenerationNotReadyError,
+} from "@/lib/leasing/rtb1/generate-rtb1-draft";
 import type { TenancyStatus } from "@prisma/client";
 
 export type TenancyActionResult = { ok: true } | { ok: false; error: string };
+
+export type GenerateRtb1DraftResult =
+  | { ok: true; documentId: string }
+  | { ok: false; error: string };
 
 export async function advanceTenancyStatusAction(
   tenancyId: string,
@@ -222,6 +230,38 @@ export async function updateLeaseSetupAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not save lease setup";
+    return { ok: false, error: message };
+  }
+}
+
+export async function generateRtb1DraftAction(
+  tenancyId: string,
+): Promise<GenerateRtb1DraftResult> {
+  const trimmedId = tenancyId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid tenancy id" };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const document = await generateRtb1DraftForTenancy(prisma, ctx, trimmedId);
+    revalidatePath("/leasing/tenancies");
+    revalidatePath(`/leasing/tenancies/${trimmedId}`);
+    return { ok: true, documentId: document.id };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof Rtb1GenerationNotReadyError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not generate RTB-1 draft";
     return { ok: false, error: message };
   }
 }

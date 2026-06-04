@@ -124,8 +124,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
           <span className="font-medium">{detail.leaseSetupStatusLabel}</span>
           {detail.leaseSetupStatus === "ready_for_rtb1" ? (
             <span className="mt-1 block text-sm">
-              All required fields are complete. RTB-1 PDF generation will be available in a future
-              release.
+              All required fields are complete. Generate an RTB-1 draft below when ready.
             </span>
           ) : detail.leaseSetupStatus === "lease_setup_complete" ? (
             <span className="mt-1 block text-sm">

@@ -16,6 +16,7 @@ import {
 } from "@/components/portal/ui";
 import { OffboardingSummary } from "@/components/leasing/offboarding-summary";
 import { LeaseSetupSection } from "@/components/leasing/lease-setup-section";
+import { Rtb1DraftSection } from "@/components/leasing/rtb1-draft-section";
 import { OnboardingSummary } from "@/components/leasing/onboarding-summary";
 import {
   formatTenancyStatus,
@@ -219,8 +220,9 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
       ) : null}
 
       {detail.status !== "ended" && detail.status !== "archived" ? (
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col gap-8">
           <LeaseSetupSection detail={detail} />
+          <Rtb1DraftSection detail={detail} />
         </div>
       ) : null}
 
