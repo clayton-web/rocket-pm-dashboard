@@ -10,6 +10,13 @@ import {
   type OffboardingStep,
 } from "@/lib/leasing/offboarding-progress";
 import {
+  assessLeaseSetupReadiness,
+  formatLeaseSetupReadinessStatus,
+  type LeaseSetupReadinessStatus,
+} from "@/lib/leasing/lease-setup-readiness";
+import { parseLeaseSetupJson, type LeaseSetupJson } from "@/lib/leasing/lease-setup";
+import { getOrganizationLandlordProfileForStaff } from "@/lib/org/organization-landlord-profile";
+import {
   getOnboardingNextStep,
   getOnboardingSteps,
   showsOnboardingSummary,
@@ -71,6 +78,10 @@ export type TenancyStaffDetail = {
   onboardingNextStep: OnboardingNextStep;
   primaryPortalAccessEnabled: boolean | null;
   contacts: TenancyContactRow[];
+  leaseSetup: LeaseSetupJson;
+  leaseSetupStatus: LeaseSetupReadinessStatus;
+  leaseSetupStatusLabel: string;
+  rentDueDay: number;
 };
 
 export { formatTenancyStatus };
@@ -133,6 +144,21 @@ export async function getTenancyDetailForStaff(
     tenancy.inspectionDate?.toISOString().slice(0, 10) ??
     null;
 
+  const leaseSetup = parseLeaseSetupJson(tenancy.leaseSetupJson);
+  const orgProfile = await getOrganizationLandlordProfileForStaff(ctx);
+  const leaseReadiness = assessLeaseSetupReadiness({
+    org: orgProfile,
+    setup: leaseSetup,
+    tenancy: {
+      leaseStartDate: tenancy.leaseStartDate,
+      leaseEndDate: tenancy.leaseEndDate,
+      rentDueDay: tenancy.rentDueDay,
+      monthlyRent: Number(tenancy.monthlyRent),
+      securityDeposit: Number(tenancy.securityDeposit),
+      petDeposit: tenancy.petDeposit != null ? Number(tenancy.petDeposit) : null,
+    },
+  });
+
   return {
     id: tenancy.id,
     status: tenancy.status,
@@ -170,14 +196,21 @@ export async function getTenancyDetailForStaff(
       : { kind: "none", title: "", description: "" },
     missingAcceptedNotice,
     showOnboardingSummary,
-    onboardingSteps: showOnboardingSummary ? getOnboardingSteps() : [],
+    onboardingSteps: showOnboardingSummary
+      ? getOnboardingSteps({ leaseSetupStatus: leaseReadiness.status })
+      : [],
     onboardingNextStep: showOnboardingSummary
       ? getOnboardingNextStep({
           portalAccessEnabled: primaryPortalAccessEnabled,
           moveInDate: tenancy.moveInDate.toISOString().slice(0, 10),
+          leaseSetupStatus: leaseReadiness.status,
         })
       : { kind: "none", title: "", description: "" },
     primaryPortalAccessEnabled,
     contacts: mappedContacts,
+    leaseSetup,
+    leaseSetupStatus: leaseReadiness.status,
+    leaseSetupStatusLabel: formatLeaseSetupReadinessStatus(leaseReadiness.status),
+    rentDueDay: tenancy.rentDueDay,
   };
 }

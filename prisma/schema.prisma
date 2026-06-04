@@ -78,6 +78,17 @@ model Organization {
   name String
   slug String @unique
 
+  /// BC RTB-1 landlord / service-of-documents profile (org-wide).
+  landlordLegalName            String?
+  landlordServiceStreetLine1   String?
+  landlordServiceStreetLine2   String?
+  landlordServiceCity          String?
+  landlordServiceProvince      String?  @default("BC")
+  landlordServicePostalCode    String?
+  landlordServicePhone         String?
+  landlordServiceEmail         String?
+  landlordIsAgent              Boolean  @default(false)
+
   memberships OrganizationMembership[]
   properties  Property[]
 
@@ -362,6 +373,11 @@ model Application {
   jobTitle        String?
   employmentNotes String? @db.Text
 
+  emergencyContactFirstName String?
+  emergencyContactLastName  String?
+  emergencyContactPhone     String?
+  emergencyContactEmail     String?
+
   consentCreditCheck   Boolean   @default(false)
   consentSignatureName String?
   consentSignedAt      DateTime?
@@ -442,6 +458,9 @@ model Tenancy {
   monthlyRent     Decimal  @db.Decimal(12, 2)
   securityDeposit Decimal  @db.Decimal(12, 2)
   petDeposit      Decimal? @db.Decimal(12, 2)
+
+  /// RTB-1 lease setup fields completed by property management before document generation.
+  leaseSetupJson Json?
 
   buildiumResidentCenterUrl String? @db.Text
 

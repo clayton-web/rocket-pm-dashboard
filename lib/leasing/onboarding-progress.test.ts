@@ -90,45 +90,68 @@ describe("classifyOnboardingAttentionKind", () => {
 });
 
 describe("getOnboardingSteps", () => {
-  it("marks tenancy created complete and lease/documents current", () => {
-    const steps = getOnboardingSteps();
+  it("marks lease setup current when incomplete", () => {
+    const steps = getOnboardingSteps({ leaseSetupStatus: "lease_setup_incomplete" });
+    const leaseSetup = steps.find((s) => s.id === "lease_setup");
+    assert.equal(leaseSetup?.state, "current");
     assert.equal(steps[0]?.state, "complete");
     assert.equal(steps[0]?.id, "tenancy_created");
-    assert.equal(steps[1]?.state, "current");
-    assert.equal(steps[1]?.id, "lease_documents");
-    assert.ok(steps.slice(2).every((s) => s.state === "upcoming"));
+  });
+
+  it("marks RTB-1 generation current when lease setup is complete but not ready", () => {
+    const steps = getOnboardingSteps({ leaseSetupStatus: "lease_setup_complete" });
+    const leaseSetup = steps.find((s) => s.id === "lease_setup");
+    const rtb = steps.find((s) => s.id === "lease_documents");
+    assert.equal(leaseSetup?.state, "complete");
+    assert.equal(rtb?.state, "current");
+  });
+
+  it("marks move-in prep current when ready for RTB-1", () => {
+    const steps = getOnboardingSteps({ leaseSetupStatus: "ready_for_rtb1" });
+    const moveInPrep = steps.find((s) => s.id === "move_in_prep");
+    assert.equal(moveInPrep?.state, "current");
   });
 });
 
 describe("getOnboardingNextStep", () => {
-  it("warns when move-in is overdue", () => {
+  it("prioritizes lease setup completion", () => {
+    const step = getOnboardingNextStep({
+      moveInDate: "2020-01-01",
+      portalAccessEnabled: false,
+      leaseSetupStatus: "lease_setup_incomplete",
+    });
+    assert.equal(step.kind, "complete_lease_setup");
+    assert.equal(step.anchorId, "lease-setup");
+  });
+
+  it("directs staff to organization settings when landlord profile is incomplete", () => {
+    const step = getOnboardingNextStep({
+      moveInDate: "2030-01-01",
+      portalAccessEnabled: true,
+      leaseSetupStatus: "lease_setup_complete",
+    });
+    assert.equal(step.kind, "complete_org_landlord");
+    assert.equal(step.href, "/organization");
+  });
+
+  it("shows RTB-1 readiness when fully validated", () => {
     const step = getOnboardingNextStep({
       moveInDate: "2020-01-01",
       portalAccessEnabled: true,
+      leaseSetupStatus: "ready_for_rtb1",
     });
-    assert.equal(step.kind, "overdue_move_in");
-    assert.equal(step.anchorId, "onboarding-lifecycle");
+    assert.equal(step.kind, "ready_for_rtb1");
   });
 
-  it("directs staff to enable portal when access is off", () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const step = getOnboardingNextStep({
-      moveInDate: today,
-      portalAccessEnabled: false,
-    });
-    assert.equal(step.kind, "enable_portal");
-    assert.equal(step.anchorId, "onboarding-contacts");
-  });
-
-  it("suggests offline prep when portal is ready", () => {
+  it("suggests offline prep when portal is ready and lease setup is ready", () => {
     const today = new Date();
     const far = new Date(today);
     far.setUTCDate(today.getUTCDate() + 30);
     const step = getOnboardingNextStep({
       moveInDate: far.toISOString().slice(0, 10),
       portalAccessEnabled: true,
+      leaseSetupStatus: "ready_for_rtb1",
     });
-    assert.equal(step.kind, "prepare_onboarding");
-    assert.equal(step.anchorId, "onboarding-lifecycle");
+    assert.equal(step.kind, "ready_for_rtb1");
   });
 });

@@ -26,6 +26,10 @@ export type PatchApplicationDraftBody = {
   employerName?: string;
   jobTitle?: string;
   employmentNotes?: string;
+  emergencyContactFirstName?: string;
+  emergencyContactLastName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactEmail?: string;
 };
 
 export type PostSubmitApplicationBody = {
@@ -139,6 +143,30 @@ export function parsePatchApplicationDraftBody(
   if (typeof jobTitle === "object") return jobTitle;
   const employmentNotes = parseOptionalString(o.employmentNotes, "employmentNotes", 5000);
   if (typeof employmentNotes === "object") return employmentNotes;
+  const emergencyContactFirstName = parseOptionalString(
+    o.emergencyContactFirstName,
+    "emergencyContactFirstName",
+    200,
+  );
+  if (typeof emergencyContactFirstName === "object") return emergencyContactFirstName;
+  const emergencyContactLastName = parseOptionalString(
+    o.emergencyContactLastName,
+    "emergencyContactLastName",
+    200,
+  );
+  if (typeof emergencyContactLastName === "object") return emergencyContactLastName;
+  const emergencyContactPhone = parseOptionalString(
+    o.emergencyContactPhone,
+    "emergencyContactPhone",
+    50,
+  );
+  if (typeof emergencyContactPhone === "object") return emergencyContactPhone;
+  const emergencyContactEmail = parseOptionalString(
+    o.emergencyContactEmail,
+    "emergencyContactEmail",
+    320,
+  );
+  if (typeof emergencyContactEmail === "object") return emergencyContactEmail;
 
   let occupantCount: number | undefined;
   if (o.occupantCount !== undefined && o.occupantCount !== null && o.occupantCount !== "") {
@@ -179,6 +207,10 @@ export function parsePatchApplicationDraftBody(
     employerName,
     jobTitle,
     employmentNotes,
+    emergencyContactFirstName,
+    emergencyContactLastName,
+    emergencyContactPhone,
+    emergencyContactEmail,
   };
 }
 
@@ -232,5 +264,17 @@ export function patchBodyToServiceInput(parsed: PatchApplicationDraftBody): Upda
   if (parsed.employerName !== undefined) data.employerName = parsed.employerName ?? null;
   if (parsed.jobTitle !== undefined) data.jobTitle = parsed.jobTitle ?? null;
   if (parsed.employmentNotes !== undefined) data.employmentNotes = parsed.employmentNotes ?? null;
+  if (parsed.emergencyContactFirstName !== undefined) {
+    data.emergencyContactFirstName = parsed.emergencyContactFirstName ?? null;
+  }
+  if (parsed.emergencyContactLastName !== undefined) {
+    data.emergencyContactLastName = parsed.emergencyContactLastName ?? null;
+  }
+  if (parsed.emergencyContactPhone !== undefined) {
+    data.emergencyContactPhone = parsed.emergencyContactPhone ?? null;
+  }
+  if (parsed.emergencyContactEmail !== undefined) {
+    data.emergencyContactEmail = parsed.emergencyContactEmail ?? null;
+  }
   return data;
 }

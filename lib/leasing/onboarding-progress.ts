@@ -1,9 +1,10 @@
-import type { TenancyStatus } from "@prisma/client";
+import type { LeaseSetupReadinessStatus } from "./lease-setup-readiness";
 
 export const UPCOMING_MOVE_IN_DAYS = 7;
 
 export type OnboardingStepId =
   | "tenancy_created"
+  | "lease_setup"
   | "lease_documents"
   | "move_in_prep"
   | "portal_ready"
@@ -19,6 +20,9 @@ export type OnboardingStep = {
 };
 
 export type OnboardingNextStepKind =
+  | "complete_lease_setup"
+  | "complete_org_landlord"
+  | "ready_for_rtb1"
   | "overdue_move_in"
   | "enable_portal"
   | "prepare_onboarding"
@@ -51,32 +55,92 @@ export function isUpcomingMoveIn(moveInDate: string | null): boolean {
   return diffDays >= 0 && diffDays <= UPCOMING_MOVE_IN_DAYS;
 }
 
-export function showsOnboardingSummary(status: TenancyStatus): boolean {
+export function showsOnboardingSummary(status: string): boolean {
   return status === "pending_move_in";
 }
 
-export function getOnboardingSteps(): OnboardingStep[] {
-  const stepDefs: { id: OnboardingStepId; label: string }[] = [
-    { id: "tenancy_created", label: "Tenancy created" },
-    { id: "lease_documents", label: "Lease / documents" },
-    { id: "move_in_prep", label: "Move-in prep" },
-    { id: "portal_ready", label: "Portal ready" },
-    { id: "ready_to_activate", label: "Ready to activate" },
-    { id: "active", label: "Active" },
-  ];
+export function getOnboardingSteps(opts: {
+  leaseSetupStatus: LeaseSetupReadinessStatus;
+}): OnboardingStep[] {
+  const leaseComplete =
+    opts.leaseSetupStatus === "lease_setup_complete" ||
+    opts.leaseSetupStatus === "ready_for_rtb1";
+  const rtbReady = opts.leaseSetupStatus === "ready_for_rtb1";
 
-  return stepDefs.map((step, index) => {
-    let state: OnboardingStepState = "upcoming";
-    if (index === 0) state = "complete";
-    else if (index === 1) state = "current";
-    return { id: step.id, label: step.label, state };
-  });
+  const stepDefs: { id: OnboardingStepId; label: string; complete: boolean; current: boolean }[] =
+    [
+      { id: "tenancy_created", label: "Tenancy created", complete: true, current: false },
+      {
+        id: "lease_setup",
+        label: "Lease setup",
+        complete: leaseComplete,
+        current: !leaseComplete,
+      },
+      {
+        id: "lease_documents",
+        label: "RTB-1 generation",
+        complete: false,
+        current: leaseComplete && !rtbReady,
+      },
+      {
+        id: "move_in_prep",
+        label: "Move-in prep",
+        complete: false,
+        current: rtbReady,
+      },
+      { id: "portal_ready", label: "Portal ready", complete: false, current: false },
+      { id: "ready_to_activate", label: "Ready to activate", complete: false, current: false },
+      { id: "active", label: "Active", complete: false, current: false },
+    ];
+
+  const hasExplicitCurrent = stepDefs.some((s) => s.current);
+  if (!hasExplicitCurrent) {
+    const firstIncomplete = stepDefs.find((s) => !s.complete);
+    if (firstIncomplete) firstIncomplete.current = true;
+  }
+
+  return stepDefs.map((step) => ({
+    id: step.id,
+    label: step.label,
+    state: step.complete ? "complete" : step.current ? "current" : "upcoming",
+  }));
 }
 
 export function getOnboardingNextStep(opts: {
   portalAccessEnabled: boolean | null;
   moveInDate: string;
+  leaseSetupStatus: LeaseSetupReadinessStatus;
 }): OnboardingNextStep {
+  if (opts.leaseSetupStatus === "lease_setup_incomplete") {
+    return {
+      kind: "complete_lease_setup",
+      title: "Complete lease setup",
+      description:
+        "Enter tenancy type, rent terms, deposits, services, and RTB-specific fields before generating the RTB-1.",
+      anchorId: "lease-setup",
+    };
+  }
+
+  if (opts.leaseSetupStatus === "lease_setup_complete") {
+    return {
+      kind: "complete_org_landlord",
+      title: "Complete organization landlord profile",
+      description:
+        "Lease setup is complete for this tenancy. Add landlord service information under Organization settings to become ready for RTB-1 generation.",
+      href: "/organization",
+    };
+  }
+
+  if (opts.leaseSetupStatus === "ready_for_rtb1") {
+    return {
+      kind: "ready_for_rtb1",
+      title: "Ready for RTB-1 generation",
+      description:
+        "Lease setup and landlord profile are complete. RTB-1 PDF generation will be available in a future release.",
+      anchorId: "lease-setup",
+    };
+  }
+
   if (isOverdueMoveIn(opts.moveInDate)) {
     return {
       kind: "overdue_move_in",

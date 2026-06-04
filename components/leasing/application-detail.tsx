@@ -370,6 +370,18 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
           </div>
         </FormSection>
 
+        <FormSection legend="Emergency contact">
+          <div className={`${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-3`}>
+            <DetailRow label="Name">
+              {[detail.emergencyContactFirstName, detail.emergencyContactLastName]
+                .filter(Boolean)
+                .join(" ") || "—"}
+            </DetailRow>
+            <DetailRow label="Phone">{detail.emergencyContactPhone ?? "—"}</DetailRow>
+            <DetailRow label="Email">{detail.emergencyContactEmail ?? "—"}</DetailRow>
+          </div>
+        </FormSection>
+
         <FormSection legend="Employment">
           <div className={`${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-3`}>
             <DetailRow label="Employer">{detail.employerName ?? "—"}</DetailRow>

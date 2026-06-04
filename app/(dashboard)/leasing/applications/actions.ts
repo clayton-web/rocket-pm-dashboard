@@ -6,8 +6,13 @@ import prisma from "@/lib/db/prisma";
 import { requireStaffContextFromSession, StaffAuthError } from "@/lib/auth/staff-from-session";
 import { getApplicationById, setApplicationReviewStatus } from "@/lib/services/application.service";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
+import {
+  buildEmergencyContactFromApplication,
+  buildInitialLeaseSetupFromApplication,
+} from "@/lib/leasing/application-to-tenancy";
 import { createTenancyFromApprovedApplication } from "@/lib/services/tenancy.service";
 import { createTenancyContact } from "@/lib/services/tenancyContact.service";
+
 import {
   convertFormDatesToServiceInput,
   parseConvertTenancyFormInput,
@@ -20,6 +25,18 @@ export type ConvertTenancyResult =
   | { ok: false; error: string };
 
 const REVIEW_STATUSES = new Set(["under_review", "approved", "declined"]);
+
+function hasPartialEmergencyContact(application: {
+  emergencyContactFirstName: string | null;
+  emergencyContactLastName: string | null;
+  emergencyContactPhone: string | null;
+}): boolean {
+  return Boolean(
+    application.emergencyContactFirstName?.trim() ||
+      application.emergencyContactLastName?.trim() ||
+      application.emergencyContactPhone?.trim(),
+  );
+}
 
 export async function setApplicationReviewAction(
   applicationId: string,
@@ -94,6 +111,21 @@ export async function convertApprovedApplicationAction(
     if (!email) return { ok: false, error: "Applicant email is required" };
 
     const leaseInput = convertFormDatesToServiceInput(parsedForm);
+    const initialLeaseSetup = buildInitialLeaseSetupFromApplication(
+      application,
+      leaseInput.leaseEndDate,
+    );
+
+    if (hasPartialEmergencyContact(application)) {
+      const emergency = buildEmergencyContactFromApplication(application);
+      if (!emergency) {
+        return {
+          ok: false,
+          error:
+            "Emergency contact requires first name, last name, and phone when any emergency field is provided",
+        };
+      }
+    }
 
     const tenancy = await prisma.$transaction(async (tx) => {
       const db = tx as PrismaClient;
@@ -109,6 +141,7 @@ export async function convertApprovedApplicationAction(
         applicationId: application.id,
         status: "pending_move_in",
         ...leaseInput,
+        leaseSetupJson: initialLeaseSetup,
       });
 
       await createTenancyContact(db, ctx, row.id, {
@@ -119,6 +152,11 @@ export async function convertApprovedApplicationAction(
         contactType: "tenant",
         portalAccessEnabled: true,
       });
+
+      const emergencyContact = buildEmergencyContactFromApplication(application);
+      if (emergencyContact) {
+        await createTenancyContact(db, ctx, row.id, emergencyContact);
+      }
 
       return row;
     });

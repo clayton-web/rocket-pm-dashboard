@@ -59,6 +59,10 @@ export default function RentalApplicationPage() {
   const employerNameId = useId();
   const jobTitleId = useId();
   const employmentNotesId = useId();
+  const emergencyFirstNameId = useId();
+  const emergencyLastNameId = useId();
+  const emergencyPhoneId = useId();
+  const emergencyEmailId = useId();
   const consentCheckId = useId();
   const consentSignatureId = useId();
 
@@ -80,6 +84,10 @@ export default function RentalApplicationPage() {
   const [employerName, setEmployerName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [employmentNotes, setEmploymentNotes] = useState("");
+  const [emergencyContactFirstName, setEmergencyContactFirstName] = useState("");
+  const [emergencyContactLastName, setEmergencyContactLastName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [emergencyContactEmail, setEmergencyContactEmail] = useState("");
   const [consentCreditCheck, setConsentCreditCheck] = useState(false);
   const [consentSignatureName, setConsentSignatureName] = useState("");
   const [step, setStep] = useState<ApplicationStep>("lookup");
@@ -275,6 +283,10 @@ export default function RentalApplicationPage() {
             employerName: employerName.trim() || undefined,
             jobTitle: jobTitle.trim() || undefined,
             employmentNotes: employmentNotes.trim() || undefined,
+            emergencyContactFirstName: emergencyContactFirstName.trim() || undefined,
+            emergencyContactLastName: emergencyContactLastName.trim() || undefined,
+            emergencyContactPhone: emergencyContactPhone.trim() || undefined,
+            emergencyContactEmail: emergencyContactEmail.trim() || undefined,
           }),
         });
         const patchBody: unknown = await patchRes.json().catch(() => ({}));
@@ -313,6 +325,10 @@ export default function RentalApplicationPage() {
       email,
       employerName,
       employmentNotes,
+      emergencyContactEmail,
+      emergencyContactFirstName,
+      emergencyContactLastName,
+      emergencyContactPhone,
       firstName,
       hasPets,
       jobTitle,
@@ -623,6 +639,48 @@ export default function RentalApplicationPage() {
               />
             </FormField>
           ) : null}
+        </FormSection>
+
+        <FormSection legend="Emergency contact">
+          <p className="mb-4 text-sm text-neutral-600">
+            Person we can reach if we cannot contact you directly.
+          </p>
+          <FormField htmlFor={emergencyFirstNameId} label="First name">
+            <input
+              id={emergencyFirstNameId}
+              type="text"
+              value={emergencyContactFirstName}
+              onChange={(e) => setEmergencyContactFirstName(e.target.value)}
+              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            />
+          </FormField>
+          <FormField htmlFor={emergencyLastNameId} label="Last name">
+            <input
+              id={emergencyLastNameId}
+              type="text"
+              value={emergencyContactLastName}
+              onChange={(e) => setEmergencyContactLastName(e.target.value)}
+              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            />
+          </FormField>
+          <FormField htmlFor={emergencyPhoneId} label="Phone">
+            <input
+              id={emergencyPhoneId}
+              type="tel"
+              value={emergencyContactPhone}
+              onChange={(e) => setEmergencyContactPhone(e.target.value)}
+              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            />
+          </FormField>
+          <FormField htmlFor={emergencyEmailId} label="Email (optional)">
+            <input
+              id={emergencyEmailId}
+              type="email"
+              value={emergencyContactEmail}
+              onChange={(e) => setEmergencyContactEmail(e.target.value)}
+              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            />
+          </FormField>
         </FormSection>
 
         <FormSection legend="Employment">

@@ -38,6 +38,7 @@ export type CreateTenancyFromApplicationInput = {
   monthlyRent: number;
   securityDeposit: number;
   petDeposit?: number | null;
+  leaseSetupJson?: Prisma.InputJsonValue;
   status?: TenancyStatus;
 };
 
@@ -51,6 +52,7 @@ export type UpdateTenancyInput = {
   monthlyRent?: number;
   securityDeposit?: number;
   petDeposit?: number | null;
+  leaseSetupJson?: Prisma.InputJsonValue;
   buildiumResidentCenterUrl?: string | null;
   archivedAt?: Date | null;
   retentionReviewDueAt?: Date | null;
@@ -120,6 +122,7 @@ export async function createTenancyFromApprovedApplication(
       monthlyRent: input.monthlyRent,
       securityDeposit: input.securityDeposit,
       petDeposit: input.petDeposit ?? null,
+      leaseSetupJson: input.leaseSetupJson ?? undefined,
     },
   });
   await logPropertyActivity(prisma, principal, row.propertyId, "Tenancy", row.id, "tenancy.created", {
@@ -218,6 +221,9 @@ export async function updateTenancy(
     if (input.petDeposit != null && input.petDeposit < 0) throw new Error("petDeposit must be non-negative");
     data.petDeposit = input.petDeposit;
   }
+  if (input.leaseSetupJson !== undefined) {
+    data.leaseSetupJson = input.leaseSetupJson;
+  }
   if (input.buildiumResidentCenterUrl !== undefined) {
     const v = input.buildiumResidentCenterUrl?.trim();
     data.buildiumResidentCenterUrl = v || null;
@@ -243,6 +249,7 @@ export async function updateTenancy(
     "monthlyRent",
     "securityDeposit",
     "petDeposit",
+    "leaseSetupJson",
     "buildiumResidentCenterUrl",
     "archivedAt",
     "retentionStatus",

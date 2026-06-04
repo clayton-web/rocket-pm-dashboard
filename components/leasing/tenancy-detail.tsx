@@ -15,6 +15,7 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { OffboardingSummary } from "@/components/leasing/offboarding-summary";
+import { LeaseSetupSection } from "@/components/leasing/lease-setup-section";
 import { OnboardingSummary } from "@/components/leasing/onboarding-summary";
 import {
   formatTenancyStatus,
@@ -215,6 +216,12 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
           acceptedNoticeId={detail.acceptedNoticeId}
           missingAcceptedNotice={detail.missingAcceptedNotice}
         />
+      ) : null}
+
+      {detail.status !== "ended" && detail.status !== "archived" ? (
+        <div className="mb-8">
+          <LeaseSetupSection detail={detail} />
+        </div>
       ) : null}
 
       {detail.canScheduleInspection ? (

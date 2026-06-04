@@ -9,13 +9,17 @@ import {
   STAFF_BLOCKED_ADVANCE_TARGETS,
 } from "@/lib/leasing/tenancy-lifecycle";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
+import { getTenancyById, updateTenancy } from "@/lib/services/tenancy.service";
+import { updateTenancyContact } from "@/lib/services/tenancyContact.service";
 import { toDateOnlyUTC } from "@/lib/leasing/notice-rules";
 import {
   completeMoveOutInspection,
   scheduleMoveOutInspection,
 } from "@/lib/services/move-out-inspection.service";
-import { getTenancyById, updateTenancy } from "@/lib/services/tenancy.service";
-import { updateTenancyContact } from "@/lib/services/tenancyContact.service";
+import {
+  leaseSetupFormToJson,
+  parseLeaseSetupFormInput,
+} from "@/lib/validation/lease-setup";
 import type { TenancyStatus } from "@prisma/client";
 
 export type TenancyActionResult = { ok: true } | { ok: false; error: string };
@@ -163,6 +167,61 @@ export async function completeMoveOutInspectionAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not complete inspection";
+    return { ok: false, error: message };
+  }
+}
+
+export async function updateLeaseSetupAction(
+  tenancyId: string,
+  formData: unknown,
+): Promise<TenancyActionResult> {
+  const trimmedId = tenancyId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid tenancy id" };
+  }
+
+  const parsed = parseLeaseSetupFormInput(formData);
+  if ("error" in parsed) {
+    return { ok: false, error: parsed.error };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const raw = formData as Record<string, unknown>;
+    const leaseEndDate =
+      typeof raw.leaseEndDate === "string" && raw.leaseEndDate.trim()
+        ? toDateOnlyUTC(raw.leaseEndDate.trim())
+        : null;
+
+    let petDeposit: number | null | undefined;
+    if (raw.petDeposit !== undefined && raw.petDeposit !== null && raw.petDeposit !== "") {
+      const n = typeof raw.petDeposit === "number" ? raw.petDeposit : Number(raw.petDeposit);
+      if (!Number.isFinite(n) || n < 0) {
+        return { ok: false, error: "Pet deposit must be a non-negative number" };
+      }
+      petDeposit = n;
+    }
+
+    await updateTenancy(prisma, ctx, trimmedId, {
+      leaseSetupJson: leaseSetupFormToJson(parsed),
+      leaseEndDate: parsed.tenancyType === "fixed_term" ? leaseEndDate : null,
+      ...(petDeposit !== undefined ? { petDeposit } : {}),
+    });
+
+    revalidatePath("/leasing/tenancies");
+    revalidatePath(`/leasing/tenancies/${trimmedId}`);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not save lease setup";
     return { ok: false, error: message };
   }
 }

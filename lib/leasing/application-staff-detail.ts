@@ -25,6 +25,10 @@ export type ApplicationStaffDetail = {
   employerName: string | null;
   jobTitle: string | null;
   employmentNotes: string | null;
+  emergencyContactFirstName: string | null;
+  emergencyContactLastName: string | null;
+  emergencyContactPhone: string | null;
+  emergencyContactEmail: string | null;
   consentCreditCheck: boolean;
   consentSignatureName: string | null;
   consentSignedAt: string | null;
@@ -106,6 +110,10 @@ export async function getApplicationDetailForStaff(
     employerName: app.employerName,
     jobTitle: app.jobTitle,
     employmentNotes: app.employmentNotes,
+    emergencyContactFirstName: app.emergencyContactFirstName,
+    emergencyContactLastName: app.emergencyContactLastName,
+    emergencyContactPhone: app.emergencyContactPhone,
+    emergencyContactEmail: app.emergencyContactEmail,
     consentCreditCheck: app.consentCreditCheck,
     consentSignatureName: app.consentSignatureName,
     consentSignedAt: app.consentSignedAt?.toISOString() ?? null,

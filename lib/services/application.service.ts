@@ -37,6 +37,10 @@ export type UpdateDraftApplicationInput = Partial<
     | "employerName"
     | "jobTitle"
     | "employmentNotes"
+    | "emergencyContactFirstName"
+    | "emergencyContactLastName"
+    | "emergencyContactPhone"
+    | "emergencyContactEmail"
   >
 >;
 
