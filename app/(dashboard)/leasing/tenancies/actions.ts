@@ -24,6 +24,12 @@ import {
   generateRtb1DraftForTenancy,
   Rtb1GenerationNotReadyError,
 } from "@/lib/leasing/rtb1/generate-rtb1-draft";
+import {
+  LeaseSigningError,
+  refreshLeaseSigningLink,
+  sendLeaseForSignature,
+  submitPmLeaseSignature,
+} from "@/lib/leasing/lease-signing.service";
 import type { TenancyStatus } from "@prisma/client";
 
 export type TenancyActionResult = { ok: true } | { ok: false; error: string };
@@ -31,6 +37,17 @@ export type TenancyActionResult = { ok: true } | { ok: false; error: string };
 export type GenerateRtb1DraftResult =
   | { ok: true; documentId: string }
   | { ok: false; error: string };
+
+export type SendLeaseForSignatureResult =
+  | { ok: true; signatureRequestId: string; signingUrl: string }
+  | { ok: false; error: string };
+
+function clientIpFromHeaders(forwardedFor: string | null, userAgent: string | null) {
+  return {
+    ipAddress: forwardedFor?.split(",")[0]?.trim() || null,
+    userAgent,
+  };
+}
 
 export async function advanceTenancyStatusAction(
   tenancyId: string,
@@ -262,6 +279,131 @@ export async function generateRtb1DraftAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not generate RTB-1 draft";
+    return { ok: false, error: message };
+  }
+}
+
+export async function sendLeaseForSignatureAction(
+  tenancyId: string,
+  draftDocumentId?: string,
+): Promise<SendLeaseForSignatureResult> {
+  const trimmedId = tenancyId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid tenancy id" };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const result = await sendLeaseForSignature(
+      prisma,
+      ctx,
+      trimmedId,
+      draftDocumentId?.trim() || undefined,
+    );
+    revalidatePath(`/leasing/tenancies/${trimmedId}`);
+    return {
+      ok: true,
+      signatureRequestId: result.signatureRequestId,
+      signingUrl: result.signingUrl,
+    };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof LeaseSigningError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not send for signature";
+    return { ok: false, error: message };
+  }
+}
+
+export async function refreshLeaseSigningLinkAction(
+  signatureRequestId: string,
+): Promise<SendLeaseForSignatureResult> {
+  const trimmedId = signatureRequestId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid signature request id" };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const result = await refreshLeaseSigningLink(prisma, ctx, trimmedId);
+    const request = await prisma.signatureRequest.findUnique({
+      where: { id: trimmedId },
+      select: { tenancyId: true },
+    });
+    if (request?.tenancyId) {
+      revalidatePath(`/leasing/tenancies/${request.tenancyId}`);
+    }
+    return {
+      ok: true,
+      signatureRequestId: result.signatureRequestId,
+      signingUrl: result.signingUrl,
+    };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof LeaseSigningError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not refresh signing link";
+    return { ok: false, error: message };
+  }
+}
+
+export async function submitPmLeaseSignatureAction(
+  signatureRequestId: string,
+  input: {
+    signerName: string;
+    acknowledgedReview: boolean;
+    signatureDataUrl: string;
+  },
+): Promise<TenancyActionResult> {
+  const trimmedId = signatureRequestId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid signature request id" };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const { headers } = await import("next/headers");
+    const hdrs = await headers();
+    const audit = clientIpFromHeaders(hdrs.get("x-forwarded-for"), hdrs.get("user-agent"));
+
+    const document = await submitPmLeaseSignature(prisma, ctx, trimmedId, {
+      ...input,
+      ...audit,
+    });
+    revalidatePath(`/leasing/tenancies/${document.tenancyId ?? ""}`);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof LeaseSigningError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not submit signature";
     return { ok: false, error: message };
   }
 }

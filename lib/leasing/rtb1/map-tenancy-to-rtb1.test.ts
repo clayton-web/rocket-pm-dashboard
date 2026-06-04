@@ -114,6 +114,59 @@ describe("mapTenancyToRtb1PdfValues", () => {
     if (pdfValues["Parking for"]?.kind === "text") {
       assert.equal(pdfValues["Parking for"].value, "One underground stall");
     }
+
+    assert.equal(pdfValues["month to the landlord on"]?.kind, "checkbox");
+    if (pdfValues["month to the landlord on"]?.kind === "checkbox") {
+      assert.equal(pdfValues["month to the landlord on"].checked, true);
+    }
+    assert.equal(
+      pdfValues["month subject to rent increases given in accordance with the RTA"]?.kind,
+      "checkbox",
+    );
+    if (
+      pdfValues["month subject to rent increases given in accordance with the RTA"]?.kind ===
+      "checkbox"
+    ) {
+      assert.equal(
+        pdfValues["month subject to rent increases given in accordance with the RTA"].checked,
+        true,
+      );
+    }
+  });
+
+  it("appends street line 2 to rental address when present", () => {
+    const pdfValues = mapTenancyToRtb1PdfValues({
+      ...sampleInput,
+      property: {
+        ...sampleInput.property,
+        streetLine2: "Suite 200",
+      },
+    });
+    assert.equal(pdfValues["street number and street name_2"]?.kind, "text");
+    if (pdfValues["street number and street name_2"]?.kind === "text") {
+      assert.equal(
+        pdfValues["street number and street name_2"].value,
+        "455 Harbourview Crescent, Suite 200",
+      );
+    }
+  });
+
+  it("maps storage description to Additional information when storage is included", () => {
+    const pdfValues = mapTenancyToRtb1PdfValues({
+      ...sampleInput,
+      leaseSetup: {
+        ...sampleInput.leaseSetup,
+        servicesIncluded: {
+          ...sampleInput.leaseSetup.servicesIncluded,
+          storage: true,
+        },
+        storageDescription: "Locker #12 in basement",
+      },
+    });
+    assert.equal(pdfValues["Additional information"]?.kind, "text");
+    if (pdfValues["Additional information"]?.kind === "text") {
+      assert.equal(pdfValues["Additional information"].value, "Locker #12 in basement");
+    }
   });
 
   it("checks RTB-26 when more than two agreement signers are present", () => {

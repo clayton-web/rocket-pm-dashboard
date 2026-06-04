@@ -17,11 +17,10 @@ import {
 import { OffboardingSummary } from "@/components/leasing/offboarding-summary";
 import { LeaseSetupSection } from "@/components/leasing/lease-setup-section";
 import { Rtb1DraftSection } from "@/components/leasing/rtb1-draft-section";
+import { LeaseSigningSection } from "@/components/leasing/lease-signing-section";
 import { OnboardingSummary } from "@/components/leasing/onboarding-summary";
-import {
-  formatTenancyStatus,
-  type TenancyStaffDetail,
-} from "@/lib/leasing/tenancy-staff-detail";
+import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
+import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -223,6 +222,7 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
         <div className="mb-8 flex flex-col gap-8">
           <LeaseSetupSection detail={detail} />
           <Rtb1DraftSection detail={detail} />
+          <LeaseSigningSection detail={detail} />
         </div>
       ) : null}
 

@@ -98,7 +98,11 @@ export function mapTenancyToRtb1LogicalFields(
   setLogical(logical, "landlord.isAgentServiceCheckbox", rtb1Checkbox(org.landlordIsAgent));
 
   setLogical(logical, "rentalUnit.unitNumber", rtb1Text(unit.unitNumber));
-  setLogical(logical, "rentalUnit.street", rtb1Text(property.streetLine1));
+  const rentalStreet = [property.streetLine1.trim()];
+  if (property.streetLine2?.trim()) {
+    rentalStreet.push(property.streetLine2.trim());
+  }
+  setLogical(logical, "rentalUnit.street", rtb1Text(rentalStreet.join(", ")));
   setLogical(logical, "rentalUnit.city", rtb1Text(property.city));
   setLogical(logical, "rentalUnit.province", rtb1Text(property.province));
   setLogical(logical, "rentalUnit.postalCode", rtb1Text(property.postalCode));
@@ -159,6 +163,7 @@ export function mapTenancyToRtb1LogicalFields(
 
   if (leaseSetup.rentPeriod === "month") {
     setLogical(logical, "rent.periodMonth", rtb1Checkbox(true));
+    setLogical(logical, "rent.periodMonthRta", rtb1Checkbox(true));
   } else if (leaseSetup.rentPeriod === "week") {
     setLogical(logical, "rent.periodWeek", rtb1Checkbox(true));
   } else if (leaseSetup.rentPeriod === "day") {
@@ -207,6 +212,9 @@ export function mapTenancyToRtb1LogicalFields(
 
   if (services.parking === true && leaseSetup.parkingDescription?.trim()) {
     setLogical(logical, "services.parkingDescription", rtb1Text(leaseSetup.parkingDescription.trim()));
+  }
+  if (services.storage === true && leaseSetup.storageDescription?.trim()) {
+    setLogical(logical, "services.storageDescription", rtb1Text(leaseSetup.storageDescription.trim()));
   }
 
   if (leaseSetup.addendumAttached) {

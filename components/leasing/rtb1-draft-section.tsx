@@ -8,7 +8,7 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { RTB1_TEMPLATE_VERSION } from "@/lib/leasing/rtb1/constants";
-import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail";
+import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-types";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 

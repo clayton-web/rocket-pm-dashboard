@@ -506,6 +506,7 @@ model TenancyContact {
 
   tenancy                      Tenancy              @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
   maintenanceRequestsSubmitted MaintenanceRequest[]
+  leaseSignatures              LeaseSignature[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -557,6 +558,11 @@ enum SignatureRequestStatus {
   failed
 }
 
+enum LeaseSignatureRole {
+  tenant
+  property_manager
+}
+
 enum ChecklistStatus {
   not_started
   in_progress
@@ -600,6 +606,9 @@ model Document {
   tenancy     Tenancy?     @relation("DocumentTenancy", fields: [tenancyId], references: [id], onDelete: SetNull)
   application Application? @relation("DocumentApplication", fields: [applicationId], references: [id], onDelete: SetNull)
 
+  signatureRequestsAsDraft    SignatureRequest[] @relation("SignatureRequestDraftDocument")
+  signatureRequestsAsExecuted SignatureRequest[] @relation("SignatureRequestExecutedDocument")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -625,9 +634,21 @@ model SignatureRequest {
   sentAt      DateTime?
   completedAt DateTime?
 
-  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  tenancy     Tenancy?     @relation("SignatureRequestTenancy", fields: [tenancyId], references: [id], onDelete: Cascade)
-  application Application? @relation("SignatureRequestApplication", fields: [applicationId], references: [id], onDelete: Cascade)
+  /// RTB-1 draft document sent for signature.
+  documentId String?
+  /// Flattened executed RTB-1 after all signatures.
+  executedDocumentId String?
+
+  /// SHA-256 hash of the tenant signing token (never store raw token).
+  signingTokenHash      String?   @unique
+  signingTokenExpiresAt DateTime?
+
+  property         Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenancy          Tenancy?          @relation("SignatureRequestTenancy", fields: [tenancyId], references: [id], onDelete: Cascade)
+  application      Application?      @relation("SignatureRequestApplication", fields: [applicationId], references: [id], onDelete: Cascade)
+  draftDocument    Document?         @relation("SignatureRequestDraftDocument", fields: [documentId], references: [id], onDelete: SetNull)
+  executedDocument Document?         @relation("SignatureRequestExecutedDocument", fields: [executedDocumentId], references: [id], onDelete: SetNull)
+  signatures       LeaseSignature[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -637,6 +658,30 @@ model SignatureRequest {
   @@index([applicationId])
   @@index([status])
   @@index([provider])
+  @@index([documentId])
+}
+
+/// In-app lease signature audit record (tenant or property manager).
+model LeaseSignature {
+  id                 String             @id @default(cuid())
+  signatureRequestId String
+  signerRole         LeaseSignatureRole
+  signerName         String
+  signedAt           DateTime
+  ipAddress          String?
+  userAgent          String?            @db.Text
+  signatureImageStorageKey String
+  tenancyContactId   String?
+
+  signatureRequest SignatureRequest @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+  tenancyContact   TenancyContact?  @relation(fields: [tenancyContactId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([signatureRequestId, signerRole])
+  @@index([signatureRequestId])
+  @@index([tenancyContactId])
 }
 
 model Checklist {

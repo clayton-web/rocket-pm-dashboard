@@ -43,6 +43,7 @@ export type Rtb1LogicalFieldKey =
   | "tenancy.vacateRtrSection"
   | "rent.amount"
   | "rent.periodMonth"
+  | "rent.periodMonthRta"
   | "rent.periodWeek"
   | "rent.periodDay"
   | "rent.dueDayOfPeriod"
@@ -60,6 +61,7 @@ export type Rtb1LogicalFieldKey =
   | "services.parking"
   | "services.parkingDescription"
   | "services.storage"
+  | "services.storageDescription"
   | "services.laundry"
   | "services.snowRemoval"
   | "addendum.attached"
@@ -134,6 +136,10 @@ export const RTB1_FIELD_MAP: Record<Rtb1LogicalFieldKey, Rtb1FieldMapEntry> = {
   },
   "rent.amount": { pdfFieldName: "The tenant will pay the rent of", kind: "text" },
   "rent.periodMonth": { pdfFieldName: "month to the landlord on", kind: "checkbox" },
+  "rent.periodMonthRta": {
+    pdfFieldName: "month subject to rent increases given in accordance with the RTA",
+    kind: "checkbox",
+  },
   "rent.periodWeek": { pdfFieldName: "week", kind: "checkbox" },
   "rent.periodDay": { pdfFieldName: "day", kind: "checkbox" },
   "rent.dueDayOfPeriod": {
@@ -154,6 +160,7 @@ export const RTB1_FIELD_MAP: Record<Rtb1LogicalFieldKey, Rtb1FieldMapEntry> = {
   "services.parking": { pdfFieldName: "Parking", kind: "checkbox" },
   "services.parkingDescription": { pdfFieldName: "Parking for", kind: "text" },
   "services.storage": { pdfFieldName: "Storage", kind: "checkbox" },
+  "services.storageDescription": { pdfFieldName: "Additional information", kind: "text" },
   "services.laundry": { pdfFieldName: "Free laundry", kind: "checkbox" },
   "services.snowRemoval": { pdfFieldName: "Snow removal", kind: "checkbox" },
   "addendum.attached": {

@@ -32,6 +32,8 @@ export async function middleware(req: NextRequest) {
   const isHealth = pathname === "/api/health";
   const isInternalJobProcessor = pathname === "/api/internal/jobs/process";
   const isPortal = pathname.startsWith("/portal");
+  const isSignLease = pathname.startsWith("/sign/lease");
+  const isSignLeaseApi = pathname.startsWith("/api/sign/lease");
   const isPublicMaintenance = isPublicMaintenanceApi(req);
   const isPublicLeasing = isPublicLeasingApi(req);
   const isPublicPortalApiRoute = isPublicPortalApi(pathname);
@@ -41,6 +43,8 @@ export async function middleware(req: NextRequest) {
     isHealth ||
     isInternalJobProcessor ||
     isPortal ||
+    isSignLease ||
+    isSignLeaseApi ||
     isPublicMaintenance ||
     isPublicLeasing ||
     isPublicPortalApiRoute

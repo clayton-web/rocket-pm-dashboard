@@ -6,23 +6,24 @@ import {
   getOffboardingNextStep,
   getOffboardingSteps,
   showsOffboardingSummary,
-  type OffboardingNextStep,
-  type OffboardingStep,
 } from "@/lib/leasing/offboarding-progress";
 import {
   assessLeaseSetupReadiness,
   formatLeaseSetupReadinessStatus,
-  type LeaseSetupReadinessStatus,
 } from "@/lib/leasing/lease-setup-readiness";
-import { parseLeaseSetupJson, type LeaseSetupJson } from "@/lib/leasing/lease-setup";
+import { parseLeaseSetupJson } from "@/lib/leasing/lease-setup";
 import { getOrganizationLandlordProfileForStaff } from "@/lib/org/organization-landlord-profile";
-import { RTB1_DOCUMENT_TYPE } from "@/lib/leasing/rtb1/constants";
+import { deriveLeaseSigningProgress } from "@/lib/leasing/lease-signing-progress";
+import {
+  LEASE_SIGNING_PROVIDER,
+  RTB1_DOCUMENT_TYPE,
+  RTB1_EXECUTED_DOCUMENT_TYPE,
+} from "@/lib/leasing/rtb1/constants";
+import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-types";
 import {
   getOnboardingNextStep,
   getOnboardingSteps,
   showsOnboardingSummary,
-  type OnboardingNextStep,
-  type OnboardingStep,
 } from "@/lib/leasing/onboarding-progress";
 import {
   getAdvanceTenancyStatusLabel,
@@ -35,64 +36,12 @@ import {
   getAcceptedTenantEndNoticeForTenancy,
 } from "@/lib/leasing/tenant-notice";
 
-export type TenancyContactRow = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string | null;
-  contactType: string;
-  portalAccessEnabled: boolean;
-};
-
-export type Rtb1DraftDocumentRow = {
-  id: string;
-  title: string;
-  fileName: string;
-  createdAt: string;
-  downloadHref: string;
-};
-
-export type TenancyStaffDetail = {
-  id: string;
-  status: string;
-  propertyId: string;
-  propertyName: string;
-  unitLabel: string;
-  applicationId: string;
-  leaseStartDate: string;
-  leaseEndDate: string | null;
-  moveInDate: string;
-  moveOutDate: string | null;
-  monthlyRent: string;
-  securityDeposit: string;
-  petDeposit: string | null;
-  archivedAt: string | null;
-  nextStatus: TenancyStatus | null;
-  advanceStatusLabel: string | null;
-  acceptedNoticeId: string | null;
-  requestedMoveOutDate: string | null;
-  inspectionDate: string | null;
-  inspectionReportUrl: string | null;
-  inspectionNotes: string | null;
-  canScheduleInspection: boolean;
-  canCompleteInspection: boolean;
-  defaultInspectionDate: string | null;
-  showOffboardingSummary: boolean;
-  offboardingSteps: OffboardingStep[];
-  offboardingNextStep: OffboardingNextStep;
-  missingAcceptedNotice: boolean;
-  showOnboardingSummary: boolean;
-  onboardingSteps: OnboardingStep[];
-  onboardingNextStep: OnboardingNextStep;
-  primaryPortalAccessEnabled: boolean | null;
-  contacts: TenancyContactRow[];
-  leaseSetup: LeaseSetupJson;
-  leaseSetupStatus: LeaseSetupReadinessStatus;
-  leaseSetupStatusLabel: string;
-  rentDueDay: number;
-  rtb1DraftDocuments: Rtb1DraftDocumentRow[];
-};
+export type {
+  LeaseSignatureAuditRow,
+  Rtb1DraftDocumentRow,
+  TenancyContactRow,
+  TenancyStaffDetail,
+} from "@/lib/leasing/tenancy-staff-detail-types";
 
 export { formatTenancyStatus };
 
@@ -183,6 +132,45 @@ export async function getTenancyDetailForStaff(
     },
   });
 
+  const leaseSigningBase = deriveLeaseSigningProgress({
+    latestDraft: await prisma.document.findFirst({
+      where: {
+        tenancyId: tenancy.id,
+        documentType: RTB1_DOCUMENT_TYPE,
+        isLocked: false,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    signatureRequest: await prisma.signatureRequest.findFirst({
+      where: { tenancyId: tenancy.id, provider: LEASE_SIGNING_PROVIDER },
+      include: { signatures: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    executedDocument: await prisma.document.findFirst({
+      where: { tenancyId: tenancy.id, documentType: RTB1_EXECUTED_DOCUMENT_TYPE },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, createdAt: true },
+    }),
+    readinessComplete: leaseReadiness.status === "ready_for_rtb1",
+  });
+  const signatureRequestId = leaseSigningBase.signatureRequestId;
+  const signatureRows = signatureRequestId
+    ? await prisma.leaseSignature.findMany({
+        where: { signatureRequestId },
+        orderBy: { signedAt: "asc" },
+        select: { signerRole: true, signerName: true, signedAt: true },
+      })
+    : [];
+
+  const leaseSigning = {
+    ...leaseSigningBase,
+    signatures: signatureRows.map((row) => ({
+      signerRole: row.signerRole,
+      signerName: row.signerName,
+      signedAt: row.signedAt.toISOString(),
+    })),
+  };
+
   return {
     id: tenancy.id,
     status: tenancy.status,
@@ -243,5 +231,6 @@ export async function getTenancyDetailForStaff(
       createdAt: doc.createdAt.toISOString(),
       downloadHref: `/api/leasing/documents/${doc.id}/download`,
     })),
+    leaseSigning,
   };
 }

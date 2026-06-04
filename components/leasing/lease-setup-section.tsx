@@ -17,7 +17,7 @@ import {
   type RentPeriod,
 } from "@/lib/leasing/lease-setup";
 import type { LeaseSetupReadinessStatus } from "@/lib/leasing/lease-setup-readiness";
-import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail";
+import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-types";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
