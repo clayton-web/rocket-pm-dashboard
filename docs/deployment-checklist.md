@@ -45,6 +45,11 @@ The server refuses to start in production if dangerous dev flags are set or if `
 | `SEED_STAFF_PASSWORD` | **Local seed only** — never set in production runtime. |
 | `LOCAL_DOCUMENT_STORAGE_ROOT` | **Dev only** — default `.data/documents` when `DOCUMENT_STORAGE_BACKEND=local`. |
 | `TENANT_AUTH_DEV_SHOW_CODE` | **Never in production** — exposes OTP in API JSON. |
+| `EMAIL_ENABLED` | **Yes (prod)** | Must be `true`. |
+| `EMAIL_PROVIDER` | **Yes (prod)** | Must be `resend`. |
+| `RESEND_API_KEY` | **Yes (prod)** | Resend API key for transactional email. |
+| `EMAIL_FROM` | **Yes (prod)** | Verified sender, e.g. `Rocket PM <noreply@your-domain.com>`. |
+| `APP_PUBLIC_URL` | **Yes (prod)** | Public app origin for absolute links in email (falls back to `NEXTAUTH_URL`). |
 
 ## Pre-deploy steps
 

@@ -13,6 +13,11 @@ export async function deleteExpiredTenantOtps(db: OtpDb = prisma): Promise<numbe
   return result.count;
 }
 
+export async function deletePendingOtp(email: string, db: OtpDb = prisma): Promise<void> {
+  const normalized = normalizePortalEmail(email);
+  await db.tenantOtpChallenge.delete({ where: { email: normalized } }).catch(() => undefined);
+}
+
 export async function storePendingOtp(
   email: string,
   contactId: string,

@@ -7,6 +7,10 @@ import {
   isProductionDocumentStorageMisconfigured,
   productionDocumentStorageViolationMessage,
 } from "@/lib/runtime/document-storage-guards";
+import {
+  isProductionEmailMisconfigured,
+  productionEmailViolationMessages,
+} from "@/lib/runtime/email-guards";
 
 export function isProductionRuntime(): boolean {
   return process.env.NODE_ENV === "production";
@@ -38,6 +42,9 @@ export function validateProductionRuntimeConfig(): void {
   }
   if (isProductionDocumentStorageMisconfigured()) {
     violations.push(productionDocumentStorageViolationMessage());
+  }
+  if (isProductionEmailMisconfigured()) {
+    violations.push(...productionEmailViolationMessages());
   }
 
   if (violations.length > 0) {

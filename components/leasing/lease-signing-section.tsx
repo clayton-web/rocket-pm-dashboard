@@ -32,6 +32,7 @@ function absoluteSigningUrl(path: string) {
 export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
   const [signingLink, setSigningLink] = useState<string | null>(detail.leaseSigning.signingUrl);
   const [pending, startTransition] = useTransition();
   const signing = detail.leaseSigning;
@@ -50,6 +51,7 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
   function onSendForSignature() {
     if (!latestDraftId) return;
     setError(null);
+    setEmailWarning(null);
     startTransition(async () => {
       const result = await sendLeaseForSignatureAction(detail.id, latestDraftId);
       if (!result.ok) {
@@ -57,6 +59,7 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
         return;
       }
       setSigningLink(result.signingUrl);
+      setEmailWarning(result.emailWarning ?? null);
       router.refresh();
     });
   }
@@ -94,6 +97,11 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
       </p>
 
       {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
+      {emailWarning ? (
+        <InlineNotice className="mt-4 border-amber-200 bg-amber-50 text-amber-950">
+          {emailWarning}
+        </InlineNotice>
+      ) : null}
 
       <ol className={`${SURFACE_PANEL} mt-4 divide-y divide-neutral-200`}>
         {stepItems.map((step) => (

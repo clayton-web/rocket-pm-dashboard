@@ -30,6 +30,9 @@ import {
   sendLeaseForSignature,
   submitPmLeaseSignature,
 } from "@/lib/leasing/lease-signing.service";
+import { loadLeaseSigningEmailRecipient } from "@/lib/email/lease-signing-email-context";
+import { sendLeaseSigningRequestEmail } from "@/lib/email/send-transactional-emails";
+import { leaseSigningTokenExpiresAt } from "@/lib/leasing/lease-signing-token";
 import { Rtb1DraftBlockedDuringSigningError } from "@/lib/leasing/lease-signing-guards";
 import {
   activationBlockReasonForAdvance,
@@ -44,7 +47,7 @@ export type GenerateRtb1DraftResult =
   | { ok: false; error: string };
 
 export type SendLeaseForSignatureResult =
-  | { ok: true; signatureRequestId: string; signingUrl: string }
+  | { ok: true; signatureRequestId: string; signingUrl: string; emailWarning?: string }
   | { ok: false; error: string };
 
 function clientIpFromHeaders(forwardedFor: string | null, userAgent: string | null) {
@@ -316,11 +319,35 @@ export async function sendLeaseForSignatureAction(
       trimmedId,
       draftDocumentId?.trim() || undefined,
     );
+
+    let emailWarning: string | undefined;
+    const recipient = await loadLeaseSigningEmailRecipient(prisma, trimmedId);
+    if (recipient) {
+      try {
+        await sendLeaseSigningRequestEmail({
+          to: recipient.email,
+          tenantName: recipient.tenantName,
+          propertyName: recipient.propertyName,
+          unitLabel: recipient.unitLabel,
+          signingPath: result.signingUrl,
+          expiresAt: leaseSigningTokenExpiresAt(),
+        });
+      } catch (emailError) {
+        console.error("[sendLeaseForSignatureAction] lease signing email failed", emailError);
+        emailWarning =
+          "The signature request was created, but the tenant email could not be sent. Copy the signing link below and send it manually.";
+      }
+    } else {
+      emailWarning =
+        "The signature request was created, but no tenant email was found. Copy the signing link below and send it manually.";
+    }
+
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
     return {
       ok: true,
       signatureRequestId: result.signatureRequestId,
       signingUrl: result.signingUrl,
+      ...(emailWarning ? { emailWarning } : {}),
     };
   } catch (e) {
     if (e instanceof StaffAuthError) {
