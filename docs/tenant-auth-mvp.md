@@ -78,7 +78,7 @@ In-memory limiter (see `docs/deployment-checklist.md`).
 
 ## Security limitations (MVP)
 
-- OTPs are in-memory per process (lost on restart; not multi-instance safe).
+- OTP challenges are stored in Postgres (`TenantOtpChallenge`) with hashed codes only.
 - No real email in production until a mailer is wired (production users need `TENANT_AUTH_DEV_SHOW_CODE=true` on staging or email delivery).
 - One contact per email wins (`findFirst` by `updatedAt`) if duplicates exist.
 - Signed-in list/detail (PR 3) does not remove public reference lookup.
@@ -86,8 +86,8 @@ In-memory limiter (see `docs/deployment-checklist.md`).
 
 ## Future upgrades
 
-1. Send OTP via transactional email (Resend, SES, etc.) — keep `storePendingOtp` / `verifyPendingOtp` API.
-2. Redis (or DB) OTP store for serverless.
+1. Send OTP via transactional email (Resend, SES, etc.) — `storePendingOtp` / `verifyPendingOtp` in `lib/portal/tenant-otp-store.ts`.
+2. Optional scheduled cleanup cron calling `deleteExpiredTenantOtps()`.
 3. Magic link as alternative to typed code.
 4. ~~Scope maintenance history~~ (PR 3) — ~~documents~~ (PR-C4) — attachments and additional doc types next.
 5. Optional NextAuth credentials provider linked to `User` + `RoleKey.tenant` (longer term).

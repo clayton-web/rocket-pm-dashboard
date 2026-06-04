@@ -4,8 +4,8 @@ import {
   findPortalEligibleContact,
   generateOtpCode,
   shouldExposeTenantAuthDevCode,
-  storePendingOtp,
 } from "@/lib/portal/tenant-auth";
+import { storePendingOtp } from "@/lib/portal/tenant-otp-store";
 import {
   checkRateLimit,
   getRequestClientKey,
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     const code = generateOtpCode();
-    storePendingOtp(email, contact.id, code);
+    await storePendingOtp(email, contact.id, code);
 
     const response: Record<string, unknown> = { ...GENERIC_OK };
     if (shouldExposeTenantAuthDevCode()) {

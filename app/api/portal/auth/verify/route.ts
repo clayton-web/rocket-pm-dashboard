@@ -3,8 +3,8 @@ import { normalizePortalEmail } from "@/lib/portal/maintenance-tenant-status";
 import {
   findPortalEligibleContact,
   setTenantSessionCookie,
-  verifyPendingOtp,
 } from "@/lib/portal/tenant-auth";
+import { verifyPendingOtp } from "@/lib/portal/tenant-otp-store";
 import { resolveTenantPortalLoginRedirect } from "@/lib/portal/portal-login-redirect";
 import {
   checkRateLimit,
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email and code are required" }, { status: 400 });
     }
 
-    const contactId = verifyPendingOtp(email, code);
+    const contactId = await verifyPendingOtp(email, code);
     if (!contactId) {
       return NextResponse.json({ error: "Invalid or expired code" }, { status: 401 });
     }

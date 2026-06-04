@@ -7,7 +7,7 @@ import { getPublicPortalOrgSlug } from "@/lib/portal/public-org";
 export const TENANT_SESSION_COOKIE = "rocket_pm_tenant_session";
 
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7;
-const OTP_TTL_MS = 10 * 60 * 1000;
+export const OTP_TTL_MS = 10 * 60 * 1000;
 
 export type TenantSessionPayload = {
   contactId: string;
@@ -16,14 +16,6 @@ export type TenantSessionPayload = {
   email: string;
   exp: number;
 };
-
-type PendingOtp = {
-  contactId: string;
-  codeHash: string;
-  expiresAt: number;
-};
-
-const pendingOtpByEmail = new Map<string, PendingOtp>();
 
 function getSigningSecret(): string {
   const secret =
@@ -44,7 +36,7 @@ function decodeBase64Url(data: string): string {
   return Buffer.from(data, "base64url").toString("utf8");
 }
 
-function hashOtpCode(email: string, code: string): string {
+export function hashOtpCode(email: string, code: string): string {
   return createHmac("sha256", getSigningSecret()).update(`${email}:${code}`).digest("base64url");
 }
 
@@ -89,33 +81,6 @@ export async function findPortalEligibleContact(normalizedEmail: string) {
     },
     orderBy: { updatedAt: "desc" },
   });
-}
-
-export function storePendingOtp(email: string, contactId: string, code: string): void {
-  const normalized = normalizePortalEmail(email);
-  pendingOtpByEmail.set(normalized, {
-    contactId,
-    codeHash: hashOtpCode(normalized, code),
-    expiresAt: Date.now() + OTP_TTL_MS,
-  });
-}
-
-export function verifyPendingOtp(email: string, code: string): string | null {
-  const normalized = normalizePortalEmail(email);
-  const pending = pendingOtpByEmail.get(normalized);
-  if (!pending || Date.now() > pending.expiresAt) {
-    pendingOtpByEmail.delete(normalized);
-    return null;
-  }
-
-  const expected = Buffer.from(pending.codeHash, "base64url");
-  const actual = Buffer.from(hashOtpCode(normalized, code.trim()), "base64url");
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-    return null;
-  }
-
-  pendingOtpByEmail.delete(normalized);
-  return pending.contactId;
 }
 
 export function signTenantSession(payload: Omit<TenantSessionPayload, "exp">): string {

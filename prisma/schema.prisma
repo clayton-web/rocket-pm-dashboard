@@ -516,6 +516,19 @@ model TenancyContact {
   @@index([tenancyId, email])
 }
 
+/// One-time tenant portal sign-in code (hashed). One active challenge per normalized email.
+model TenantOtpChallenge {
+  id        String   @id @default(cuid())
+  email     String
+  contactId String
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email])
+  @@index([expiresAt])
+}
+
 /// Notice served or filed for a tenancy. noticeType is app-level vocabulary (string), not an enum.
 model Notice {
   id         String  @id @default(cuid())
