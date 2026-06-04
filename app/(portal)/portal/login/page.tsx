@@ -16,7 +16,7 @@ export default async function TenantPortalLoginPage() {
       <PortalPageHeader
         eyebrow="Tenant portal"
         title="Sign in"
-        description="Use the email on your lease with portal access enabled. We will send a one-time code (shown in dev until email delivery is wired)."
+        description="Use the email on your lease with portal access enabled. Sign-in works after your property manager marks the tenancy active."
       />
       <TenantLoginForm />
     </div>

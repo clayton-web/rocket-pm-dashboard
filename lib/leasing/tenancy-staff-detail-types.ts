@@ -10,6 +10,7 @@ import type {
   OnboardingNextStep,
   OnboardingStep,
 } from "@/lib/leasing/onboarding-progress";
+import type { TenancyActivationReadiness } from "@/lib/leasing/tenancy-activation-readiness";
 
 export type TenancyContactRow = {
   id: string;
@@ -77,4 +78,5 @@ export type TenancyStaffDetail = {
   leaseSigning: LeaseSigningProgress & {
     signatures: LeaseSignatureAuditRow[];
   };
+  activationReadiness: TenancyActivationReadiness;
 };

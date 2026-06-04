@@ -329,19 +329,47 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
           id={detail.showOnboardingSummary ? "onboarding-lifecycle" : "offboarding-lifecycle"}
         >
           <FormSection legend="Lifecycle">
+            {detail.nextStatus === "active" ? (
+              <div className={`${SURFACE_PANEL} mb-4 flex flex-col gap-2 px-3.5 py-3 text-sm text-neutral-700`}>
+                <p>
+                  <span className="text-neutral-500">Activation readiness · </span>
+                  {detail.activationReadiness.ready ? (
+                    <span className="font-medium text-emerald-800">Ready</span>
+                  ) : (
+                    <span className="font-medium text-amber-900">Blocked</span>
+                  )}
+                </p>
+                <p>
+                  <span className="text-neutral-500">Executed lease · </span>
+                  {detail.leaseSigning.executedDocumentId ? (
+                    <span className="font-medium text-neutral-900">On file</span>
+                  ) : (
+                    <span className="text-neutral-600">Not yet executed</span>
+                  )}
+                </p>
+                {!detail.activationReadiness.ready ? (
+                  <InlineNotice className="mt-1 border-amber-300 bg-amber-50 text-amber-950">
+                    {detail.activationReadiness.reason}
+                  </InlineNotice>
+                ) : null}
+              </div>
+            ) : null}
             <PrimaryButton
               type="button"
               className="!w-auto px-6"
-              disabled={statusPending}
+              disabled={
+                statusPending ||
+                (detail.nextStatus === "active" && !detail.activationReadiness.ready)
+              }
               onClick={onAdvanceStatus}
             >
               {statusPending ? "Updating…" : detail.advanceStatusLabel}
             </PrimaryButton>
             {detail.nextStatus === "active" ? (
               <p className="mt-3 text-sm text-neutral-600">
-                Marking active allows tenant portal sign-in when portal access is enabled on a
-                contact (see below). Onboarding is not automated yet — confirm lease paperwork and
-                move-in prep offline before activating.
+                Marking active unlocks tenant portal sign-in when portal access is enabled on a
+                contact. Tenants sign the lease through the email link before activation; after
+                activation they can sign in and view their executed agreement under Documents.
               </p>
             ) : null}
             {detail.status === "inspection_completed" && detail.nextStatus === "ended" ? (
@@ -406,7 +434,8 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
           <p className="text-sm text-neutral-600">
             Tenant portal sign-in requires portal access to be enabled on the contact, the tenancy
             status to be <span className="font-medium">Active</span>, and the tenant to use the same
-            email address stored on this contact.
+            email address stored on this contact. Lease signing before activation uses the email
+            signing link, not portal login.
           </p>
           {detail.contacts.length === 0 ? (
             <InlineNotice className="mt-3">No contacts on this tenancy.</InlineNotice>

@@ -26,7 +26,7 @@ const publicLinks = [
   {
     href: "/portal/documents",
     title: "Lease & documents",
-    description: "View signed leases and shared files (coming soon).",
+    description: "View your signed lease after signing in (active tenancy required).",
   },
   {
     href: "/portal/login",

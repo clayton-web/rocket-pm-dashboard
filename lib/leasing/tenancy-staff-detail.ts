@@ -31,6 +31,7 @@ import {
   getNextTenancyStatus,
   STAFF_BLOCKED_ADVANCE_TARGETS,
 } from "@/lib/leasing/tenancy-lifecycle";
+import { loadTenancyActivationReadiness } from "@/lib/leasing/tenancy-activation-gate";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
 import {
   formatMoveOutDateLabel,
@@ -173,6 +174,7 @@ export async function getTenancyDetailForStaff(
   };
 
   const leaseExecution = onboardingSnapshotFromLeaseSigningProgress(leaseSigningBase.steps);
+  const activationReadiness = await loadTenancyActivationReadiness(prisma, tenancy.id);
 
   return {
     id: tenancy.id,
@@ -215,6 +217,8 @@ export async function getTenancyDetailForStaff(
       ? getOnboardingSteps({
           leaseSetupStatus: leaseReadiness.status,
           leaseExecution,
+          portalAccessEnabled: primaryPortalAccessEnabled,
+          activationReady: activationReadiness.ready,
         })
       : [],
     onboardingNextStep: showOnboardingSummary
@@ -223,6 +227,7 @@ export async function getTenancyDetailForStaff(
           moveInDate: tenancy.moveInDate.toISOString().slice(0, 10),
           leaseSetupStatus: leaseReadiness.status,
           leaseExecution,
+          activationReady: activationReadiness.ready,
         })
       : { kind: "none", title: "", description: "" },
     primaryPortalAccessEnabled,
@@ -239,5 +244,6 @@ export async function getTenancyDetailForStaff(
       downloadHref: `/api/leasing/documents/${doc.id}/download`,
     })),
     leaseSigning,
+    activationReadiness,
   };
 }

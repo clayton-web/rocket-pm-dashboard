@@ -83,12 +83,18 @@ const EMPTY_EXECUTION: OnboardingLeaseExecutionSnapshot = {
 export function getOnboardingSteps(opts: {
   leaseSetupStatus: LeaseSetupReadinessStatus;
   leaseExecution?: OnboardingLeaseExecutionSnapshot;
+  portalAccessEnabled?: boolean | null;
+  activationReady?: boolean;
 }): OnboardingStep[] {
   const execution = opts.leaseExecution ?? EMPTY_EXECUTION;
+  const portalReady = opts.portalAccessEnabled === true;
+  const activationReady = opts.activationReady === true;
   const leaseComplete =
     opts.leaseSetupStatus === "lease_setup_complete" ||
     opts.leaseSetupStatus === "ready_for_rtb1";
   const rtbReady = opts.leaseSetupStatus === "ready_for_rtb1";
+  const postExecution = execution.executed;
+  const moveInPrepComplete = postExecution && portalReady && activationReady;
 
   const stepDefs: { id: OnboardingStepId; label: string; complete: boolean; current: boolean }[] = [
     { id: "tenancy_created", label: "Tenancy created", complete: true, current: false },
@@ -126,12 +132,27 @@ export function getOnboardingSteps(opts: {
     {
       id: "move_in_prep",
       label: "Move-in prep",
-      complete: false,
-      current: execution.executed,
+      complete: moveInPrepComplete,
+      current: postExecution && !moveInPrepComplete,
     },
-    { id: "portal_ready", label: "Portal ready", complete: false, current: false },
-    { id: "ready_to_activate", label: "Ready to activate", complete: false, current: false },
-    { id: "active", label: "Active", complete: false, current: false },
+    {
+      id: "portal_ready",
+      label: "Portal available",
+      complete: portalReady,
+      current: postExecution && !portalReady,
+    },
+    {
+      id: "ready_to_activate",
+      label: "Ready to activate",
+      complete: activationReady,
+      current: postExecution && portalReady && !activationReady,
+    },
+    {
+      id: "active",
+      label: "Active tenant",
+      complete: false,
+      current: postExecution && portalReady && activationReady,
+    },
   ];
 
   const hasExplicitCurrent = stepDefs.some((s) => s.current);
@@ -152,8 +173,10 @@ export function getOnboardingNextStep(opts: {
   moveInDate: string;
   leaseSetupStatus: LeaseSetupReadinessStatus;
   leaseExecution?: OnboardingLeaseExecutionSnapshot;
+  activationReady?: boolean;
 }): OnboardingNextStep {
   const execution = opts.leaseExecution ?? EMPTY_EXECUTION;
+  const activationReady = opts.activationReady === true;
 
   if (opts.leaseSetupStatus === "lease_setup_incomplete") {
     return {
@@ -212,6 +235,16 @@ export function getOnboardingNextStep(opts: {
     };
   }
 
+  if (execution.executed && !activationReady) {
+    return {
+      kind: "pm_counter_sign",
+      title: "Complete lease execution",
+      description:
+        "An executed, locked RTB-1 is required before tenant activation. Finish PM counter-sign or retry execution if needed.",
+      anchorId: "lease-setup",
+    };
+  }
+
   if (isOverdueMoveIn(opts.moveInDate)) {
     return {
       kind: "overdue_move_in",
@@ -227,8 +260,18 @@ export function getOnboardingNextStep(opts: {
       kind: "enable_portal",
       title: "Enable portal access",
       description:
-        "Turn on portal access for the primary tenant contact so they can sign in after you mark this tenancy active. Share login instructions manually for now.",
+        "Turn on portal access for the primary tenant contact. Signing still uses the email link until you mark this tenancy active; portal login and documents work after activation.",
       anchorId: "onboarding-contacts",
+    };
+  }
+
+  if (activationReady) {
+    return {
+      kind: "mark_active",
+      title: "Mark tenancy active",
+      description:
+        "The executed RTB-1 is on file and portal access is enabled. Mark active when the tenant has moved in so they can sign in and view their lease.",
+      anchorId: "onboarding-lifecycle",
     };
   }
 

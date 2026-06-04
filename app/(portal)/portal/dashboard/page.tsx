@@ -82,7 +82,7 @@ export default async function TenantPortalDashboardPage() {
         </li>
         <li>
           <Link href="/portal/documents" className="font-medium underline">
-            Documents (coming soon)
+            Lease & documents
           </Link>
         </li>
         <li>

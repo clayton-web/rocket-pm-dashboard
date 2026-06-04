@@ -132,10 +132,30 @@ describe("getOnboardingSteps", () => {
         tenantSigned: true,
         executed: true,
       },
+      portalAccessEnabled: true,
+      activationReady: true,
     });
     assert.equal(steps.find((s) => s.id === "tenant_signed")?.state, "complete");
     assert.equal(steps.find((s) => s.id === "lease_executed")?.state, "complete");
-    assert.equal(steps.find((s) => s.id === "move_in_prep")?.state, "current");
+    assert.equal(steps.find((s) => s.id === "portal_ready")?.state, "complete");
+    assert.equal(steps.find((s) => s.id === "ready_to_activate")?.state, "complete");
+    assert.equal(steps.find((s) => s.id === "active")?.state, "current");
+  });
+
+  it("marks portal and activation steps when lease is executed", () => {
+    const steps = getOnboardingSteps({
+      leaseSetupStatus: "ready_for_rtb1",
+      leaseExecution: {
+        hasRtb1Draft: true,
+        signatureSent: true,
+        tenantSigned: true,
+        executed: true,
+      },
+      portalAccessEnabled: false,
+      activationReady: true,
+    });
+    assert.equal(steps.find((s) => s.id === "portal_ready")?.state, "current");
+    assert.equal(steps.find((s) => s.id === "ready_to_activate")?.state, "complete");
   });
 });
 
@@ -199,7 +219,7 @@ describe("getOnboardingNextStep", () => {
     assert.equal(step.kind, "pm_counter_sign");
   });
 
-  it("suggests offline prep when lease is executed and portal is ready", () => {
+  it("prompts to mark active when lease is executed and portal is ready", () => {
     const today = new Date();
     const far = new Date(today);
     far.setUTCDate(today.getUTCDate() + 30);
@@ -213,8 +233,26 @@ describe("getOnboardingNextStep", () => {
         tenantSigned: true,
         executed: true,
       },
+      activationReady: true,
     });
-    assert.equal(step.kind, "prepare_onboarding");
+    assert.equal(step.kind, "mark_active");
+    assert.equal(step.anchorId, "onboarding-lifecycle");
+  });
+
+  it("blocks activation next step when executed lease is missing", () => {
+    const step = getOnboardingNextStep({
+      moveInDate: "2030-06-01",
+      portalAccessEnabled: true,
+      leaseSetupStatus: "ready_for_rtb1",
+      leaseExecution: {
+        hasRtb1Draft: true,
+        signatureSent: true,
+        tenantSigned: true,
+        executed: true,
+      },
+      activationReady: false,
+    });
+    assert.match(step.description, /executed/i);
   });
 });
 

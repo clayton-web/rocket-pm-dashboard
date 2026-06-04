@@ -31,6 +31,10 @@ import {
   submitPmLeaseSignature,
 } from "@/lib/leasing/lease-signing.service";
 import { Rtb1DraftBlockedDuringSigningError } from "@/lib/leasing/lease-signing-guards";
+import {
+  activationBlockReasonForAdvance,
+  loadTenancyActivationReadiness,
+} from "@/lib/leasing/tenancy-activation-gate";
 import type { TenancyStatus } from "@prisma/client";
 
 export type TenancyActionResult = { ok: true } | { ok: false; error: string };
@@ -103,6 +107,14 @@ export async function advanceTenancyStatusAction(
         ok: false,
         error: "Use the dedicated offboarding actions on this tenancy before advancing status.",
       };
+    }
+
+    if (next === "active") {
+      const readiness = await loadTenancyActivationReadiness(prisma, trimmedId);
+      const blockReason = activationBlockReasonForAdvance(current, next, readiness);
+      if (blockReason) {
+        return { ok: false, error: blockReason };
+      }
     }
 
     await updateTenancy(prisma, ctx, trimmedId, { status: next });

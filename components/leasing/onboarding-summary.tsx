@@ -62,7 +62,11 @@ export function OnboardingSummary({
           <span className="text-neutral-500">Portal access · </span>
           {portalStatusLabel(portalAccessEnabled)}
           {portalAccessEnabled === true ? (
-            <span className="text-neutral-500"> (login works after tenancy is active)</span>
+            <span className="text-neutral-500">
+              {" "}
+              (sign-in and documents work after tenancy is active; signing uses the email link until
+              then)
+            </span>
           ) : null}
         </p>
       </div>
