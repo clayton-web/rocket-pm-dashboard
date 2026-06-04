@@ -17,6 +17,7 @@ export async function archiveProspectAction(prospectId: string): Promise<Archive
     const ctx = await requireStaffContextFromSession();
     await updateProspect(prisma, ctx, trimmed, { status: "archived" });
     revalidatePath("/leasing/prospects");
+    revalidatePath(`/leasing/prospects/${trimmed}`);
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {

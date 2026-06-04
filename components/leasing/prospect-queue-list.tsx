@@ -146,7 +146,14 @@ export function ProspectQueueList({
                         {submitted.label}
                       </time>
                     </div>
-                    <h2 className="mt-3 text-sm font-semibold text-neutral-900">{displayName}</h2>
+                    <h2 className="mt-3 text-sm font-semibold text-neutral-900">
+                      <Link
+                        href={`/leasing/prospects/${prospect.id}`}
+                        className="underline decoration-neutral-300 underline-offset-2 hover:decoration-neutral-600"
+                      >
+                        {displayName}
+                      </Link>
+                    </h2>
                     <p className="mt-1 text-xs font-medium text-neutral-700">{prospect.propertyName}</p>
                     <p className="mt-2 text-sm text-neutral-600">
                       {prospect.unitLabel ?? "No specific unit selected"}
@@ -193,7 +200,13 @@ export function ProspectQueueList({
                       </p>
                     ) : null}
                     <p className="mt-2 font-mono text-xs text-neutral-500">Ref · {prospect.id}</p>
-                    <div className="mt-4">
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Link
+                        href={`/leasing/prospects/${prospect.id}`}
+                        className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 no-underline hover:bg-neutral-50"
+                      >
+                        View details
+                      </Link>
                       <PrimaryButton
                         type="button"
                         className="!w-auto px-6"

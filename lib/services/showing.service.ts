@@ -25,6 +25,7 @@ export type CreateShowingInput = {
   scheduledStart: Date;
   scheduledEnd?: Date | null;
   status?: ShowingStatus;
+  contactNotes?: string | null;
 };
 
 /** Users with full leasing access (not field-agent–only) may change any safe fields; field-agent-only users use `FieldAgentShowingPatch`. */
@@ -139,6 +140,7 @@ export async function createShowing(
       scheduledStart: input.scheduledStart,
       scheduledEnd: input.scheduledEnd ?? null,
       status: input.status ?? "scheduled",
+      contactNotes: input.contactNotes?.trim() || null,
     },
   });
   await logPropertyActivity(prisma, principal, input.propertyId, "Showing", row.id, "showing.created", {
@@ -275,6 +277,22 @@ export async function listShowingsForProperty(
   return prisma.showing.findMany({
     where: { propertyId },
     orderBy: { scheduledStart: "asc" },
+  });
+}
+
+/** Showings for a prospect, newest scheduled first. */
+export async function listShowingsForProspect(
+  prisma: PrismaClient,
+  principal: StaffContext,
+  prospectId: string,
+): Promise<Showing[]> {
+  requireStaff(principal);
+  const prospect = await prisma.prospect.findUnique({ where: { id: prospectId } });
+  if (!prospect) throw new NotFoundError("Prospect not found");
+  await requireLeasingAccess(prisma, principal, prospect.propertyId);
+  return prisma.showing.findMany({
+    where: { prospectId },
+    orderBy: { scheduledStart: "desc" },
   });
 }
 
