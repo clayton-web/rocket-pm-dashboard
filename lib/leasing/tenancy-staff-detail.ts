@@ -10,6 +10,13 @@ import {
   type OffboardingStep,
 } from "@/lib/leasing/offboarding-progress";
 import {
+  getOnboardingNextStep,
+  getOnboardingSteps,
+  showsOnboardingSummary,
+  type OnboardingNextStep,
+  type OnboardingStep,
+} from "@/lib/leasing/onboarding-progress";
+import {
   getAdvanceTenancyStatusLabel,
   getNextTenancyStatus,
   STAFF_BLOCKED_ADVANCE_TARGETS,
@@ -59,6 +66,10 @@ export type TenancyStaffDetail = {
   offboardingSteps: OffboardingStep[];
   offboardingNextStep: OffboardingNextStep;
   missingAcceptedNotice: boolean;
+  showOnboardingSummary: boolean;
+  onboardingSteps: OnboardingStep[];
+  onboardingNextStep: OnboardingNextStep;
+  primaryPortalAccessEnabled: boolean | null;
   contacts: TenancyContactRow[];
 };
 
@@ -93,6 +104,21 @@ export async function getTenancyDetailForStaff(
     hideGenericAdvance || !nextStatus ? null : getAdvanceTenancyStatusLabel(status);
 
   const showOffboardingSummary = showsOffboardingSummary(status);
+  const showOnboardingSummary = showsOnboardingSummary(status);
+
+  const mappedContacts = contacts.map((c) => ({
+    id: c.id,
+    firstName: c.firstName,
+    lastName: c.lastName,
+    email: c.email,
+    phone: c.phone,
+    contactType: c.contactType,
+    portalAccessEnabled: c.portalAccessEnabled,
+  }));
+
+  const primaryContact =
+    mappedContacts.find((c) => c.contactType === "tenant") ?? mappedContacts[0] ?? null;
+  const primaryPortalAccessEnabled = primaryContact?.portalAccessEnabled ?? null;
   const awaitingScheduleNoticeId =
     status === "notice_received" && tenancy.moveOutDate == null && acceptedNotice
       ? acceptedNotice.id
@@ -143,14 +169,15 @@ export async function getTenancyDetailForStaff(
         })
       : { kind: "none", title: "", description: "" },
     missingAcceptedNotice,
-    contacts: contacts.map((c) => ({
-      id: c.id,
-      firstName: c.firstName,
-      lastName: c.lastName,
-      email: c.email,
-      phone: c.phone,
-      contactType: c.contactType,
-      portalAccessEnabled: c.portalAccessEnabled,
-    })),
+    showOnboardingSummary,
+    onboardingSteps: showOnboardingSummary ? getOnboardingSteps() : [],
+    onboardingNextStep: showOnboardingSummary
+      ? getOnboardingNextStep({
+          portalAccessEnabled: primaryPortalAccessEnabled,
+          moveInDate: tenancy.moveInDate.toISOString().slice(0, 10),
+        })
+      : { kind: "none", title: "", description: "" },
+    primaryPortalAccessEnabled,
+    contacts: mappedContacts,
   };
 }

@@ -15,6 +15,7 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { OffboardingSummary } from "@/components/leasing/offboarding-summary";
+import { OnboardingSummary } from "@/components/leasing/onboarding-summary";
 import {
   formatTenancyStatus,
   type TenancyStaffDetail,
@@ -192,6 +193,16 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
         ) : null}
       </div>
 
+      {detail.showOnboardingSummary ? (
+        <OnboardingSummary
+          steps={detail.onboardingSteps}
+          nextStep={detail.onboardingNextStep}
+          moveInDate={detail.moveInDate}
+          leaseStartDate={detail.leaseStartDate}
+          portalAccessEnabled={detail.primaryPortalAccessEnabled}
+        />
+      ) : null}
+
       {detail.showOffboardingSummary ? (
         <OffboardingSummary
           steps={detail.offboardingSteps}
@@ -304,7 +315,10 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
       ) : null}
 
       {detail.advanceStatusLabel && detail.nextStatus ? (
-        <div className="mb-8" id="offboarding-lifecycle">
+        <div
+          className="mb-8"
+          id={detail.showOnboardingSummary ? "onboarding-lifecycle" : "offboarding-lifecycle"}
+        >
           <FormSection legend="Lifecycle">
             <PrimaryButton
               type="button"
@@ -317,7 +331,8 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
             {detail.nextStatus === "active" ? (
               <p className="mt-3 text-sm text-neutral-600">
                 Marking active allows tenant portal sign-in when portal access is enabled on a
-                contact (see below).
+                contact (see below). Onboarding is not automated yet — confirm lease paperwork and
+                move-in prep offline before activating.
               </p>
             ) : null}
             {detail.status === "inspection_completed" && detail.nextStatus === "ended" ? (
@@ -378,6 +393,7 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
         </FormSection>
 
         <FormSection legend="Contacts & portal access">
+          <div id="onboarding-contacts">
           <p className="text-sm text-neutral-600">
             Tenant portal sign-in requires portal access to be enabled on the contact, the tenancy
             status to be <span className="font-medium">Active</span>, and the tenant to use the same
@@ -436,6 +452,7 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
               })}
             </ul>
           )}
+          </div>
         </FormSection>
 
         <FormField label="Reference" htmlFor="tenancy-ref">

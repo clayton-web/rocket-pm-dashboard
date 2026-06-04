@@ -11,9 +11,9 @@ import { formatApplicationQueueStatus } from "@/lib/leasing/application-staff-qu
 import type { ApplicationConversionQueueRow } from "@/lib/leasing/application-conversion-staff-queue";
 import type { ApplicationQueueRow } from "@/lib/leasing/application-staff-queue";
 import type { OffboardingAttentionRow } from "@/lib/leasing/offboarding-attention-queue";
+import type { OnboardingAttentionRow } from "@/lib/leasing/onboarding-attention-queue";
 import type { LeasingDashboardData } from "@/lib/leasing/leasing-dashboard.service";
 import type { ProspectQueueRow } from "@/lib/leasing/staff-queue";
-import type { TenancyQueueRow } from "@/lib/leasing/tenancy-staff-queue";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -158,25 +158,34 @@ function ConversionPreview({ application }: { application: ApplicationConversion
   );
 }
 
-function PendingMoveInPreview({ tenancy }: { tenancy: TenancyQueueRow }) {
+function onboardingBadgeClass(kind: OnboardingAttentionRow["kind"]) {
+  if (kind === "overdue") return "border-red-200 bg-red-50 text-red-900";
+  if (kind === "upcoming") return "border-sky-200 bg-sky-50 text-sky-900";
+  if (kind === "portal_not_ready") return "border-amber-200 bg-amber-50 text-amber-900";
+  return "border-violet-200 bg-violet-50 text-violet-900";
+}
+
+function OnboardingPreview({ row }: { row: OnboardingAttentionRow }) {
   return (
     <Link
-      href={`/leasing/tenancies/${tenancy.id}`}
+      href={row.href}
       className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <span className="inline-flex items-center rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-900">
-          Pending move-in
+        <span
+          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${onboardingBadgeClass(row.kind)}`}
+        >
+          {row.badgeLabel}
         </span>
       </div>
       <h3 className="mt-3 text-sm font-semibold text-neutral-900">
-        {tenancy.tenantLabel ?? "No contact on file"}
+        {row.tenantLabel ?? "No contact on file"}
       </h3>
-      <p className="mt-1 text-xs font-medium text-neutral-700">{tenancy.propertyName}</p>
-      <p className="mt-2 text-sm text-neutral-600">{tenancy.unitLabel}</p>
+      <p className="mt-1 text-xs font-medium text-neutral-700">{row.propertyName}</p>
+      <p className="mt-2 text-sm text-neutral-600">{row.unitLabel}</p>
       <p className="mt-2 text-sm text-neutral-600">
         <span className="text-neutral-500">Move-in · </span>
-        {formatMoveInDate(tenancy.moveInDate)}
+        {formatMoveInDate(row.moveInDate)}
       </p>
     </Link>
   );
@@ -315,9 +324,9 @@ export function LeasingDashboard({
                   count={summary.approvedReadyToConvert}
                 />
                 <SummaryPill
-                  href="#pending-move-ins"
-                  label="Pending move-ins"
-                  count={summary.pendingMoveIns}
+                  href="#onboarding"
+                  label="Onboarding"
+                  count={summary.onboarding}
                 />
                 <SummaryPill
                   href="#offboarding"
@@ -368,14 +377,14 @@ export function LeasingDashboard({
           />
 
           <PreviewSection
-            id="pending-move-ins"
-            title="Pending move-ins"
-            total={data.pendingMoveIns.total}
-            viewAllHref="/leasing/tenancies?status=pending_move_in"
-            rows={data.pendingMoveIns.preview}
+            id="onboarding"
+            title="Onboarding"
+            total={data.onboarding.total}
+            viewAllHref="/leasing/onboarding"
+            rows={data.onboarding.preview}
             emptyMessage="No tenancies pending move-in."
-            getKey={(row) => row.id}
-            renderRow={(row) => <PendingMoveInPreview tenancy={row} />}
+            getKey={(row) => row.tenancy.id}
+            renderRow={(row) => <OnboardingPreview row={row} />}
           />
 
           <PreviewSection

@@ -3,9 +3,9 @@ import { listApplicationQueueForStaff } from "@/lib/leasing/application-staff-qu
 import { listOffboardingAttentionForStaff } from "@/lib/leasing/offboarding-attention-queue";
 import { listNewProspectQueueForStaff } from "@/lib/leasing/staff-queue";
 import {
-  listPendingMoveInQueueForStaff,
-  type TenancyQueueRow,
-} from "@/lib/leasing/tenancy-staff-queue";
+  listOnboardingAttentionForStaff,
+  type OnboardingAttentionRow,
+} from "@/lib/leasing/onboarding-attention-queue";
 import type { ApplicationConversionQueueRow } from "@/lib/leasing/application-conversion-staff-queue";
 import type { ApplicationQueueRow } from "@/lib/leasing/application-staff-queue";
 import type { OffboardingAttentionRow } from "@/lib/leasing/offboarding-attention-queue";
@@ -19,7 +19,7 @@ export type LeasingDashboardSummary = {
   viewingRequests: number;
   applicationsToReview: number;
   approvedReadyToConvert: number;
-  pendingMoveIns: number;
+  onboarding: number;
   offboarding: number;
 };
 
@@ -33,7 +33,7 @@ export type LeasingDashboardData = {
   viewingRequests: LeasingDashboardSection<ProspectQueueRow>;
   applicationsToReview: LeasingDashboardSection<ApplicationQueueRow>;
   approvedReadyToConvert: LeasingDashboardSection<ApplicationConversionQueueRow>;
-  pendingMoveIns: LeasingDashboardSection<TenancyQueueRow>;
+  onboarding: LeasingDashboardSection<OnboardingAttentionRow>;
   offboarding: LeasingDashboardSection<OffboardingAttentionRow>;
 };
 
@@ -51,13 +51,13 @@ export async function getLeasingDashboardForStaff(
     viewingRequests,
     applicationsToReview,
     approvedReadyToConvert,
-    pendingMoveIns,
+    onboarding,
     offboarding,
   ] = await Promise.all([
     listNewProspectQueueForStaff(ctx),
     listApplicationQueueForStaff(ctx),
     listApprovedApplicationsReadyToConvertForStaff(ctx),
-    listPendingMoveInQueueForStaff(ctx),
+    listOnboardingAttentionForStaff(ctx),
     listOffboardingAttentionForStaff(ctx),
   ]);
 
@@ -65,7 +65,7 @@ export async function getLeasingDashboardForStaff(
     viewingRequests: viewingRequests.length,
     applicationsToReview: applicationsToReview.length,
     approvedReadyToConvert: approvedReadyToConvert.length,
-    pendingMoveIns: pendingMoveIns.length,
+    onboarding: onboarding.length,
     offboarding: offboarding.length,
     total: 0,
   };
@@ -73,7 +73,7 @@ export async function getLeasingDashboardForStaff(
     summary.viewingRequests +
     summary.applicationsToReview +
     summary.approvedReadyToConvert +
-    summary.pendingMoveIns +
+    summary.onboarding +
     summary.offboarding;
 
   return {
@@ -81,7 +81,7 @@ export async function getLeasingDashboardForStaff(
     viewingRequests: previewSection(viewingRequests),
     applicationsToReview: previewSection(applicationsToReview),
     approvedReadyToConvert: previewSection(approvedReadyToConvert),
-    pendingMoveIns: previewSection(pendingMoveIns),
+    onboarding: previewSection(onboarding),
     offboarding: previewSection(offboarding),
   };
 }
