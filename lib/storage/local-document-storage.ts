@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { DocumentStorage } from "@/lib/storage/document-storage";
+import { normalizeDocumentStorageKey } from "@/lib/storage/document-storage-keys";
 
 /**
  * Local filesystem document storage — development and single-node staging only.
@@ -16,36 +18,36 @@ export function getLocalDocumentStorageRoot(): string {
 }
 
 export function resolveLocalDocumentPath(storageKey: string): string {
-  const normalized = storageKey.replace(/^\/+/, "").replace(/\.\./g, "");
-  return path.join(getLocalDocumentStorageRoot(), normalized);
+  return path.join(getLocalDocumentStorageRoot(), normalizeDocumentStorageKey(storageKey));
 }
 
-export async function writeLocalDocument(storageKey: string, bytes: Uint8Array): Promise<void> {
-  const filePath = resolveLocalDocumentPath(storageKey);
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, bytes);
+export function createLocalDocumentStorage(): DocumentStorage {
+  return {
+    async readDocument(storageKey: string): Promise<Uint8Array> {
+      const filePath = resolveLocalDocumentPath(storageKey);
+      return readFile(filePath);
+    },
+    async writeDocument(
+      storageKey: string,
+      bytes: Uint8Array,
+      contentType?: string,
+    ): Promise<void> {
+      void contentType;
+      const filePath = resolveLocalDocumentPath(storageKey);
+      await mkdir(path.dirname(filePath), { recursive: true });
+      await writeFile(filePath, bytes);
+    },
+  };
 }
 
+/** @deprecated Use getDocumentStorage().readDocument() */
 export async function readLocalDocument(storageKey: string): Promise<Uint8Array> {
-  const filePath = resolveLocalDocumentPath(storageKey);
-  return readFile(filePath);
+  return createLocalDocumentStorage().readDocument(storageKey);
 }
 
-export function buildTenancyDocumentStorageKey(args: {
-  organizationId: string;
-  propertyId: string;
-  tenancyId: string;
-  documentId: string;
-  fileName: string;
-}): string {
-  const safeName = args.fileName.replace(/[^a-zA-Z0-9._-]+/g, "-");
-  return [
-    "org",
-    args.organizationId,
-    "property",
-    args.propertyId,
-    "tenancy",
-    args.tenancyId,
-    `${args.documentId}-${safeName}`,
-  ].join("/");
+/** @deprecated Use getDocumentStorage().writeDocument() */
+export async function writeLocalDocument(storageKey: string, bytes: Uint8Array): Promise<void> {
+  return createLocalDocumentStorage().writeDocument(storageKey, bytes);
 }
+
+export { buildTenancyDocumentStorageKey } from "@/lib/storage/document-storage-keys";

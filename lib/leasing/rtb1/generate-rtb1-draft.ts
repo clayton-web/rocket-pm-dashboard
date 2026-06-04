@@ -9,8 +9,8 @@ import { getTenancyById } from "@/lib/services/tenancy.service";
 import { listTenancyContacts } from "@/lib/services/tenancyContact.service";
 import {
   buildTenancyDocumentStorageKey,
-  writeLocalDocument,
-} from "@/lib/storage/local-document-storage";
+} from "@/lib/storage/document-storage-keys";
+import { getDocumentStorage } from "@/lib/storage/document-storage";
 import { RTB1_DOCUMENT_TYPE, RTB1_TEMPLATE_VERSION } from "./constants";
 import { getRtb1TemplatePath } from "./template-path";
 import { fillRtb1PdfTemplate } from "./fill-rtb1-pdf";
@@ -101,7 +101,7 @@ export async function generateRtb1DraftForTenancy(
     fileName,
   });
 
-  await writeLocalDocument(storageKey, filledBytes);
+  await getDocumentStorage().writeDocument(storageKey, filledBytes, "application/pdf");
 
   return createDocument(prisma, ctx, {
     propertyId: tenancy.propertyId,

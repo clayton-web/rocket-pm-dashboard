@@ -3,7 +3,7 @@ import prisma from "@/lib/db/prisma";
 import { requireStaffContextFromSession, StaffAuthError } from "@/lib/auth/staff-from-session";
 import { getDocumentById } from "@/lib/services/document.service";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
-import { readLocalDocument } from "@/lib/storage/local-document-storage";
+import { getDocumentStorage } from "@/lib/storage/document-storage";
 
 export async function GET(
   _request: Request,
@@ -15,7 +15,7 @@ export async function GET(
     const ctx = await requireStaffContextFromSession();
     const document = await getDocumentById(prisma, ctx, documentId.trim());
 
-    const bytes = await readLocalDocument(document.storageKey);
+    const bytes = await getDocumentStorage().readDocument(document.storageKey);
 
     return new NextResponse(Buffer.from(bytes), {
       status: 200,

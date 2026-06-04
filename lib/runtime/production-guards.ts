@@ -3,6 +3,11 @@
  * Fail closed on dangerous dev-only flags when NODE_ENV=production.
  */
 
+import {
+  isProductionDocumentStorageMisconfigured,
+  productionDocumentStorageViolationMessage,
+} from "@/lib/runtime/document-storage-guards";
+
 export function isProductionRuntime(): boolean {
   return process.env.NODE_ENV === "production";
 }
@@ -30,6 +35,9 @@ export function validateProductionRuntimeConfig(): void {
   }
   if (process.env.ALLOW_INSECURE_GMAIL_TOKEN_STORAGE === "true") {
     violations.push("ALLOW_INSECURE_GMAIL_TOKEN_STORAGE must not be enabled in production");
+  }
+  if (isProductionDocumentStorageMisconfigured()) {
+    violations.push(productionDocumentStorageViolationMessage());
   }
 
   if (violations.length > 0) {

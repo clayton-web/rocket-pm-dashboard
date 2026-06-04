@@ -16,6 +16,12 @@ Use this before deploying the unified Rocket PM app. Copy `.env.example` to your
 | `GMAIL_TOKEN_ENCRYPTION_KEY` | Yes* | *Required in production before storing Gmail refresh tokens (`openssl rand -base64 32`). |
 | `GEMINI_API_KEY` | Yes* | *Required if AI responder drafts are used. |
 | `MAINTENANCE_PUBLIC_ORG_SLUG` | Recommended | Org slug for public `POST /api/maintenance` (default: `axford`). |
+| `DOCUMENT_STORAGE_BACKEND` | **Yes (prod)** | Must be `s3` in production. `local` is dev-only. |
+| `S3_BUCKET` | **Yes (prod)** | Private bucket for RTB-1 PDFs and signature images. |
+| `S3_REGION` | **Yes (prod)** | AWS region or `auto` for R2. |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | **Yes (prod)** | App credentials with GetObject/PutObject on the bucket. |
+| `S3_ENDPOINT` | Optional | Cloudflare R2 or other S3-compatible endpoint URL. |
+| `S3_FORCE_PATH_STYLE` | Optional | Often `true` for R2. |
 
 ## Must be disabled in production
 
@@ -25,7 +31,7 @@ Use this before deploying the unified Rocket PM app. Copy `.env.example` to your
 | `NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN` | `false` (or unset) — set at **build** time |
 | `ALLOW_INSECURE_GMAIL_TOKEN_STORAGE` | unset / never `true` |
 
-The server refuses to start in production if any dangerous dev flag above is `true` (`instrumentation.ts` → `validateProductionRuntimeConfig`).
+The server refuses to start in production if dangerous dev flags are set or if `DOCUMENT_STORAGE_BACKEND` is missing/`local` (`instrumentation.ts` → `validateProductionRuntimeConfig`).
 
 ## Optional / environment-specific
 
@@ -37,7 +43,7 @@ The server refuses to start in production if any dangerous dev flag above is `tr
 | `GMAIL_SYNC_LABEL_IDS` | Comma-separated Gmail label ids. |
 | `GMAIL_OAUTH_STATE_SECRET` | Defaults to auth secret. |
 | `SEED_STAFF_PASSWORD` | **Local seed only** — never set in production runtime. |
-| `LOCAL_DOCUMENT_STORAGE_ROOT` | **Dev/single-node only** — default `.data/documents`. Not durable on serverless; migrate to S3 before production leasing. See [leasing-production-readiness.md](./leasing-production-readiness.md). |
+| `LOCAL_DOCUMENT_STORAGE_ROOT` | **Dev only** — default `.data/documents` when `DOCUMENT_STORAGE_BACKEND=local`. |
 | `TENANT_AUTH_DEV_SHOW_CODE` | **Never in production** — exposes OTP in API JSON. |
 
 ## Pre-deploy steps
@@ -49,6 +55,8 @@ The server refuses to start in production if any dangerous dev flag above is `tr
 5. [ ] Gmail OAuth client redirect URI matches `{NEXTAUTH_URL}/api/integrations/gmail/callback`.
 6. [ ] Do **not** run `npm run db:seed` in production (seed blocked unless `ALLOW_PRODUCTION_SEED=true` for intentional staging resets).
 7. [ ] Staff users have `passwordHash` set (no email-only dev login in production).
+8. [ ] S3-compatible document bucket provisioned (private, encrypted, versioning on). See [leasing-production-readiness.md](./leasing-production-readiness.md).
+9. [ ] `DOCUMENT_STORAGE_BACKEND=s3` and S3 credentials set; run `scripts/migrate-documents-to-s3.ts` if migrating existing local files.
 
 ## Post-deploy verification
 

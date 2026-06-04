@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTenantDocumentForSession } from "@/lib/portal/tenant-documents";
 import { getVerifiedTenantSession } from "@/lib/portal/tenant-auth";
-import { readLocalDocument } from "@/lib/storage/local-document-storage";
+import { getDocumentStorage } from "@/lib/storage/document-storage";
 
 export async function GET(
   _request: Request,
@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
 
-    const bytes = await readLocalDocument(document.storageKey);
+    const bytes = await getDocumentStorage().readDocument(document.storageKey);
 
     return new NextResponse(Buffer.from(bytes), {
       status: 200,

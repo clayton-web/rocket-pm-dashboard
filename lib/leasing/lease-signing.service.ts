@@ -32,9 +32,8 @@ import type { StaffContext } from "@/lib/services/staff-context";
 import { getTenancyById } from "@/lib/services/tenancy.service";
 import {
   buildTenancyDocumentStorageKey,
-  readLocalDocument,
-  writeLocalDocument,
-} from "@/lib/storage/local-document-storage";
+} from "@/lib/storage/document-storage-keys";
+import { getDocumentStorage } from "@/lib/storage/document-storage";
 import { createSignatureRequest, updateSignatureRequestStatus } from "@/lib/services/signatureRequest.service";
 import { logActivity, logPropertyActivity, pickForAudit } from "@/lib/services/activityLog.service";
 
@@ -358,7 +357,7 @@ export async function readLeaseDraftPdfByToken(
     throw new NotFoundError("Signing link not found");
   }
   assertTokenAccessibleForRead(request, token);
-  const bytes = await readLocalDocument(request.draftDocument.storageKey);
+  const bytes = await getDocumentStorage().readDocument(request.draftDocument.storageKey);
   return {
     bytes,
     fileName: request.draftDocument.fileName,
@@ -407,7 +406,7 @@ export async function submitTenantLeaseSignature(
     signerRole: "tenant",
   });
 
-  await writeLocalDocument(storageKey, pngBytes);
+  await getDocumentStorage().writeDocument(storageKey, pngBytes, "image/png");
 
   await prisma.leaseSignature.create({
     data: {
@@ -473,9 +472,9 @@ async function finalizeExecutedLeaseFromSignatureRequest(
   if (!property) throw new NotFoundError("Property not found");
 
   const [tenantImage, pmImage, draftBytes] = await Promise.all([
-    readLocalDocument(tenantSig.signatureImageStorageKey),
-    readLocalDocument(pmSig.signatureImageStorageKey),
-    readLocalDocument(request.draftDocument.storageKey),
+    getDocumentStorage().readDocument(tenantSig.signatureImageStorageKey),
+    getDocumentStorage().readDocument(pmSig.signatureImageStorageKey),
+    getDocumentStorage().readDocument(request.draftDocument.storageKey),
   ]);
 
   const tenancy = request.tenancy!;
@@ -515,7 +514,7 @@ async function finalizeExecutedLeaseFromSignatureRequest(
     fileName,
   });
 
-  await writeLocalDocument(storageKey, executedBytes);
+  await getDocumentStorage().writeDocument(storageKey, executedBytes, "application/pdf");
 
   const executedDocument = await prisma.$transaction(async (tx) => {
     const current = await tx.signatureRequest.findUnique({
@@ -656,7 +655,7 @@ export async function submitPmLeaseSignature(
       signatureRequestId: request.id,
       signerRole: "property_manager",
     });
-    await writeLocalDocument(pmStorageKey, pngBytes);
+    await getDocumentStorage().writeDocument(pmStorageKey, pngBytes, "image/png");
 
     await prisma.leaseSignature.create({
       data: {

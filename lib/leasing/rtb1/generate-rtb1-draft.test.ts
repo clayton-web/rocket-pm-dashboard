@@ -7,7 +7,7 @@ import { RTB1_DOCUMENT_TYPE, RTB1_TEMPLATE_VERSION } from "./constants";
 import { getRtb1TemplatePath } from "./template-path";
 import { fillRtb1PdfTemplate } from "./fill-rtb1-pdf";
 import { mapTenancyToRtb1PdfValues } from "./map-tenancy-to-rtb1";
-import { buildTenancyDocumentStorageKey } from "@/lib/storage/local-document-storage";
+import { buildTenancyDocumentStorageKey } from "@/lib/storage/document-storage-keys";
 
 describe("RTB-1 constants", () => {
   it("uses the approved template version", () => {

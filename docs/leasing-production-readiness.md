@@ -8,12 +8,47 @@ Informational notes on known limitations before running the leasing workflow in 
 
 | Topic | Current state | Production requirement |
 |-------|---------------|------------------------|
-| Backend | Local filesystem (`.data/documents` or `LOCAL_DOCUMENT_STORAGE_ROOT`) | **S3-compatible object storage** |
+| Abstraction | `getDocumentStorage()` in `lib/storage/document-storage.ts` | Same API in all environments |
+| Dev backend | `DOCUMENT_STORAGE_BACKEND=local` (default) | Local filesystem under `.data/documents` |
+| Prod backend | `DOCUMENT_STORAGE_BACKEND=s3` | **Required** — app refuses to boot in production with local storage |
+| Providers | `@aws-sdk/client-s3` | AWS S3, Cloudflare R2, or any S3-compatible endpoint |
 | RTB-1 drafts | Written on generate | Must survive deploys and scale horizontally |
 | Executed leases | Locked PDFs after PM counter-sign | **Durable, backed up, access-controlled** |
-| Serverless | Ephemeral disk | Local storage **will lose files** on redeploy |
+| Signature PNGs | Same storage layer as PDFs | Migrated with documents |
 
-**Action before production leasing:** migrate `lib/storage/local-document-storage.ts` usage to object storage; keep staff and tenant download routes as thin proxies that never expose raw storage keys.
+### Environment variables (production)
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `DOCUMENT_STORAGE_BACKEND` | Yes | Must be `s3` in production |
+| `S3_BUCKET` | Yes | Private bucket; app credentials only |
+| `S3_REGION` | Yes | e.g. `us-east-1` or `auto` for R2 |
+| `S3_ACCESS_KEY_ID` | Yes | IAM or R2 API token |
+| `S3_SECRET_ACCESS_KEY` | Yes | Keep in host secrets |
+| `S3_ENDPOINT` | Optional | Required for Cloudflare R2 |
+| `S3_FORCE_PATH_STYLE` | Optional | Often `true` for R2 / MinIO |
+
+### Recommended bucket settings
+
+- **Private bucket** — block all public access; downloads only via authenticated app routes
+- **Encryption at rest** — SSE-S3 or SSE-KMS enabled
+- **Versioning enabled** — executed RTB-1 leases are legal records
+- **App-only IAM** — least privilege: `s3:GetObject`, `s3:PutObject` on bucket prefix if scoped
+- **Backup / lifecycle** — document retention policy outside the app (console or IaC)
+
+### Migrating existing local files
+
+Before switching production to S3, upload files preserving `storageKey` paths:
+
+```bash
+DOCUMENT_STORAGE_BACKEND=s3 \
+S3_BUCKET=... S3_REGION=... S3_ACCESS_KEY_ID=... S3_SECRET_ACCESS_KEY=... \
+npx tsx scripts/migrate-documents-to-s3.ts
+```
+
+Dry run: `DRY_RUN=true npx tsx scripts/migrate-documents-to-s3.ts`
+
+Staff and tenant download routes remain thin proxies — they never expose raw storage keys.
 
 ---
 
