@@ -54,7 +54,7 @@ export const navigationItems: NavItem[] = [
     moduleId: "aiResponder",
     label: "AI responder",
     href: "/responder",
-    enabled: true,
+    enabled: false,
     section: "command",
     minimumRole: "MEMBER",
   },

@@ -7,6 +7,8 @@ import { ThreadMessages } from "@/components/inbox/thread-messages";
 import { ResponderPanel } from "@/components/inbox/responder-panel";
 import { ThreadContextLinksPanel } from "@/components/inbox/thread-context-links-panel";
 import { loadThreadContextLinkOptions } from "@/lib/ai/thread-context-link-options";
+import { isPmContextLink, parseEmailThreadContextLinks } from "@/lib/ai/email-context-links";
+import { getPmLinkDisplay, resolvePmLinkDisplay } from "@/lib/inbox/pm-link-display";
 
 type PageProps = {
   params: Promise<{ threadId: string }>;
@@ -82,6 +84,11 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
 
   const geminiConfigured = Boolean(process.env.GEMINI_API_KEY?.trim());
   const linkOptions = await loadThreadContextLinkOptions(active.id);
+  const pmLinks = parseEmailThreadContextLinks(thread.contextLinks).filter(isPmContextLink);
+  const displayMap = await resolvePmLinkDisplay(active.id, pmLinks);
+  const linkedDisplays = pmLinks
+    .map((link) => getPmLinkDisplay(displayMap, link))
+    .filter((display): display is NonNullable<typeof display> => display != null);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -91,6 +98,7 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
           <ThreadContextLinksPanel
             threadId={thread.id}
             contextLinksJson={thread.contextLinks}
+            linkedDisplays={linkedDisplays}
             options={linkOptions}
           />
           <ResponderPanel threadId={thread.id} draft={latestDraft} geminiConfigured={geminiConfigured} />

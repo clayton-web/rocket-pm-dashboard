@@ -1,20 +1,13 @@
-import Link from "next/link";
-
-type ThreadRow = {
-  id: string;
-  subject: string | null;
-  snippet: string | null;
-  lastMessageAt: Date | null;
-  isUnread: boolean;
-  participantEmails: string[];
-};
+import { InboxThreadRow } from "@/components/inbox/inbox-thread-row";
+import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 
 export function ThreadList(props: {
   mailboxId: string;
-  threads: ThreadRow[];
+  threads: InboxThreadDisplayRow[];
   lastSyncedAt: Date | null;
+  emptyMessage?: string;
 }) {
-  const { threads, mailboxId, lastSyncedAt } = props;
+  const { threads, mailboxId, lastSyncedAt, emptyMessage } = props;
 
   if (!threads.length) {
     if (lastSyncedAt == null) {
@@ -28,8 +21,8 @@ export function ThreadList(props: {
 
     return (
       <p className="text-sm text-neutral-600">
-        No threads in this inbox right now. Try <span className="font-medium">Sync now</span> again if you expect new
-        mail, or check the thread in Gmail directly.
+        {emptyMessage ??
+          "No threads in this inbox right now. Try Sync now again if you expect new mail, or check the thread in Gmail directly."}
       </p>
     );
   }
@@ -39,30 +32,7 @@ export function ThreadList(props: {
       <ul className="divide-y divide-neutral-100">
         {threads.map((thread) => (
           <li key={thread.id}>
-            <Link
-              href={`/inbox/${encodeURIComponent(thread.id)}?mailbox=${encodeURIComponent(mailboxId)}`}
-              className="block px-4 py-3 hover:bg-neutral-50"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className={`truncate text-sm ${thread.isUnread ? "font-semibold text-neutral-900" : "font-medium text-neutral-800"}`}>
-                    {thread.subject?.trim() || "(No subject)"}
-                  </div>
-                  <div className="truncate text-xs text-neutral-500">{thread.snippet}</div>
-                  {thread.participantEmails.length ? (
-                    <div className="mt-1 truncate text-[11px] text-neutral-400">
-                      {thread.participantEmails.slice(0, 4).join(", ")}
-                      {thread.participantEmails.length > 4 ? "…" : ""}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="shrink-0 text-[11px] text-neutral-400">
-                  {thread.lastMessageAt
-                    ? new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(thread.lastMessageAt)
-                    : ""}
-                </div>
-              </div>
-            </Link>
+            <InboxThreadRow row={thread} mailboxId={mailboxId} />
           </li>
         ))}
       </ul>

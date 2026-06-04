@@ -1,18 +1,16 @@
 import {
   addThreadPmContextLinkAction,
-  removeThreadPmContextLinkAction,
 } from "@/app/(dashboard)/inbox/[threadId]/actions";
-import {
-  isPmContextLink,
-  parseEmailThreadContextLinks,
-  pmLinkLabel,
-  type PmContextKind,
-} from "@/lib/ai/email-context-links";
+import { ThreadContextLinkCards } from "@/components/inbox/thread-context-link-cards";
+import { ThreadContextWarning } from "@/components/inbox/thread-context-warning";
+import { isPmContextLink, parseEmailThreadContextLinks, type PmContextKind } from "@/lib/ai/email-context-links";
 import type { ContextLinkOption } from "@/lib/ai/thread-context-link-options";
+import type { PmLinkDisplay } from "@/lib/inbox/pm-link-display";
 
 export function ThreadContextLinksPanel(props: {
   threadId: string;
   contextLinksJson: unknown;
+  linkedDisplays: PmLinkDisplay[];
   options: {
     properties: ContextLinkOption[];
     tenancies: ContextLinkOption[];
@@ -37,31 +35,9 @@ export function ThreadContextLinksPanel(props: {
         Link this thread to property management records. Only linked data is included in AI drafts.
       </p>
 
-      {pmLinks.length === 0 ? (
-        <p className="mt-3 text-xs text-neutral-500">No links yet.</p>
-      ) : (
-        <ul className="mt-3 space-y-2">
-          {pmLinks.map((link) => (
-            <li
-              key={`${link.kind}-${link.id}`}
-              className="flex items-center justify-between gap-2 rounded-md border border-neutral-100 bg-neutral-50 px-2 py-1.5 text-xs"
-            >
-              <span className="text-neutral-800">{pmLinkLabel(link)}</span>
-              <form action={removeThreadPmContextLinkAction}>
-                <input type="hidden" name="threadId" value={props.threadId} />
-                <input type="hidden" name="kind" value={link.kind} />
-                <input type="hidden" name="entityId" value={link.id} />
-                <button
-                  type="submit"
-                  className="text-neutral-600 underline hover:text-neutral-900"
-                >
-                  Remove
-                </button>
-              </form>
-            </li>
-          ))}
-        </ul>
-      )}
+      {pmLinks.length === 0 ? <ThreadContextWarning /> : null}
+
+      <ThreadContextLinkCards threadId={props.threadId} links={props.linkedDisplays} />
 
       {optionGroups.map((group) =>
         group.items.length > 0 ? (
