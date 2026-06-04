@@ -72,6 +72,39 @@ function assertPublicDraftAccess(app: Application, expectedEmail: string): void 
   }
 }
 
+/** Maps draft PATCH input to Prisma update fields (exported for tests). */
+export function buildApplicationDraftUpdateData(
+  input: UpdateDraftApplicationInput,
+): Prisma.ApplicationUncheckedUpdateInput {
+  const data: Prisma.ApplicationUncheckedUpdateInput = {};
+  if (input.firstName !== undefined) data.firstName = input.firstName?.trim() || null;
+  if (input.lastName !== undefined) data.lastName = input.lastName?.trim() || null;
+  if (input.phone !== undefined) data.phone = input.phone?.trim() || null;
+  if (input.currentAddress !== undefined) data.currentAddress = input.currentAddress?.trim() || null;
+  if (input.desiredMoveInDate !== undefined) data.desiredMoveInDate = input.desiredMoveInDate;
+  if (input.occupantCount !== undefined) data.occupantCount = input.occupantCount;
+  if (input.monthlyIncome !== undefined) data.monthlyIncome = input.monthlyIncome;
+  if (input.hasPets !== undefined) data.hasPets = input.hasPets;
+  if (input.petDetails !== undefined) data.petDetails = input.petDetails?.trim() || null;
+  if (input.smokerStatus !== undefined) data.smokerStatus = input.smokerStatus?.trim() || null;
+  if (input.employerName !== undefined) data.employerName = input.employerName?.trim() || null;
+  if (input.jobTitle !== undefined) data.jobTitle = input.jobTitle?.trim() || null;
+  if (input.employmentNotes !== undefined) data.employmentNotes = input.employmentNotes?.trim() || null;
+  if (input.emergencyContactFirstName !== undefined) {
+    data.emergencyContactFirstName = input.emergencyContactFirstName?.trim() || null;
+  }
+  if (input.emergencyContactLastName !== undefined) {
+    data.emergencyContactLastName = input.emergencyContactLastName?.trim() || null;
+  }
+  if (input.emergencyContactPhone !== undefined) {
+    data.emergencyContactPhone = input.emergencyContactPhone?.trim() || null;
+  }
+  if (input.emergencyContactEmail !== undefined) {
+    data.emergencyContactEmail = input.emergencyContactEmail?.trim() || null;
+  }
+  return data;
+}
+
 function assertSubmittedForReview(app: Application): void {
   if (app.status !== "submitted" && app.status !== "under_review") {
     throw new Error("Application is not in a reviewable state");
@@ -162,20 +195,7 @@ export async function updateDraftApplication(
   const existing = await getApplicationOrThrow(prisma, applicationId);
   assertPublicDraftAccess(existing, expectedEmail);
 
-  const data: Prisma.ApplicationUncheckedUpdateInput = {};
-  if (input.firstName !== undefined) data.firstName = input.firstName?.trim() || null;
-  if (input.lastName !== undefined) data.lastName = input.lastName?.trim() || null;
-  if (input.phone !== undefined) data.phone = input.phone?.trim() || null;
-  if (input.currentAddress !== undefined) data.currentAddress = input.currentAddress?.trim() || null;
-  if (input.desiredMoveInDate !== undefined) data.desiredMoveInDate = input.desiredMoveInDate;
-  if (input.occupantCount !== undefined) data.occupantCount = input.occupantCount;
-  if (input.monthlyIncome !== undefined) data.monthlyIncome = input.monthlyIncome;
-  if (input.hasPets !== undefined) data.hasPets = input.hasPets;
-  if (input.petDetails !== undefined) data.petDetails = input.petDetails?.trim() || null;
-  if (input.smokerStatus !== undefined) data.smokerStatus = input.smokerStatus?.trim() || null;
-  if (input.employerName !== undefined) data.employerName = input.employerName?.trim() || null;
-  if (input.jobTitle !== undefined) data.jobTitle = input.jobTitle?.trim() || null;
-  if (input.employmentNotes !== undefined) data.employmentNotes = input.employmentNotes?.trim() || null;
+  const data = buildApplicationDraftUpdateData(input);
 
   if (Object.keys(data).length === 0) return existing;
   const updated = await prisma.application.update({

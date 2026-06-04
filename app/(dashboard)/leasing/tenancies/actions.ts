@@ -30,6 +30,7 @@ import {
   sendLeaseForSignature,
   submitPmLeaseSignature,
 } from "@/lib/leasing/lease-signing.service";
+import { Rtb1DraftBlockedDuringSigningError } from "@/lib/leasing/lease-signing-guards";
 import type { TenancyStatus } from "@prisma/client";
 
 export type TenancyActionResult = { ok: true } | { ok: false; error: string };
@@ -272,6 +273,9 @@ export async function generateRtb1DraftAction(
     if (e instanceof Rtb1GenerationNotReadyError) {
       return { ok: false, error: e.message };
     }
+    if (e instanceof Rtb1DraftBlockedDuringSigningError) {
+      return { ok: false, error: e.message };
+    }
     if (e instanceof NotFoundError) {
       return { ok: false, error: e.message };
     }
@@ -404,6 +408,41 @@ export async function submitPmLeaseSignatureAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not submit signature";
+    return { ok: false, error: message };
+  }
+}
+
+export async function retryLeaseExecutionAction(
+  signatureRequestId: string,
+): Promise<TenancyActionResult> {
+  const trimmedId = signatureRequestId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid signature request id" };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const document = await submitPmLeaseSignature(prisma, ctx, trimmedId, {
+      signerName: "",
+      acknowledgedReview: true,
+      signatureDataUrl: "",
+    });
+    revalidatePath(`/leasing/tenancies/${document.tenancyId ?? ""}`);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof LeaseSigningError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not complete lease execution";
     return { ok: false, error: message };
   }
 }

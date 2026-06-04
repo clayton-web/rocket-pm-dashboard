@@ -7,6 +7,7 @@ import {
   isActiveLeaseSignatureRequest,
   type LeaseSigningProgress,
 } from "@/lib/leasing/lease-signing-progress";
+import { resolvePmLeaseSigningAction } from "@/lib/leasing/lease-signing-pm-resolution";
 import {
   buildSignatureImageStorageKey,
   parseSignaturePngDataUrl,
@@ -26,7 +27,6 @@ import {
 } from "@/lib/leasing/rtb1/constants";
 import { createExecutedRtb1Pdf } from "@/lib/leasing/rtb1/execute-rtb1-pdf";
 import { getOrganizationLandlordProfileForStaff } from "@/lib/org/organization-landlord-profile";
-import { createDocument } from "@/lib/services/document.service";
 import { NotFoundError } from "@/lib/services/errors";
 import type { StaffContext } from "@/lib/services/staff-context";
 import { getTenancyById } from "@/lib/services/tenancy.service";
@@ -36,6 +36,7 @@ import {
   writeLocalDocument,
 } from "@/lib/storage/local-document-storage";
 import { createSignatureRequest, updateSignatureRequestStatus } from "@/lib/services/signatureRequest.service";
+import { logActivity, logPropertyActivity, pickForAudit } from "@/lib/services/activityLog.service";
 
 export class LeaseSigningError extends Error {
   constructor(message: string) {
@@ -420,22 +421,26 @@ export async function submitTenantLeaseSignature(
       tenancyContactId: primaryContact?.id ?? null,
     },
   });
+
+  await logActivity(prisma, {
+    propertyId: request.propertyId,
+    entityType: "SignatureRequest",
+    entityId: request.id,
+    action: "lease_signature.tenant_signed",
+    newValues: {
+      signerRole: "tenant",
+      signerName,
+      signedAt: signedAt.toISOString(),
+      tenancyId: request.tenancyId,
+    },
+  });
 }
 
-export async function submitPmLeaseSignature(
+async function finalizeExecutedLeaseFromSignatureRequest(
   prisma: PrismaClient,
   ctx: StaffContext,
   signatureRequestId: string,
-  input: SubmitLeaseSignatureInput,
 ): Promise<Document> {
-  if (!input.acknowledgedReview) {
-    throw new LeaseSigningError("You must confirm that you have reviewed the agreement");
-  }
-  const signerName = input.signerName.trim();
-  if (!signerName) {
-    throw new LeaseSigningError("Legal name is required");
-  }
-
   const request = await prisma.signatureRequest.findUnique({
     where: { id: signatureRequestId },
     include: {
@@ -448,55 +453,24 @@ export async function submitPmLeaseSignature(
     throw new NotFoundError("Signature request not found");
   }
 
-  await getTenancyById(prisma, ctx, request.tenancyId);
+  if (request.executedDocumentId) {
+    const existing = await prisma.document.findUnique({
+      where: { id: request.executedDocumentId },
+    });
+    if (existing) return existing;
+  }
 
-  const hasTenant = request.signatures.some((s) => s.signerRole === "tenant");
-  const hasPm = request.signatures.some((s) => s.signerRole === "property_manager");
-  assertLeaseSigningTransition({
-    hasTenantSignature: hasTenant,
-    hasPmSignature: hasPm,
-    target: "property_manager",
-  });
-
-  const pngBytes = parseSignaturePngDataUrl(input.signatureDataUrl);
-  const signedAt = new Date();
+  const tenantSig = request.signatures.find((s) => s.signerRole === "tenant");
+  const pmSig = request.signatures.find((s) => s.signerRole === "property_manager");
+  if (!tenantSig || !pmSig) {
+    throw new LeaseSigningError("Both signatures are required before execution");
+  }
 
   const property = await prisma.property.findUnique({
     where: { id: request.propertyId },
     select: { organizationId: true },
   });
   if (!property) throw new NotFoundError("Property not found");
-
-  const pmStorageKey = buildSignatureImageStorageKey({
-    organizationId: property.organizationId,
-    propertyId: request.propertyId,
-    tenancyId: request.tenancyId,
-    signatureRequestId: request.id,
-    signerRole: "property_manager",
-  });
-  await writeLocalDocument(pmStorageKey, pngBytes);
-
-  await prisma.leaseSignature.create({
-    data: {
-      signatureRequestId: request.id,
-      signerRole: "property_manager",
-      signerName,
-      signedAt,
-      ipAddress: input.ipAddress?.trim() || null,
-      userAgent: input.userAgent?.trim() || null,
-      signatureImageStorageKey: pmStorageKey,
-    },
-  });
-
-  const updatedSignatures = await prisma.leaseSignature.findMany({
-    where: { signatureRequestId: request.id },
-  });
-
-  const tenantSig = updatedSignatures.find((s) => s.signerRole === "tenant");
-  const pmSig = updatedSignatures.find((s) => s.signerRole === "property_manager");
-  if (!tenantSig || !pmSig) {
-    throw new LeaseSigningError("Both signatures are required before execution");
-  }
 
   const [tenantImage, pmImage, draftBytes] = await Promise.all([
     readLocalDocument(tenantSig.signatureImageStorageKey),
@@ -527,7 +501,7 @@ export async function submitPmLeaseSignature(
       },
     ],
     vacateClauseApplies,
-    landlordDisplayName: orgProfile.landlordLegalName?.trim() ?? signerName,
+    landlordDisplayName: orgProfile.landlordLegalName?.trim() ?? pmSig.signerName,
   });
 
   const generatedAt = new Date();
@@ -543,31 +517,178 @@ export async function submitPmLeaseSignature(
 
   await writeLocalDocument(storageKey, executedBytes);
 
-  const executedDocument = await createDocument(prisma, ctx, {
-    propertyId: request.propertyId,
-    unitId: request.draftDocument.unitId,
-    tenancyId: request.tenancyId,
-    documentType: RTB1_EXECUTED_DOCUMENT_TYPE,
-    title,
-    fileName,
-    contentType: "application/pdf",
-    sizeBytes: executedBytes.length,
-    storageKey,
-    isSigned: true,
-    isLocked: true,
+  const executedDocument = await prisma.$transaction(async (tx) => {
+    const current = await tx.signatureRequest.findUnique({
+      where: { id: signatureRequestId },
+      select: { executedDocumentId: true, status: true },
+    });
+    if (current?.executedDocumentId) {
+      const doc = await tx.document.findUnique({ where: { id: current.executedDocumentId } });
+      if (doc) return doc;
+    }
+
+    const doc = await tx.document.create({
+      data: {
+        propertyId: request.propertyId,
+        unitId: request.draftDocument!.unitId,
+        tenancyId: request.tenancyId,
+        documentType: RTB1_EXECUTED_DOCUMENT_TYPE,
+        title,
+        fileName,
+        contentType: "application/pdf",
+        sizeBytes: executedBytes.length,
+        storageKey,
+        isSigned: true,
+        isLocked: true,
+      },
+    });
+
+    await tx.signatureRequest.update({
+      where: { id: signatureRequestId },
+      data: {
+        executedDocumentId: doc.id,
+        status: "completed",
+        completedAt: generatedAt,
+      },
+    });
+
+    return doc;
   });
 
-  await updateSignatureRequestStatus(prisma, ctx, request.id, {
-    status: "completed",
-    completedAt: generatedAt,
-  });
+  await logPropertyActivity(
+    prisma,
+    ctx,
+    request.propertyId,
+    "Document",
+    executedDocument.id,
+    "document.created",
+    {
+      newValues: pickForAudit(executedDocument, [
+        "documentType",
+        "tenancyId",
+        "isSigned",
+        "isLocked",
+      ]),
+    },
+  );
 
-  await prisma.signatureRequest.update({
-    where: { id: request.id },
-    data: { executedDocumentId: executedDocument.id },
-  });
+  await logPropertyActivity(
+    prisma,
+    ctx,
+    request.propertyId,
+    "SignatureRequest",
+    signatureRequestId,
+    "signature_request.status_changed",
+    {
+      newValues: { status: "completed", executedDocumentId: executedDocument.id },
+    },
+  );
 
   return executedDocument;
+}
+
+export async function submitPmLeaseSignature(
+  prisma: PrismaClient,
+  ctx: StaffContext,
+  signatureRequestId: string,
+  input: SubmitLeaseSignatureInput,
+): Promise<Document> {
+  const request = await prisma.signatureRequest.findUnique({
+    where: { id: signatureRequestId },
+    include: {
+      signatures: true,
+      draftDocument: true,
+      tenancy: true,
+    },
+  });
+  if (!request?.tenancyId || !request.draftDocument) {
+    throw new NotFoundError("Signature request not found");
+  }
+
+  await getTenancyById(prisma, ctx, request.tenancyId);
+
+  const hasTenant = request.signatures.some((s) => s.signerRole === "tenant");
+  const hasPm = request.signatures.some((s) => s.signerRole === "property_manager");
+
+  const resolution = resolvePmLeaseSigningAction({
+    hasTenantSignature: hasTenant,
+    hasPmSignature: hasPm,
+    executedDocumentId: request.executedDocumentId,
+    status: request.status,
+  });
+
+  if (resolution.action === "return_existing") {
+    const existing = await prisma.document.findUnique({
+      where: { id: resolution.executedDocumentId },
+    });
+    if (!existing) throw new NotFoundError("Executed document not found");
+    return existing;
+  }
+
+  if (resolution.action === "create_signature_and_execute") {
+    if (!input.acknowledgedReview) {
+      throw new LeaseSigningError("You must confirm that you have reviewed the agreement");
+    }
+    const signerName = input.signerName.trim();
+    if (!signerName) {
+      throw new LeaseSigningError("Legal name is required");
+    }
+
+    assertLeaseSigningTransition({
+      hasTenantSignature: hasTenant,
+      hasPmSignature: hasPm,
+      target: "property_manager",
+    });
+
+    const pngBytes = parseSignaturePngDataUrl(input.signatureDataUrl);
+    const signedAt = new Date();
+
+    const property = await prisma.property.findUnique({
+      where: { id: request.propertyId },
+      select: { organizationId: true },
+    });
+    if (!property) throw new NotFoundError("Property not found");
+
+    const pmStorageKey = buildSignatureImageStorageKey({
+      organizationId: property.organizationId,
+      propertyId: request.propertyId,
+      tenancyId: request.tenancyId,
+      signatureRequestId: request.id,
+      signerRole: "property_manager",
+    });
+    await writeLocalDocument(pmStorageKey, pngBytes);
+
+    await prisma.leaseSignature.create({
+      data: {
+        signatureRequestId: request.id,
+        signerRole: "property_manager",
+        signerName,
+        signedAt,
+        ipAddress: input.ipAddress?.trim() || null,
+        userAgent: input.userAgent?.trim() || null,
+        signatureImageStorageKey: pmStorageKey,
+      },
+    });
+
+    await logPropertyActivity(
+      prisma,
+      ctx,
+      request.propertyId,
+      "SignatureRequest",
+      request.id,
+      "lease_signature.pm_signed",
+      {
+        newValues: {
+          signerRole: "property_manager",
+          signerName,
+          signedAt: signedAt.toISOString(),
+          tenancyId: request.tenancyId,
+        },
+      },
+    );
+  }
+
+  return finalizeExecutedLeaseFromSignatureRequest(prisma, ctx, signatureRequestId);
 }
 
 export async function refreshLeaseSigningLink(
@@ -596,6 +717,18 @@ export async function refreshLeaseSigningLink(
       sentAt: new Date(),
     },
   });
+
+  await logPropertyActivity(
+    prisma,
+    ctx,
+    request.propertyId,
+    "SignatureRequest",
+    request.id,
+    "lease_signing.link_refreshed",
+    {
+      newValues: { tenancyId: request.tenancyId, sentAt: new Date().toISOString() },
+    },
+  );
 
   return {
     signatureRequestId: request.id,

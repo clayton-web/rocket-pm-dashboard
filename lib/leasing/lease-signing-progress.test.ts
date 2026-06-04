@@ -69,4 +69,33 @@ describe("lease signing progress", () => {
       /already signed/,
     );
   });
+
+  it("allows execution retry when PM signed but lease is not executed", () => {
+    const progress = deriveLeaseSigningProgress({
+      latestDraft: {
+        id: "draft-1",
+        createdAt: new Date("2026-06-01T12:00:00.000Z"),
+        documentType: RTB1_DOCUMENT_TYPE,
+        isLocked: false,
+      },
+      signatureRequest: {
+        id: "sig-1",
+        status: "viewed",
+        sentAt: new Date("2026-06-02T12:00:00.000Z"),
+        completedAt: null,
+        executedDocumentId: null,
+        signingTokenHash: "abc",
+        signatures: [
+          { signerRole: "tenant", signedAt: new Date("2026-06-03T12:00:00.000Z") },
+          { signerRole: "property_manager", signedAt: new Date("2026-06-04T12:00:00.000Z") },
+        ],
+      },
+      executedDocument: null,
+      readinessComplete: true,
+    });
+
+    assert.equal(progress.canPmSign, false);
+    assert.equal(progress.canRetryLeaseExecution, true);
+    assert.match(progress.statusLabel, /retry/i);
+  });
 });

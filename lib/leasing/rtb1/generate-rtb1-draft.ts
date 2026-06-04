@@ -15,6 +15,7 @@ import { RTB1_DOCUMENT_TYPE, RTB1_TEMPLATE_VERSION } from "./constants";
 import { getRtb1TemplatePath } from "./template-path";
 import { fillRtb1PdfTemplate } from "./fill-rtb1-pdf";
 import { mapTenancyToRtb1PdfValues } from "./map-tenancy-to-rtb1";
+import { assertNoActiveLeaseSignatureRequest } from "@/lib/leasing/lease-signing-guards";
 
 export class Rtb1GenerationNotReadyError extends Error {
   constructor(message: string) {
@@ -52,6 +53,8 @@ export async function generateRtb1DraftForTenancy(
         : "Organization landlord profile or deposit rules must be resolved before generating an RTB-1 draft.",
     );
   }
+
+  await assertNoActiveLeaseSignatureRequest(prisma, tenancy.id);
 
   const [property, unit, contacts] = await Promise.all([
     prisma.property.findUnique({

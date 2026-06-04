@@ -2,6 +2,7 @@
 
 import {
   refreshLeaseSigningLinkAction,
+  retryLeaseExecutionAction,
   sendLeaseForSignatureAction,
   submitPmLeaseSignatureAction,
 } from "@/app/(dashboard)/leasing/tenancies/actions";
@@ -162,6 +163,35 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
           >
             Refresh signing link
           </button>
+        </div>
+      ) : null}
+
+      {signing.canRetryLeaseExecution ? (
+        <div className="mt-6 border-t border-neutral-200 pt-6">
+          <h3 className="text-sm font-semibold text-neutral-900">Complete lease execution</h3>
+          <p className="mt-1 text-sm text-neutral-600">
+            The property manager signature is recorded but the executed RTB-1 was not finalized.
+            Retry to generate the locked executed agreement.
+          </p>
+          <PrimaryButton
+            type="button"
+            className="mt-4 !w-auto px-6"
+            disabled={pending}
+            onClick={() => {
+              if (!signing.signatureRequestId) return;
+              setError(null);
+              startTransition(async () => {
+                const result = await retryLeaseExecutionAction(signing.signatureRequestId!);
+                if (!result.ok) {
+                  setError(result.error);
+                  return;
+                }
+                router.refresh();
+              });
+            }}
+          >
+            {pending ? "Retrying…" : "Retry execution"}
+          </PrimaryButton>
         </div>
       ) : null}
 

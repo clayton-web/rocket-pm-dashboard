@@ -6,6 +6,7 @@ import {
   getOnboardingSteps,
   isOverdueMoveIn,
   isUpcomingMoveIn,
+  onboardingSnapshotFromLeaseSigningProgress,
   showsOnboardingSummary,
   UPCOMING_MOVE_IN_DAYS,
 } from "./onboarding-progress";
@@ -98,18 +99,43 @@ describe("getOnboardingSteps", () => {
     assert.equal(steps[0]?.id, "tenancy_created");
   });
 
-  it("marks RTB-1 generation current when lease setup is complete but not ready", () => {
-    const steps = getOnboardingSteps({ leaseSetupStatus: "lease_setup_complete" });
+  it("marks RTB-1 draft current when ready but no draft exists", () => {
+    const steps = getOnboardingSteps({ leaseSetupStatus: "ready_for_rtb1" });
     const leaseSetup = steps.find((s) => s.id === "lease_setup");
-    const rtb = steps.find((s) => s.id === "lease_documents");
+    const rtbDraft = steps.find((s) => s.id === "rtb1_draft");
     assert.equal(leaseSetup?.state, "complete");
-    assert.equal(rtb?.state, "current");
+    assert.equal(rtbDraft?.state, "current");
   });
 
-  it("marks move-in prep current when ready for RTB-1", () => {
-    const steps = getOnboardingSteps({ leaseSetupStatus: "ready_for_rtb1" });
-    const moveInPrep = steps.find((s) => s.id === "move_in_prep");
-    assert.equal(moveInPrep?.state, "current");
+  it("marks RTB-1 draft complete when a draft document exists", () => {
+    const steps = getOnboardingSteps({
+      leaseSetupStatus: "ready_for_rtb1",
+      leaseExecution: {
+        hasRtb1Draft: true,
+        signatureSent: false,
+        tenantSigned: false,
+        executed: false,
+      },
+    });
+    const rtbDraft = steps.find((s) => s.id === "rtb1_draft");
+    const signatureSent = steps.find((s) => s.id === "signature_sent");
+    assert.equal(rtbDraft?.state, "complete");
+    assert.equal(signatureSent?.state, "current");
+  });
+
+  it("marks tenant signed and lease executed steps through signing flow", () => {
+    const steps = getOnboardingSteps({
+      leaseSetupStatus: "ready_for_rtb1",
+      leaseExecution: {
+        hasRtb1Draft: true,
+        signatureSent: true,
+        tenantSigned: true,
+        executed: true,
+      },
+    });
+    assert.equal(steps.find((s) => s.id === "tenant_signed")?.state, "complete");
+    assert.equal(steps.find((s) => s.id === "lease_executed")?.state, "complete");
+    assert.equal(steps.find((s) => s.id === "move_in_prep")?.state, "current");
   });
 });
 
@@ -140,10 +166,40 @@ describe("getOnboardingNextStep", () => {
       portalAccessEnabled: true,
       leaseSetupStatus: "ready_for_rtb1",
     });
-    assert.equal(step.kind, "ready_for_rtb1");
+    assert.equal(step.kind, "generate_rtb1_draft");
   });
 
-  it("suggests offline prep when portal is ready and lease setup is ready", () => {
+  it("prompts to send for signature after draft generation", () => {
+    const step = getOnboardingNextStep({
+      moveInDate: "2030-06-01",
+      portalAccessEnabled: true,
+      leaseSetupStatus: "ready_for_rtb1",
+      leaseExecution: {
+        hasRtb1Draft: true,
+        signatureSent: false,
+        tenantSigned: false,
+        executed: false,
+      },
+    });
+    assert.equal(step.kind, "send_for_signature");
+  });
+
+  it("prompts PM counter-sign after tenant signature", () => {
+    const step = getOnboardingNextStep({
+      moveInDate: "2030-06-01",
+      portalAccessEnabled: true,
+      leaseSetupStatus: "ready_for_rtb1",
+      leaseExecution: {
+        hasRtb1Draft: true,
+        signatureSent: true,
+        tenantSigned: true,
+        executed: false,
+      },
+    });
+    assert.equal(step.kind, "pm_counter_sign");
+  });
+
+  it("suggests offline prep when lease is executed and portal is ready", () => {
     const today = new Date();
     const far = new Date(today);
     far.setUTCDate(today.getUTCDate() + 30);
@@ -151,7 +207,28 @@ describe("getOnboardingNextStep", () => {
       moveInDate: far.toISOString().slice(0, 10),
       portalAccessEnabled: true,
       leaseSetupStatus: "ready_for_rtb1",
+      leaseExecution: {
+        hasRtb1Draft: true,
+        signatureSent: true,
+        tenantSigned: true,
+        executed: true,
+      },
     });
-    assert.equal(step.kind, "ready_for_rtb1");
+    assert.equal(step.kind, "prepare_onboarding");
+  });
+});
+
+describe("onboardingSnapshotFromLeaseSigningProgress", () => {
+  it("maps lease signing steps to onboarding execution snapshot", () => {
+    const snapshot = onboardingSnapshotFromLeaseSigningProgress([
+      { id: "draft_generated", complete: true },
+      { id: "signature_sent", complete: true },
+      { id: "tenant_signed", complete: false },
+      { id: "executed", complete: false },
+    ]);
+    assert.equal(snapshot.hasRtb1Draft, true);
+    assert.equal(snapshot.signatureSent, true);
+    assert.equal(snapshot.tenantSigned, false);
+    assert.equal(snapshot.executed, false);
   });
 });

@@ -25,6 +25,7 @@ export type LeaseSigningProgress = {
   executedDownloadHref: string | null;
   canSendForSignature: boolean;
   canPmSign: boolean;
+  canRetryLeaseExecution: boolean;
   statusLabel: string;
 };
 
@@ -114,11 +115,18 @@ export function deriveLeaseSigningProgress(args: {
     !args.latestDraft.isLocked;
 
   const canPmSign =
-    hasActiveRequest &&
     tenantSigned &&
     !pmSigned &&
     !executed &&
-    args.signatureRequest != null;
+    args.signatureRequest != null &&
+    isActiveLeaseSignatureRequest(args.signatureRequest.status);
+
+  const canRetryLeaseExecution =
+    tenantSigned &&
+    pmSigned &&
+    !executed &&
+    args.signatureRequest != null &&
+    isActiveLeaseSignatureRequest(args.signatureRequest.status);
 
   const signingUrl =
     args.signingToken && args.signatureRequest?.signingTokenHash
@@ -127,7 +135,7 @@ export function deriveLeaseSigningProgress(args: {
 
   let statusLabel = "Awaiting RTB-1 draft";
   if (executed) statusLabel = "Executed";
-  else if (pmSigned) statusLabel = "Generating executed agreement…";
+  else if (pmSigned && !executed) statusLabel = "Execution incomplete — retry required";
   else if (tenantSigned) statusLabel = "Awaiting property manager signature";
   else if (signatureSent) statusLabel = "Awaiting tenant signature";
   else if (draftGenerated) statusLabel = "Ready to send for signature";
@@ -147,6 +155,7 @@ export function deriveLeaseSigningProgress(args: {
       : null,
     canSendForSignature,
     canPmSign,
+    canRetryLeaseExecution,
     statusLabel,
   };
 }

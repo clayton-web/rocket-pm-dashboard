@@ -23,6 +23,7 @@ import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-type
 import {
   getOnboardingNextStep,
   getOnboardingSteps,
+  onboardingSnapshotFromLeaseSigningProgress,
   showsOnboardingSummary,
 } from "@/lib/leasing/onboarding-progress";
 import {
@@ -171,6 +172,8 @@ export async function getTenancyDetailForStaff(
     })),
   };
 
+  const leaseExecution = onboardingSnapshotFromLeaseSigningProgress(leaseSigningBase.steps);
+
   return {
     id: tenancy.id,
     status: tenancy.status,
@@ -209,13 +212,17 @@ export async function getTenancyDetailForStaff(
     missingAcceptedNotice,
     showOnboardingSummary,
     onboardingSteps: showOnboardingSummary
-      ? getOnboardingSteps({ leaseSetupStatus: leaseReadiness.status })
+      ? getOnboardingSteps({
+          leaseSetupStatus: leaseReadiness.status,
+          leaseExecution,
+        })
       : [],
     onboardingNextStep: showOnboardingSummary
       ? getOnboardingNextStep({
           portalAccessEnabled: primaryPortalAccessEnabled,
           moveInDate: tenancy.moveInDate.toISOString().slice(0, 10),
           leaseSetupStatus: leaseReadiness.status,
+          leaseExecution,
         })
       : { kind: "none", title: "", description: "" },
     primaryPortalAccessEnabled,
