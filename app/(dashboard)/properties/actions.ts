@@ -1,9 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import prisma from "@/lib/db/prisma";
 import { requireStaffContextFromSession, StaffAuthError } from "@/lib/auth/staff-from-session";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
+import {
+  PROPERTY_HARD_DELETE_CONFIRMATION_TEXT,
+  PropertyHardDeleteBlockedError,
+  hardDeleteDummyProperty,
+} from "@/lib/services/hard-delete-dummy-property";
 import { createProperty } from "@/lib/services/property.service";
 import { createUnit } from "@/lib/services/unit.service";
 import {
@@ -84,4 +90,40 @@ export async function createUnitAction(
     const message = e instanceof Error ? e.message : "Could not create unit";
     return { ok: false, error: message };
   }
+}
+
+export async function hardDeletePropertyAction(
+  propertyId: string,
+  confirmation: string,
+): Promise<PropertyActionResult> {
+  const trimmedPropertyId = propertyId.trim();
+  if (!trimmedPropertyId) {
+    return { ok: false, error: "Invalid property id" };
+  }
+  if (confirmation.trim() !== PROPERTY_HARD_DELETE_CONFIRMATION_TEXT) {
+    return { ok: false, error: "Type DELETE to confirm permanent deletion." };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    await hardDeleteDummyProperty(prisma, ctx, trimmedPropertyId);
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof PropertyHardDeleteBlockedError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not delete property";
+    return { ok: false, error: message };
+  }
+
+  revalidatePath("/properties");
+  redirect("/properties");
 }

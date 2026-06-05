@@ -35,6 +35,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       <PropertyDetail
         detail={null}
         canAddUnit={false}
+        canDeleteProperty={false}
         loadError="Select an active organization to view this property."
       />
     );
@@ -65,25 +66,33 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       })),
     };
 
-    const canAddUnit = canManagePropertyUnits(ctx, propertyId);
+    const canManageProperty = canManagePropertyUnits(ctx, propertyId);
     const marketRentResearch = safeResolvePropertyDetailMarketRentResearch({
-      canManagePropertyUnits: canAddUnit,
+      canManagePropertyUnits: canManageProperty,
     });
 
     return (
       <PropertyDetail
         detail={detail}
-        canAddUnit={canAddUnit}
+        canAddUnit={canManageProperty}
+        canDeleteProperty={canManageProperty}
         loadError={null}
         marketRentResearch={marketRentResearch}
       />
     );
   } catch (e) {
     if (e instanceof NotFoundError || e instanceof ForbiddenError) {
-      return <PropertyDetail detail={null} canAddUnit={false} loadError={e.message} />;
+      return (
+        <PropertyDetail detail={null} canAddUnit={false} canDeleteProperty={false} loadError={e.message} />
+      );
     }
     return (
-      <PropertyDetail detail={null} canAddUnit={false} loadError="Could not load property." />
+      <PropertyDetail
+        detail={null}
+        canAddUnit={false}
+        canDeleteProperty={false}
+        loadError="Could not load property."
+      />
     );
   }
 }
