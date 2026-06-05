@@ -8,10 +8,20 @@ const CITY_SLUG_OVERRIDES: Record<string, string> = {
   burnaby: "vancouver",
   richmond: "vancouver",
   "port moody": "vancouver",
+  "port coquitlam": "vancouver",
   coquitlam: "vancouver",
   "new westminster": "vancouver",
   "north vancouver": "vancouver",
+  "west vancouver": "vancouver",
   surrey: "vancouver",
+  langley: "vancouver",
+  "maple ridge": "vancouver",
+  "pitt meadows": "vancouver",
+  delta: "vancouver",
+  "white rock": "vancouver",
+  abbotsford: "vancouver",
+  mission: "vancouver",
+  chilliwack: "vancouver",
 };
 
 export function cityToCraigslistSlug(city: string): string {

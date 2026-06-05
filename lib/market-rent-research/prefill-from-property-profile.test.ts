@@ -66,6 +66,7 @@ describe("market rent research panel prefill wiring", () => {
     assert.match(source, /Property profile/);
     assert.match(source, /Research criteria/);
     assert.match(source, /formatPropertyProfileSummary/);
+    assert.match(source, /getMarketRentSubAreasGroupedByCity/);
   });
 });
 

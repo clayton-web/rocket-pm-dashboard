@@ -11,6 +11,7 @@ import {
   type CraigslistFetchFn,
 } from "@/lib/scrapers/providers/craigslist/craigslist-client";
 import { buildCraigslistSearchParams } from "@/lib/scrapers/search/build-search-query";
+import { buildSubAreaDataQualityNote } from "./sub-areas";
 import type { NormalizedComparable, ProviderFetchStatus, RawScraperListing } from "@/lib/scrapers/types";
 import {
   MARKET_RENT_FIXTURE_SAMPLE_NOTE,
@@ -203,6 +204,9 @@ export async function runMarketRentResearch(
   if (outlierExcluded.length > 0) {
     dataQualityNotes.push(`Removed ${outlierExcluded.length} rent outlier(s) using IQR.`);
   }
+
+  const subAreaNote = buildSubAreaDataQualityNote(inputs.neighbourhood);
+  if (subAreaNote) dataQualityNotes.push(subAreaNote);
 
   const result: MarketRentResearchResult = {
     suggestedRent,

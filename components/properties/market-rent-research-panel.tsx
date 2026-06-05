@@ -18,6 +18,13 @@ import {
   formatPropertyProfileSummary,
 } from "@/lib/market-rent-research/prefill-from-property-profile";
 import { providerStatusUiMessage } from "@/lib/market-rent-research/provider-status-ui";
+import {
+  MARKET_RENT_SUB_AREA_NOT_SPECIFIED_ID,
+  MARKET_RENT_SUB_AREA_OTHER_ID,
+  getMarketRentSubAreasGroupedByCity,
+  resolveNeighbourhoodFromSubAreaSelection,
+  suggestSubAreaSelectionForCity,
+} from "@/lib/market-rent-research/sub-areas";
 import type { MarketRentResearchResult } from "@/lib/market-rent-research/types";
 import type { PropertyProfileFields } from "@/lib/property/profile";
 import {
@@ -40,7 +47,8 @@ export type MarketRentResearchPanelProps = {
 };
 
 type ResearchCriteriaForm = {
-  neighbourhood: string;
+  subAreaSelection: string;
+  subAreaCustom: string;
   postalCode: string;
   nearbyAreas: string;
   propertyType: string;
@@ -66,7 +74,8 @@ function buildInitialCriteria(
     unitBedrooms,
   });
   return {
-    neighbourhood: "",
+    subAreaSelection: suggestSubAreaSelectionForCity(propertyCity),
+    subAreaCustom: "",
     postalCode: prefill.postalCode,
     nearbyAreas: "",
     propertyType: prefill.propertyType,
@@ -90,7 +99,11 @@ function criteriaToInputs(
     bedrooms: Number(form.bedrooms),
     bathrooms: Number(form.bathrooms),
   };
-  if (form.neighbourhood.trim()) inputs.neighbourhood = form.neighbourhood.trim();
+  const neighbourhood = resolveNeighbourhoodFromSubAreaSelection(
+    form.subAreaSelection,
+    form.subAreaCustom,
+  );
+  if (neighbourhood) inputs.neighbourhood = neighbourhood;
   if (form.postalCode.trim()) inputs.postalCode = form.postalCode.trim();
   if (form.nearbyAreas.trim()) inputs.nearbyAreas = form.nearbyAreas.trim();
   if (form.sqft.trim()) inputs.sqft = Number(form.sqft);
@@ -246,7 +259,10 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
     marketRentResearchIdleState,
   );
 
-  const neighbourhoodId = useId();
+  const subAreaGroups = useMemo(() => getMarketRentSubAreasGroupedByCity(), []);
+
+  const subAreaId = useId();
+  const subAreaCustomId = useId();
   const postalCodeId = useId();
   const nearbyAreasId = useId();
   const propertyTypeId = useId();
@@ -318,15 +334,44 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
             property.
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <FormField label="Sub-area / neighbourhood" htmlFor={neighbourhoodId}>
-              <input
-                id={neighbourhoodId}
+            <FormField label="Sub-area / neighbourhood" htmlFor={subAreaId}>
+              <select
+                id={subAreaId}
                 className={inputClassName}
-                value={criteria.neighbourhood}
-                onChange={(e) => setCriteria((f) => ({ ...f, neighbourhood: e.target.value }))}
-                placeholder="e.g. Glenayre, Moody Centre"
-              />
+                value={criteria.subAreaSelection}
+                onChange={(e) =>
+                  setCriteria((f) => ({
+                    ...f,
+                    subAreaSelection: e.target.value,
+                    subAreaCustom:
+                      e.target.value === MARKET_RENT_SUB_AREA_OTHER_ID ? f.subAreaCustom : "",
+                  }))
+                }
+              >
+                <option value={MARKET_RENT_SUB_AREA_NOT_SPECIFIED_ID}>Not specified</option>
+                {subAreaGroups.map((group) => (
+                  <optgroup key={group.city} label={group.city}>
+                    {group.options.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+                <option value={MARKET_RENT_SUB_AREA_OTHER_ID}>Other / custom…</option>
+              </select>
             </FormField>
+            {criteria.subAreaSelection === MARKET_RENT_SUB_AREA_OTHER_ID ? (
+              <FormField label="Custom sub-area" htmlFor={subAreaCustomId}>
+                <input
+                  id={subAreaCustomId}
+                  className={inputClassName}
+                  value={criteria.subAreaCustom}
+                  onChange={(e) => setCriteria((f) => ({ ...f, subAreaCustom: e.target.value }))}
+                  placeholder="e.g. Sunnyside, Maillardville"
+                />
+              </FormField>
+            ) : null}
             <FormField label="Postal code" htmlFor={postalCodeId}>
               <input
                 id={postalCodeId}

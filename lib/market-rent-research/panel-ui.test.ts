@@ -45,5 +45,7 @@ describe("market rent research panel UI copy", () => {
     assert.match(source, /Suggested advertising rent/);
     assert.match(source, /Nearby areas/);
     assert.match(source, /Postal code/);
+    assert.match(source, /getMarketRentSubAreasGroupedByCity/);
+    assert.match(source, /Other \/ custom/);
   });
 });
