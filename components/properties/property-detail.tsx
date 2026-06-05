@@ -34,9 +34,14 @@ export type PropertyDetailData = {
   units: PropertyDetailUnit[];
 };
 
-function formatAddress(detail: PropertyDetailData) {
-  const line2 = detail.streetLine2 ? `, ${detail.streetLine2}` : "";
-  return `${detail.streetLine1}${line2}, ${detail.city}, ${detail.province} ${detail.postalCode}, ${detail.country}`;
+function formatStreetLine(detail: Pick<PropertyDetailData, "streetLine1" | "streetLine2">) {
+  return detail.streetLine2 ? `${detail.streetLine1}, ${detail.streetLine2}` : detail.streetLine1;
+}
+
+function formatCityLine(
+  detail: Pick<PropertyDetailData, "city" | "province" | "postalCode" | "country">,
+) {
+  return `${detail.city}, ${detail.province} ${detail.postalCode}, ${detail.country}`;
 }
 
 export function PropertyDetail({
@@ -110,8 +115,8 @@ function PropertyDetailBody({
       </p>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">{detail.name}</h1>
-        <p className="mt-1 text-sm text-neutral-600">{formatAddress(detail)}</p>
+        <h1 className="text-2xl font-semibold text-neutral-900">{formatStreetLine(detail)}</h1>
+        <p className="mt-1 text-sm text-neutral-600">{formatCityLine(detail)}</p>
       </div>
 
       <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
@@ -157,13 +162,18 @@ function PropertyDetailBody({
           <FormSection legend="Add unit">
             {error ? <InlineNotice className="mb-4">{error}</InlineNotice> : null}
             <form className={`flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onAddUnit}>
-              <FormField label="Unit number (required)" htmlFor={unitNumberId}>
+              <FormField
+                label="Unit label (required)"
+                htmlFor={unitNumberId}
+                helper="e.g. Basement, Upper, Suite A, 101"
+              >
                 <input
                   id={unitNumberId}
                   type="text"
                   value={unitNumber}
                   onChange={(e) => setUnitNumber(e.target.value)}
                   className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  placeholder="Basement"
                   required
                 />
               </FormField>

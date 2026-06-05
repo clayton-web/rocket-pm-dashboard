@@ -13,7 +13,6 @@ import { useId, useState, useTransition } from "react";
 
 export function AddPropertyForm() {
   const router = useRouter();
-  const nameId = useId();
   const streetLine1Id = useId();
   const streetLine2Id = useId();
   const cityId = useId();
@@ -22,7 +21,6 @@ export function AddPropertyForm() {
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [name, setName] = useState("");
   const [streetLine1, setStreetLine1] = useState("");
   const [streetLine2, setStreetLine2] = useState("");
   const [city, setCity] = useState("");
@@ -34,7 +32,6 @@ export function AddPropertyForm() {
     setError(null);
     startTransition(async () => {
       const result = await createPropertyAction({
-        name,
         streetLine1,
         streetLine2: streetLine2 || null,
         city,
@@ -56,21 +53,11 @@ export function AddPropertyForm() {
   return (
     <FormSection legend="Add property">
       <p className="text-sm text-neutral-600">
-        New properties are active immediately and appear on public viewing and application forms when
-        this organization matches the public portal org.
+        Enter the street address — that becomes the property label on public viewing and application
+        forms when this organization matches the public portal org.
       </p>
       {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
       <form className={`mt-4 flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onSubmit}>
-        <FormField label="Property name (required)" htmlFor={nameId}>
-          <input
-            id={nameId}
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-            required
-          />
-        </FormField>
         <FormField label="Street address (required)" htmlFor={streetLine1Id}>
           <input
             id={streetLine1Id}
@@ -78,6 +65,7 @@ export function AddPropertyForm() {
             value={streetLine1}
             onChange={(e) => setStreetLine1(e.target.value)}
             className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            placeholder="123 Main Street"
             required
           />
         </FormField>

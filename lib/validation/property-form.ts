@@ -46,9 +46,6 @@ export function parseCreatePropertyFormInput(
   }
   const raw = body as Record<string, unknown>;
 
-  const name = parseRequiredString(raw.name, "Property name", 200);
-  if (typeof name === "object") return name;
-
   const streetLine1 = parseRequiredString(raw.streetLine1, "Street address", 300);
   if (typeof streetLine1 === "object") return streetLine1;
 
@@ -69,7 +66,7 @@ export function parseCreatePropertyFormInput(
   if (typeof postalCode === "object") return postalCode;
 
   return {
-    name,
+    name: streetLine1,
     streetLine1,
     streetLine2,
     city,

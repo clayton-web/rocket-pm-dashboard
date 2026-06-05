@@ -15,9 +15,12 @@ export type PropertyListRow = {
   unitCount: number;
 };
 
-function formatAddress(row: PropertyListRow) {
-  const line2 = row.streetLine2 ? `, ${row.streetLine2}` : "";
-  return `${row.streetLine1}${line2}, ${row.city}, ${row.province} ${row.postalCode}`;
+function formatStreetLine(row: Pick<PropertyListRow, "streetLine1" | "streetLine2">) {
+  return row.streetLine2 ? `${row.streetLine1}, ${row.streetLine2}` : row.streetLine1;
+}
+
+function formatCityLine(row: Pick<PropertyListRow, "city" | "province" | "postalCode">) {
+  return `${row.city}, ${row.province} ${row.postalCode}`;
 }
 
 export function PropertyList({
@@ -72,8 +75,8 @@ export function PropertyList({
               href={`/properties/${property.id}`}
               className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
             >
-              <h2 className="text-sm font-semibold text-neutral-900">{property.name}</h2>
-              <p className="mt-1 text-sm text-neutral-600">{formatAddress(property)}</p>
+              <h2 className="text-sm font-semibold text-neutral-900">{formatStreetLine(property)}</h2>
+              <p className="mt-1 text-sm text-neutral-600">{formatCityLine(property)}</p>
               <p className="mt-2 text-sm text-neutral-600">
                 <span className="text-neutral-500">Units · </span>
                 {property.unitCount}
