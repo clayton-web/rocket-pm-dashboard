@@ -19,7 +19,7 @@ describe("market rent research panel UI copy", () => {
     assert.match(MARKET_RENT_FIXTURE_SAMPLE_NOTE, /Sample fixture data/i);
   });
 
-  it("renders provider status labels used by the panel", () => {
+  it("renders provider status labels used by the results UI", () => {
     assert.equal(
       providerStatusUiMessage(
         buildCraigslistProviderStatus({ status: "http_error", listingCount: 0 }),
@@ -34,18 +34,23 @@ describe("market rent research panel UI copy", () => {
     );
   });
 
-  it("includes listing sources and fixture banner in panel source", async () => {
-    const source = await readFile(
+  it("includes refreshed results layout in panel and results components", async () => {
+    const panelSource = await readFile(
       new URL("../../components/properties/market-rent-research-panel.tsx", import.meta.url),
       "utf8",
     );
-    assert.match(source, /Listing sources/);
-    assert.match(source, /MARKET_RENT_FIXTURE_SAMPLE_NOTE/);
-    assert.match(source, /provider-status-ui/);
-    assert.match(source, /Suggested advertising rent/);
-    assert.match(source, /Nearby areas/);
-    assert.match(source, /Postal code/);
-    assert.match(source, /getMarketRentSubAreasGroupedByCity/);
-    assert.match(source, /Other \/ custom/);
+    const resultsSource = await readFile(
+      new URL("../../components/properties/market-rent-research-results.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.match(panelSource, /MarketRentResearchResults/);
+    assert.match(panelSource, /Nearby areas/);
+    assert.match(panelSource, /getMarketRentSubAreasGroupedByCity/);
+    assert.match(resultsSource, /Recommended Market Rent/);
+    assert.match(resultsSource, /Why this rent\?/);
+    assert.match(resultsSource, /Research Details/);
+    assert.match(resultsSource, /Comparable listings/);
+    assert.match(resultsSource, /MARKET_RENT_FIXTURE_SAMPLE_NOTE/);
+    assert.match(resultsSource, /provider-status-ui/);
   });
 });
