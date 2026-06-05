@@ -23,6 +23,13 @@ export async function updateEmailThreadCategory(args: {
       category: args.category,
       categorySource: args.categorySource,
       categoryUpdatedAt: new Date(),
+      ...(args.categorySource === "manual"
+        ? {
+            categoryConfidence: null,
+            categoryAiReason: null,
+            lastClassificationAttemptAt: null,
+          }
+        : {}),
     },
   });
 

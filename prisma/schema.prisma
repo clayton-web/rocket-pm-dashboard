@@ -1071,9 +1071,12 @@ model EmailThread {
   participantEmails  String[]  @default([])
 
   /// Rocket PM inbox crate — dashboard source of truth (not Gmail labels).
-  category          EmailThreadCategory @default(UNCATEGORIZED)
-  categorySource    String?
-  categoryUpdatedAt DateTime?
+  category            EmailThreadCategory @default(UNCATEGORIZED)
+  categorySource      String?
+  categoryUpdatedAt   DateTime?
+  categoryConfidence            Float?
+  categoryAiReason              String?   @db.Text
+  lastClassificationAttemptAt   DateTime?
 
   /// Future: correlate to Core / Maintenance / etc. without tangling domains in code.
   contextLinks Json?

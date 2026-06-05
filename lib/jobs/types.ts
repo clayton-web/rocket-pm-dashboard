@@ -18,7 +18,11 @@ export const PHASE0_ALLOWED_JOB_TYPES: ReadonlySet<string> = new Set([
   JOB_TYPES.GMAIL_SYNC,
 ]);
 
-export const PHASE1_ALLOWED_JOB_TYPES: ReadonlySet<string> = PHASE0_ALLOWED_JOB_TYPES;
+export const PHASE1_ALLOWED_JOB_TYPES: ReadonlySet<string> = new Set([
+  JOB_TYPES.SYSTEM_NOOP,
+  JOB_TYPES.GMAIL_SYNC,
+  JOB_TYPES.AGENT_TRIAGE,
+]);
 
 export function isAgentJobType(jobType: string): boolean {
   return jobType.startsWith("agent.");

@@ -25,8 +25,23 @@ export async function upsertSyncedThread(args: UpsertThreadArgs) {
           providerThreadId: args.providerThreadId,
         },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        lastMessageAt: true,
+        category: true,
+        categorySource: true,
+      },
     });
+
+    const newInboundActivity =
+      existing != null &&
+      args.lastMessageAt != null &&
+      (existing.lastMessageAt == null || args.lastMessageAt > existing.lastMessageAt);
+
+    const clearClassificationAttempt =
+      newInboundActivity &&
+      existing.category === "UNCATEGORIZED" &&
+      existing.categorySource !== "manual";
 
     let createCategory: EmailThreadCategory = "UNCATEGORIZED";
     let createCategorySource: string | undefined;
@@ -73,6 +88,13 @@ export async function upsertSyncedThread(args: UpsertThreadArgs) {
         labelIds: args.labelIds,
         isUnread: args.isUnread,
         participantEmails: args.participantEmails,
+        ...(clearClassificationAttempt
+          ? {
+              lastClassificationAttemptAt: null,
+              categoryConfidence: null,
+              categoryAiReason: null,
+            }
+          : {}),
       },
     });
 

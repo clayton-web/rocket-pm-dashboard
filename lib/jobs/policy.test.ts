@@ -66,7 +66,11 @@ describe("job policy — agent automation enabled", () => {
     else process.env.AGENT_AUTOMATION_ENABLED = prevAutomation;
   });
 
-  it("still blocks agent jobs until Phase allows them", () => {
+  it("allows agent.triage when automation is enabled", () => {
+    assert.doesNotThrow(() => assertJobTypeAllowedForPhase(JOB_TYPES.AGENT_TRIAGE));
+  });
+
+  it("still blocks unregistered agent jobs", () => {
     assert.throws(
       () => assertJobTypeAllowedForPhase(JOB_TYPES.AGENT_DRAFT_GENERATE),
       /not enabled/,

@@ -1,3 +1,4 @@
+import { tryEnqueueInboxClassificationAfterSync } from "@/lib/ai/inbox-classification/enqueue";
 import prisma from "@/lib/db/prisma";
 import {
   auditGmailSyncCompleted,
@@ -55,11 +56,19 @@ export const handleGmailSync: JobHandler = async (ctx) => {
       jobId: ctx.job.id,
     });
 
+    const classificationEnqueue = await tryEnqueueInboxClassificationAfterSync({
+      organizationId: ctx.job.organizationId,
+      connectedAccountId: account.id,
+      actorUserId,
+      parentJobId: ctx.job.id,
+    });
+
     return {
       metadata: {
         connectedAccountId: account.id,
         threadCount: result.threadCount,
         messageCount: result.messageCount,
+        classificationEnqueue,
       },
     };
   } catch (error) {
