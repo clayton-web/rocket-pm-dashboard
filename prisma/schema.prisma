@@ -153,6 +153,12 @@ model Property {
   country     String  @default("CA")
   isActive    Boolean @default(true)
 
+  /// Rental profile — not official rent or lease data.
+  propertyType String?
+  bedrooms     Int?
+  bathrooms    Decimal? @db.Decimal(4, 1)
+  approxSqft   Int?
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 

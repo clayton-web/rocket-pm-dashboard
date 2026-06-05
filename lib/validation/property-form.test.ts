@@ -26,6 +26,36 @@ describe("parseCreatePropertyFormInput", () => {
     });
     assert.equal("error" in parsed && parsed.error, "Street address is required");
   });
+
+  it("accepts optional profile fields on create", () => {
+    const parsed = parseCreatePropertyFormInput({
+      streetLine1: "123 Main Street",
+      city: "Vancouver",
+      postalCode: "V6B 1A1",
+      propertyType: "detached",
+      bedrooms: 3,
+      bathrooms: 2,
+      approxSqft: 1200,
+    });
+    assert.ok(!("error" in parsed));
+    if ("error" in parsed) return;
+    assert.equal(parsed.propertyType, "detached");
+    assert.equal(parsed.bedrooms, 3);
+    assert.equal(parsed.bathrooms, 2);
+    assert.equal(parsed.approxSqft, 1200);
+  });
+
+  it("works without profile fields", () => {
+    const parsed = parseCreatePropertyFormInput({
+      streetLine1: "123 Main Street",
+      city: "Vancouver",
+      postalCode: "V6B 1A1",
+    });
+    assert.ok(!("error" in parsed));
+    if ("error" in parsed) return;
+    assert.equal(parsed.propertyType, null);
+    assert.equal(parsed.bedrooms, null);
+  });
 });
 
 describe("parseCreateUnitFormInput", () => {

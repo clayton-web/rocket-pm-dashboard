@@ -1,6 +1,6 @@
 "use client";
 
-import { createUnitAction, hardDeletePropertyAction } from "@/app/(dashboard)/properties/actions";
+import { createUnitAction, hardDeletePropertyAction, updatePropertyProfileAction } from "@/app/(dashboard)/properties/actions";
 import {
   FormField,
   FormSection,
@@ -12,7 +12,14 @@ import {
 import {
   getAdditionalUnits,
   hasOnlyEntirePropertyUnit,
+  isEntirePropertyUnit,
 } from "@/lib/property/entire-property-unit";
+import {
+  PROPERTY_PROFILE_TYPES,
+  PROPERTY_PROFILE_TYPE_LABELS,
+  formatPropertyProfileTypeLabel,
+  type PropertyProfileFields,
+} from "@/lib/property/profile";
 import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -45,8 +52,183 @@ export type PropertyDetailData = {
   postalCode: string;
   country: string;
   isActive: boolean;
+  profile: PropertyProfileFields;
   units: PropertyDetailUnit[];
 };
+
+function formatProfileSummary(profile: PropertyProfileFields): string {
+  const parts: string[] = [];
+  const typeLabel = formatPropertyProfileTypeLabel(profile.propertyType);
+  if (typeLabel) parts.push(typeLabel);
+  if (profile.bedrooms != null) parts.push(`${profile.bedrooms} bed`);
+  if (profile.bathrooms != null) parts.push(`${profile.bathrooms} bath`);
+  if (profile.approxSqft != null) parts.push(`${profile.approxSqft.toLocaleString("en-CA")} sqft`);
+  return parts.length > 0 ? parts.join(" · ") : "No profile details saved yet";
+}
+
+function PropertyProfileSection({
+  propertyId,
+  profile,
+  canEdit,
+}: {
+  propertyId: string;
+  profile: PropertyProfileFields;
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const propertyTypeId = useId();
+  const bedroomsId = useId();
+  const bathroomsId = useId();
+  const approxSqftId = useId();
+  const [showEdit, setShowEdit] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [propertyType, setPropertyType] = useState(profile.propertyType ?? "");
+  const [bedrooms, setBedrooms] = useState(
+    profile.bedrooms != null ? String(profile.bedrooms) : "",
+  );
+  const [bathrooms, setBathrooms] = useState(
+    profile.bathrooms != null ? String(profile.bathrooms) : "",
+  );
+  const [approxSqft, setApproxSqft] = useState(
+    profile.approxSqft != null ? String(profile.approxSqft) : "",
+  );
+
+  function onSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await updatePropertyProfileAction(propertyId, {
+        propertyType: propertyType || null,
+        bedrooms: bedrooms === "" ? null : bedrooms,
+        bathrooms: bathrooms === "" ? null : bathrooms,
+        approxSqft: approxSqft === "" ? null : approxSqft,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setShowEdit(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
+      <p className="text-sm text-neutral-700">
+        <span className="text-neutral-500">Profile · </span>
+        {formatProfileSummary(profile)}
+      </p>
+      <p className="mt-1 text-xs text-neutral-500">
+        Rental profile for management and market research — not official rent or lease data.
+      </p>
+      {canEdit ? (
+        <div className="mt-3">
+          {!showEdit ? (
+            <button
+              type="button"
+              onClick={() => setShowEdit(true)}
+              className="text-sm font-medium text-neutral-800 underline"
+            >
+              Edit property profile
+            </button>
+          ) : (
+            <form className="mt-3 flex flex-col gap-4 border-t border-neutral-200 pt-4" onSubmit={onSave}>
+              {error ? <InlineNotice>{error}</InlineNotice> : null}
+              <FormField label="Property type (optional)" htmlFor={propertyTypeId}>
+                <select
+                  id={propertyTypeId}
+                  value={propertyType}
+                  onChange={(e) => setPropertyType(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                >
+                  <option value="">Not specified</option>
+                  {PROPERTY_PROFILE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {PROPERTY_PROFILE_TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              <FormField label="Bedrooms (optional)" htmlFor={bedroomsId}>
+                <input
+                  id={bedroomsId}
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={bedrooms}
+                  onChange={(e) => setBedrooms(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Bathrooms (optional)" htmlFor={bathroomsId}>
+                <input
+                  id={bathroomsId}
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  value={bathrooms}
+                  onChange={(e) => setBathrooms(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Approx. sqft (optional)" htmlFor={approxSqftId}>
+                <input
+                  id={approxSqftId}
+                  type="number"
+                  min={1}
+                  value={approxSqft}
+                  onChange={(e) => setApproxSqft(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <div className="flex flex-wrap gap-3">
+                <PrimaryButton type="submit" disabled={pending} className="!w-auto px-5">
+                  {pending ? "Saving…" : "Save profile"}
+                </PrimaryButton>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    setShowEdit(false);
+                    setError(null);
+                    setPropertyType(profile.propertyType ?? "");
+                    setBedrooms(profile.bedrooms != null ? String(profile.bedrooms) : "");
+                    setBathrooms(profile.bathrooms != null ? String(profile.bathrooms) : "");
+                    setApproxSqft(profile.approxSqft != null ? String(profile.approxSqft) : "");
+                  }}
+                  className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function renderMarketRentPanel(
+  detail: PropertyDetailData,
+  unit: PropertyDetailUnit,
+  marketRentResearch: PropertyDetailMarketRentResearch,
+) {
+  return (
+    <MarketRentResearchPanel
+      unitId={unit.id}
+      unitLabel={unit.unitNumber}
+      unitFloor={unit.floor}
+      unitBedrooms={unit.bedrooms}
+      addressDisplay={formatStreetLine(detail)}
+      cityLine={formatCityLine(detail)}
+      defaultCity={detail.city}
+      propertyProfile={detail.profile}
+      canEdit={marketRentResearch.enabled}
+    />
+  );
+}
 
 function formatStreetLine(detail: Pick<PropertyDetailData, "streetLine1" | "streetLine2">) {
   return detail.streetLine2 ? `${detail.streetLine1}, ${detail.streetLine2}` : detail.streetLine1;
@@ -277,6 +459,7 @@ function PropertyDetailBody({
 }) {
   const additionalUnits = getAdditionalUnits(detail.units);
   const onlyDefaultUnit = hasOnlyEntirePropertyUnit(detail.units);
+  const entirePropertyUnit = detail.units.find((unit) => isEntirePropertyUnit(unit.unitNumber));
   const [showAddForm, setShowAddForm] = useState(false);
 
   return (
@@ -292,12 +475,22 @@ function PropertyDetailBody({
         <p className="mt-1 text-sm text-neutral-600">{formatCityLine(detail)}</p>
       </div>
 
-      <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
+      <div className={`${SURFACE_CARD} mb-4 px-4 py-4`}>
         <p className="text-sm text-neutral-700">
           <span className="text-neutral-500">Status · </span>
           {detail.isActive ? "Active" : "Inactive"}
         </p>
       </div>
+
+      <PropertyProfileSection
+        propertyId={detail.id}
+        profile={detail.profile}
+        canEdit={canAddUnit}
+      />
+
+      {marketRentResearch && onlyDefaultUnit && entirePropertyUnit
+        ? renderMarketRentPanel(detail, entirePropertyUnit, marketRentResearch)
+        : null}
 
       {additionalUnits.length > 0 ? (
         <FormSection legend="Units">
@@ -317,18 +510,7 @@ function PropertyDetailBody({
                 {!unit.isActive ? (
                   <span className="text-neutral-500"> · Inactive</span>
                 ) : null}
-                {marketRentResearch ? (
-                  <MarketRentResearchPanel
-                    unitId={unit.id}
-                    unitLabel={unit.unitNumber}
-                    unitFloor={unit.floor}
-                    unitBedrooms={unit.bedrooms}
-                    addressDisplay={formatStreetLine(detail)}
-                    cityLine={formatCityLine(detail)}
-                    defaultCity={detail.city}
-                    canEdit={marketRentResearch.enabled}
-                  />
-                ) : null}
+                {marketRentResearch ? renderMarketRentPanel(detail, unit, marketRentResearch) : null}
               </li>
             ))}
           </ul>

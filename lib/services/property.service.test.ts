@@ -34,11 +34,19 @@ function createMockPrisma() {
           city: string;
           province: string;
           postalCode: string;
-          country: string;
-        };
+        country: string;
+        propertyType?: string | null;
+        bedrooms?: number | null;
+        bathrooms?: unknown;
+        approxSqft?: number | null;
+      };
       }): Promise<Property> => ({
         id: "prop_test",
         isActive: true,
+        propertyType: data.propertyType ?? null,
+        bedrooms: data.bedrooms ?? null,
+        bathrooms: data.bathrooms ?? null,
+        approxSqft: data.approxSqft ?? null,
         createdAt: new Date("2026-01-01"),
         updatedAt: new Date("2026-01-01"),
         ...data,
@@ -93,9 +101,16 @@ describe("createProperty", () => {
       city: "Vancouver",
       province: "BC",
       postalCode: "V6B 1A1",
+      propertyType: "condo",
+      bedrooms: 2,
+      bathrooms: 1.5,
+      approxSqft: 850,
     });
 
     assert.equal(property.streetLine1, "123 Main Street");
+    assert.equal(property.propertyType, "condo");
+    assert.equal(property.bedrooms, 2);
+    assert.equal(property.approxSqft, 850);
     assert.equal(prisma.unitCreates.length, 1);
     assert.equal(prisma.unitCreates[0]?.data.propertyId, "prop_test");
     assert.equal(prisma.unitCreates[0]?.data.unitNumber, ENTIRE_PROPERTY_UNIT_NUMBER);

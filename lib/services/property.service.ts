@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient, Property } from "@prisma/client";
+import { Prisma, type PrismaClient, type Property } from "@prisma/client";
 import { entirePropertyUnitCreateInput } from "@/lib/property/entire-property-unit";
 import type { StaffContext } from "./staff-context";
 import { createUnit } from "./unit.service";
@@ -24,14 +24,54 @@ export type CreatePropertyInput = {
   province?: string;
   postalCode: string;
   country?: string;
+  propertyType?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  approxSqft?: number | null;
 };
 
 export type UpdatePropertyInput = Partial<
   Pick<
     Property,
-    "name" | "streetLine1" | "streetLine2" | "city" | "province" | "postalCode" | "country" | "isActive"
+    | "name"
+    | "streetLine1"
+    | "streetLine2"
+    | "city"
+    | "province"
+    | "postalCode"
+    | "country"
+    | "isActive"
+    | "propertyType"
+    | "bedrooms"
+    | "approxSqft"
   >
->;
+> & {
+  bathrooms?: number | null;
+};
+
+const PROPERTY_AUDIT_FIELDS = [
+  "name",
+  "city",
+  "province",
+  "postalCode",
+  "country",
+  "isActive",
+  "propertyType",
+  "bedrooms",
+  "approxSqft",
+] as const;
+
+function profileCreateData(input: CreatePropertyInput): Pick<
+  Prisma.PropertyCreateInput,
+  "propertyType" | "bedrooms" | "bathrooms" | "approxSqft"
+> {
+  return {
+    propertyType: input.propertyType ?? null,
+    bedrooms: input.bedrooms ?? null,
+    bathrooms: input.bathrooms != null ? new Prisma.Decimal(input.bathrooms) : null,
+    approxSqft: input.approxSqft ?? null,
+  };
+}
 
 function trimRequired(s: string, label: string): string {
   const v = s.trim();
@@ -64,10 +104,11 @@ export async function createProperty(
         province: input.province?.trim() || "BC",
         postalCode: trimRequired(input.postalCode, "postalCode"),
         country: input.country?.trim() || "CA",
+        ...profileCreateData(input),
       },
     });
     await logPropertyActivity(db, principal, row.id, "Property", row.id, "property.created", {
-      newValues: pickForAudit(row, ["name", "city", "province", "postalCode", "isActive"]),
+      newValues: pickForAudit(row, [...PROPERTY_AUDIT_FIELDS]),
     });
     await createUnit(db, principal, row.id, entirePropertyUnitCreateInput());
     return row;
@@ -93,6 +134,12 @@ export async function updateProperty(
   if (input.postalCode !== undefined) data.postalCode = trimRequired(String(input.postalCode), "postalCode");
   if (input.country !== undefined) data.country = String(input.country).trim() || "CA";
   if (input.isActive !== undefined) data.isActive = input.isActive;
+  if (input.propertyType !== undefined) data.propertyType = input.propertyType;
+  if (input.bedrooms !== undefined) data.bedrooms = input.bedrooms;
+  if (input.bathrooms !== undefined) {
+    data.bathrooms = input.bathrooms != null ? new Prisma.Decimal(input.bathrooms) : null;
+  }
+  if (input.approxSqft !== undefined) data.approxSqft = input.approxSqft;
   if (Object.keys(data).length === 0) return getPropertyById(prisma, principal, propertyId);
   const before = await prisma.property.findUnique({ where: { id: propertyId } });
   const row = await prisma.property.update({
@@ -100,12 +147,25 @@ export async function updateProperty(
     data: data as Prisma.PropertyUpdateInput,
   });
   await logPropertyActivity(prisma, principal, propertyId, "Property", propertyId, "property.updated", {
-    oldValues: before
-      ? pickForAudit(before, ["name", "city", "province", "postalCode", "country", "isActive"])
-      : undefined,
-    newValues: pickForAudit(row, ["name", "city", "province", "postalCode", "country", "isActive"]),
+    oldValues: before ? pickForAudit(before, [...PROPERTY_AUDIT_FIELDS]) : undefined,
+    newValues: pickForAudit(row, [...PROPERTY_AUDIT_FIELDS]),
   });
   return row;
+}
+
+/** PM / org admin — update rental profile fields only. */
+export async function updatePropertyProfile(
+  prisma: PrismaClient,
+  principal: StaffContext,
+  propertyId: string,
+  input: {
+    propertyType: string | null;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    approxSqft: number | null;
+  },
+): Promise<Property> {
+  return updateProperty(prisma, principal, propertyId, input);
 }
 
 /** Org admin/owner or any assignment (PM/field) on the property in the active org. */

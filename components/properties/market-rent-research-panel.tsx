@@ -13,8 +13,10 @@ import {
   MARKET_RENT_RESEARCH_PANEL_TITLE,
 } from "@/lib/market-rent-research/constants";
 import { marketRentResearchIdleState } from "@/lib/market-rent-research/idle-action-state";
+import { buildMarketRentResearchFormPrefill } from "@/lib/market-rent-research/prefill-from-property-profile";
 import { providerStatusUiMessage } from "@/lib/market-rent-research/provider-status-ui";
 import type { MarketRentResearchResult } from "@/lib/market-rent-research/types";
+import type { PropertyProfileFields } from "@/lib/property/profile";
 import {
   MARKET_RENT_FURNISHED_VALUES,
   type MarketRentResearchInputs,
@@ -29,6 +31,7 @@ export type MarketRentResearchPanelProps = {
   addressDisplay: string;
   cityLine: string;
   defaultCity: string;
+  propertyProfile: PropertyProfileFields;
   canEdit: boolean;
 };
 
@@ -47,15 +50,21 @@ type FormState = {
 
 function buildInitialFormState(
   defaultCity: string,
+  propertyProfile: PropertyProfileFields,
   unitBedrooms: number | null,
 ): FormState {
-  return {
+  const prefill = buildMarketRentResearchFormPrefill({
     city: defaultCity,
+    profile: propertyProfile,
+    unitBedrooms,
+  });
+  return {
+    city: prefill.city,
     neighbourhood: "",
-    propertyType: "",
-    bedrooms: unitBedrooms != null ? String(unitBedrooms) : "",
-    bathrooms: "",
-    sqft: "",
+    propertyType: prefill.propertyType,
+    bedrooms: prefill.bedrooms,
+    bathrooms: prefill.bathrooms,
+    sqft: prefill.sqft,
     parking: "",
     furnished: "",
     petPolicy: "",
@@ -191,10 +200,13 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
     cityLine,
     defaultCity,
     unitBedrooms,
+    propertyProfile,
     canEdit,
   } = props;
 
-  const [form, setForm] = useState(() => buildInitialFormState(defaultCity, unitBedrooms));
+  const [form, setForm] = useState(() =>
+    buildInitialFormState(defaultCity, propertyProfile, unitBedrooms),
+  );
 
   const [researchState, researchAction, researchPending] = useActionState(
     runMarketRentResearchAction,

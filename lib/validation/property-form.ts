@@ -1,3 +1,5 @@
+import { parsePropertyProfileFormInput } from "./property-profile";
+
 export type CreatePropertyFormInput = {
   name: string;
   streetLine1: string;
@@ -5,6 +7,10 @@ export type CreatePropertyFormInput = {
   city: string;
   province: string;
   postalCode: string;
+  propertyType: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  approxSqft: number | null;
 };
 
 export type CreateUnitFormInput = {
@@ -65,6 +71,14 @@ export function parseCreatePropertyFormInput(
   const postalCode = parseRequiredString(raw.postalCode, "Postal code", 20);
   if (typeof postalCode === "object") return postalCode;
 
+  const profile = parsePropertyProfileFormInput({
+    propertyType: raw.propertyType,
+    bedrooms: raw.bedrooms,
+    bathrooms: raw.bathrooms,
+    approxSqft: raw.approxSqft,
+  });
+  if ("error" in profile) return profile;
+
   return {
     name: streetLine1,
     streetLine1,
@@ -72,6 +86,10 @@ export function parseCreatePropertyFormInput(
     city,
     province,
     postalCode,
+    propertyType: profile.propertyType,
+    bedrooms: profile.bedrooms,
+    bathrooms: profile.bathrooms,
+    approxSqft: profile.approxSqft,
   };
 }
 

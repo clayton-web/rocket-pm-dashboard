@@ -8,6 +8,7 @@ import {
   PrimaryButton,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import { PROPERTY_PROFILE_TYPES, PROPERTY_PROFILE_TYPE_LABELS } from "@/lib/property/profile";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 
@@ -18,6 +19,10 @@ export function AddPropertyForm() {
   const cityId = useId();
   const provinceId = useId();
   const postalCodeId = useId();
+  const propertyTypeId = useId();
+  const bedroomsId = useId();
+  const bathroomsId = useId();
+  const approxSqftId = useId();
 
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -26,6 +31,10 @@ export function AddPropertyForm() {
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("BC");
   const [postalCode, setPostalCode] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [bedrooms, setBedrooms] = useState("");
+  const [bathrooms, setBathrooms] = useState("");
+  const [approxSqft, setApproxSqft] = useState("");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -37,6 +46,10 @@ export function AddPropertyForm() {
         city,
         province,
         postalCode,
+        propertyType: propertyType || null,
+        bedrooms: bedrooms === "" ? null : bedrooms,
+        bathrooms: bathrooms === "" ? null : bathrooms,
+        approxSqft: approxSqft === "" ? null : approxSqft,
       });
       if (!result.ok) {
         setError(result.error);
@@ -54,8 +67,9 @@ export function AddPropertyForm() {
     <FormSection legend="Add property">
       <p className="text-sm text-neutral-600">
         Enter the street address — that becomes the property label on public viewing and application
-        forms when this organization matches the public portal org. Rentable spaces such as basement
-        suites or numbered units are optional and can be added later.
+        forms when this organization matches the public portal org. Optional profile fields help with
+        market rent research later. Rentable spaces such as basement suites or numbered units can be
+        added after creation.
       </p>
       {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
       <form className={`mt-4 flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onSubmit}>
@@ -109,6 +123,66 @@ export function AddPropertyForm() {
             required
           />
         </FormField>
+
+        <div className="border-t border-neutral-200 pt-4">
+          <p className="mb-3 text-sm font-medium text-neutral-800">Rental profile (optional)</p>
+          <div className="flex flex-col gap-4">
+            <FormField
+              label="Property type (optional)"
+              htmlFor={propertyTypeId}
+              helper="Used for market rent research — not lease or official rent data."
+            >
+              <select
+                id={propertyTypeId}
+                value={propertyType}
+                onChange={(e) => setPropertyType(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              >
+                <option value="">Not specified</option>
+                {PROPERTY_PROFILE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {PROPERTY_PROFILE_TYPE_LABELS[type]}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Bedrooms (optional)" htmlFor={bedroomsId}>
+              <input
+                id={bedroomsId}
+                type="number"
+                min={0}
+                max={50}
+                step={1}
+                value={bedrooms}
+                onChange={(e) => setBedrooms(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              />
+            </FormField>
+            <FormField label="Bathrooms (optional)" htmlFor={bathroomsId}>
+              <input
+                id={bathroomsId}
+                type="number"
+                min={0}
+                step={0.5}
+                value={bathrooms}
+                onChange={(e) => setBathrooms(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              />
+            </FormField>
+            <FormField label="Approx. sqft (optional)" htmlFor={approxSqftId}>
+              <input
+                id={approxSqftId}
+                type="number"
+                min={1}
+                step={1}
+                value={approxSqft}
+                onChange={(e) => setApproxSqft(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              />
+            </FormField>
+          </div>
+        </div>
+
         <PrimaryButton type="submit" disabled={pending} className="!w-auto px-6">
           {pending ? "Creating…" : "Create property"}
         </PrimaryButton>

@@ -3,6 +3,7 @@ import { PropertyDetail, type PropertyDetailData } from "@/components/properties
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
 import { safeResolvePropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
+import { propertyProfileFromRecord } from "@/lib/property/profile";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
 import { getPropertyById } from "@/lib/services/property.service";
 import { listUnitsForProperty } from "@/lib/services/unit.service";
@@ -57,6 +58,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       postalCode: property.postalCode,
       country: property.country,
       isActive: property.isActive,
+      profile: propertyProfileFromRecord(property),
       units: units.map((unit) => ({
         id: unit.id,
         unitNumber: unit.unitNumber,
