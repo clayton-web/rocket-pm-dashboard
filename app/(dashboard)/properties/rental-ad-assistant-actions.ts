@@ -10,6 +10,7 @@ import {
   handleSaveRentalAdAssistantDraft,
   type RentalAdAssistantActionResult,
 } from "@/lib/rental-ad-assistant/action-handlers";
+import { isRentalAdAssistantEnabled } from "@/lib/rental-ad-assistant/feature-flag";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
 
 export type RentalAdAssistantActionState = RentalAdAssistantActionResult & {
@@ -21,6 +22,16 @@ const idleState: RentalAdAssistantActionState = {
   draft: null,
   completedAt: 0,
 };
+
+const disabledState: RentalAdAssistantActionState = {
+  ok: false,
+  error: "Rental Ad Assistant is disabled.",
+  completedAt: Date.now(),
+};
+
+function disabledActionState(): RentalAdAssistantActionState {
+  return { ...disabledState, completedAt: Date.now() };
+}
 
 function wrapActionError(error: unknown): RentalAdAssistantActionState {
   if (error instanceof StaffAuthError) {
@@ -51,6 +62,9 @@ async function revalidatePropertyForUnit(unitId: string) {
 export async function loadRentalAdAssistantDraftAction(
   unitId: string,
 ): Promise<RentalAdAssistantActionResult> {
+  if (!isRentalAdAssistantEnabled()) {
+    return disabledActionState();
+  }
   try {
     const ctx = await requireStaffContextFromSession();
     return await handleLoadRentalAdAssistantDraft(prisma, ctx, unitId);
@@ -63,6 +77,9 @@ export async function saveRentalAdAssistantDraftAction(
   _prev: RentalAdAssistantActionState,
   formData: FormData,
 ): Promise<RentalAdAssistantActionState> {
+  if (!isRentalAdAssistantEnabled()) {
+    return disabledActionState();
+  }
   try {
     const ctx = await requireStaffContextFromSession();
     const unitId = formData.get("unitId");
@@ -100,6 +117,9 @@ export async function generateRentalAdAssistantDraftAction(
   _prev: RentalAdAssistantActionState,
   formData: FormData,
 ): Promise<RentalAdAssistantActionState> {
+  if (!isRentalAdAssistantEnabled()) {
+    return disabledActionState();
+  }
   try {
     const ctx = await requireStaffContextFromSession();
     const unitId = formData.get("unitId");
@@ -131,6 +151,9 @@ export async function clearRentalAdAssistantDraftOutputAction(
   _prev: RentalAdAssistantActionState,
   formData: FormData,
 ): Promise<RentalAdAssistantActionState> {
+  if (!isRentalAdAssistantEnabled()) {
+    return disabledActionState();
+  }
   try {
     const ctx = await requireStaffContextFromSession();
     const unitId = formData.get("unitId");

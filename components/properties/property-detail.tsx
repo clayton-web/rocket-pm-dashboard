@@ -1,7 +1,6 @@
 "use client";
 
 import { createUnitAction } from "@/app/(dashboard)/properties/actions";
-import { RentalAdAssistantPanel } from "@/components/properties/rental-ad-assistant-panel";
 import {
   FormField,
   FormSection,
@@ -10,7 +9,6 @@ import {
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
-import type { RentalAdAssistantDraftDto } from "@/lib/rental-ad-assistant/draft-dto";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -46,22 +44,14 @@ function formatCityLine(
   return `${detail.city}, ${detail.province} ${detail.postalCode}, ${detail.country}`;
 }
 
-export type PropertyDetailRentalAdAssistant = {
-  aiGenerationConfigured: boolean;
-  canEdit: boolean;
-  draftsByUnitId: Record<string, RentalAdAssistantDraftDto | null>;
-};
-
 export function PropertyDetail({
   detail,
   canAddUnit,
   loadError,
-  rentalAdAssistant,
 }: {
   detail: PropertyDetailData | null;
   canAddUnit: boolean;
   loadError: string | null;
-  rentalAdAssistant?: PropertyDetailRentalAdAssistant;
 }) {
   if (loadError || !detail) {
     return (
@@ -76,23 +66,15 @@ export function PropertyDetail({
     );
   }
 
-  return (
-    <PropertyDetailBody
-      detail={detail}
-      canAddUnit={canAddUnit}
-      rentalAdAssistant={rentalAdAssistant}
-    />
-  );
+  return <PropertyDetailBody detail={detail} canAddUnit={canAddUnit} />;
 }
 
 function PropertyDetailBody({
   detail,
   canAddUnit,
-  rentalAdAssistant,
 }: {
   detail: PropertyDetailData;
   canAddUnit: boolean;
-  rentalAdAssistant?: PropertyDetailRentalAdAssistant;
 }) {
   const router = useRouter();
   const unitNumberId = useId();
@@ -171,19 +153,6 @@ function PropertyDetailBody({
                 ) : null}
                 {!unit.isActive ? (
                   <span className="text-neutral-500"> · Inactive</span>
-                ) : null}
-                {rentalAdAssistant ? (
-                  <RentalAdAssistantPanel
-                    unitId={unit.id}
-                    unitLabel={unit.unitNumber}
-                    unitFloor={unit.floor}
-                    unitBedrooms={unit.bedrooms}
-                    addressDisplay={formatStreetLine(detail)}
-                    cityLine={formatCityLine(detail)}
-                    initialDraft={rentalAdAssistant.draftsByUnitId[unit.id] ?? null}
-                    aiGenerationConfigured={rentalAdAssistant.aiGenerationConfigured}
-                    canEdit={rentalAdAssistant.canEdit}
-                  />
                 ) : null}
               </li>
             ))}

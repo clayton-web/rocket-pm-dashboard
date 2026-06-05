@@ -2,18 +2,11 @@ import { auth } from "@/auth";
 import { PropertyDetail, type PropertyDetailData } from "@/components/properties/property-detail";
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
-import {
-  isOpenAiConfiguredForRentalAdAssistant,
-  rentalAdAssistantDraftToDto,
-} from "@/lib/rental-ad-assistant/draft-dto";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
-import { getRentalAdAssistantDraftForUnit } from "@/lib/services/rental-ad-assistant-draft.service";
 import { getPropertyById } from "@/lib/services/property.service";
 import { listUnitsForProperty } from "@/lib/services/unit.service";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
 import { redirect } from "next/navigation";
-
-export const maxDuration = 60;
 
 type PageProps = {
   params: Promise<{ propertyId: string }>;
@@ -71,34 +64,10 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       })),
     };
 
-    const canEditRentalAdAssistant = canManagePropertyUnits(ctx, propertyId);
-    const draftsByUnitId: Record<string, ReturnType<typeof rentalAdAssistantDraftToDto> | null> =
-      {};
-
-    if (canEditRentalAdAssistant) {
-      await Promise.all(
-        units.map(async (unit) => {
-          const draft = await getRentalAdAssistantDraftForUnit(prisma, ctx, unit.id);
-          draftsByUnitId[unit.id] = draft ? rentalAdAssistantDraftToDto(draft) : null;
-        }),
-      );
-    }
+    const canAddUnit = canManagePropertyUnits(ctx, propertyId);
 
     return (
-      <PropertyDetail
-        detail={detail}
-        canAddUnit={canEditRentalAdAssistant}
-        loadError={null}
-        rentalAdAssistant={
-          canEditRentalAdAssistant
-            ? {
-                aiGenerationConfigured: isOpenAiConfiguredForRentalAdAssistant(),
-                canEdit: true,
-                draftsByUnitId,
-              }
-            : undefined
-        }
-      />
+      <PropertyDetail detail={detail} canAddUnit={canAddUnit} loadError={null} />
     );
   } catch (e) {
     if (e instanceof NotFoundError || e instanceof ForbiddenError) {
