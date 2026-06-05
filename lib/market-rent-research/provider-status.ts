@@ -30,25 +30,6 @@ export function buildCraigslistProviderStatus(args: {
   };
 }
 
-export function providerStatusUiMessage(status: ProviderFetchStatus): string {
-  switch (status.status) {
-    case "success":
-      return status.listingCount > 0
-        ? `Craigslist · ${status.listingCount} listing(s)`
-        : "Craigslist returned no results";
-    case "timeout":
-      return "Craigslist timed out";
-    case "blocked":
-      return "Craigslist unavailable (blocked or rate limited)";
-    case "http_error":
-      return "Craigslist unavailable";
-    case "no_results":
-      return "Craigslist returned no results";
-    default:
-      return "Craigslist";
-  }
-}
-
 export function logProviderFailure(
   source: string,
   status: ProviderSourceStatus,

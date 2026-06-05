@@ -6,7 +6,7 @@ import {
   MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
   MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE,
 } from "./constants";
-import { providerStatusUiMessage } from "./provider-status";
+import { providerStatusUiMessage } from "./provider-status-ui";
 import { buildCraigslistProviderStatus } from "./provider-status";
 
 describe("market rent research panel UI copy", () => {
@@ -41,7 +41,7 @@ describe("market rent research panel UI copy", () => {
     );
     assert.match(source, /Listing sources/);
     assert.match(source, /MARKET_RENT_FIXTURE_SAMPLE_NOTE/);
-    assert.match(source, /providerStatusUiMessage/);
+    assert.match(source, /provider-status-ui/);
     assert.match(source, /Suggested advertising rent/);
   });
 });

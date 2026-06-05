@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  marketRentResearchIdleState,
-  runMarketRentResearchAction,
-} from "@/app/(dashboard)/properties/market-rent-research-actions";
+import { runMarketRentResearchAction } from "@/app/(dashboard)/properties/market-rent-research-actions";
 import {
   FormField,
   InlineNotice,
@@ -15,7 +12,8 @@ import {
   MARKET_RENT_RESEARCH_DISCLAIMER,
   MARKET_RENT_RESEARCH_PANEL_TITLE,
 } from "@/lib/market-rent-research/constants";
-import { providerStatusUiMessage } from "@/lib/market-rent-research/provider-status";
+import { marketRentResearchIdleState } from "@/lib/market-rent-research/idle-action-state";
+import { providerStatusUiMessage } from "@/lib/market-rent-research/provider-status-ui";
 import type { MarketRentResearchResult } from "@/lib/market-rent-research/types";
 import {
   MARKET_RENT_FURNISHED_VALUES,

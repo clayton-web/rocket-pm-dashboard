@@ -5,8 +5,8 @@ import type { ProviderFetchStatus } from "@/lib/scrapers/types";
 import {
   buildCraigslistProviderStatus,
   classifyCraigslistFetchError,
-  providerStatusUiMessage,
 } from "./provider-status";
+import { providerStatusUiMessage } from "./provider-status-ui";
 
 describe("classifyCraigslistFetchError", () => {
   it("maps HTTP 500 to http_error", () => {

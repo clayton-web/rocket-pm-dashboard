@@ -1,7 +1,6 @@
 "use client";
 
 import { createUnitAction } from "@/app/(dashboard)/properties/actions";
-import { MarketRentResearchPanel } from "@/components/properties/market-rent-research-panel";
 import {
   FormField,
   FormSection,
@@ -11,9 +10,18 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
+
+const MarketRentResearchPanel = dynamic(
+  () =>
+    import("@/components/properties/market-rent-research-panel").then(
+      (module) => module.MarketRentResearchPanel,
+    ),
+  { ssr: false },
+);
 
 export type PropertyDetailUnit = {
   id: string;

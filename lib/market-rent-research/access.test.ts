@@ -4,6 +4,7 @@ import type { StaffContext } from "@/lib/services/staff-context";
 import {
   canRunMarketRentResearch,
   resolvePropertyDetailMarketRentResearch,
+  safeResolvePropertyDetailMarketRentResearch,
 } from "./access";
 
 const PROPERTY_ID = "prop_test";
@@ -73,5 +74,41 @@ describe("market rent research access", () => {
       }),
       undefined,
     );
+  });
+
+  it("safeResolve treats invalid env values as disabled", () => {
+    const previous = process.env.MARKET_RENT_RESEARCH_ENABLED;
+    process.env.MARKET_RENT_RESEARCH_ENABLED = "not-a-boolean";
+    try {
+      assert.doesNotThrow(() => {
+        assert.equal(
+          safeResolvePropertyDetailMarketRentResearch({ canManagePropertyUnits: true }),
+          undefined,
+        );
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MARKET_RENT_RESEARCH_ENABLED;
+      } else {
+        process.env.MARKET_RENT_RESEARCH_ENABLED = previous;
+      }
+    }
+  });
+
+  it("safeResolve enables panel when flag is on and user can manage units", () => {
+    const previous = process.env.MARKET_RENT_RESEARCH_ENABLED;
+    process.env.MARKET_RENT_RESEARCH_ENABLED = "true";
+    try {
+      assert.deepEqual(
+        safeResolvePropertyDetailMarketRentResearch({ canManagePropertyUnits: true }),
+        { enabled: true },
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MARKET_RENT_RESEARCH_ENABLED;
+      } else {
+        process.env.MARKET_RENT_RESEARCH_ENABLED = previous;
+      }
+    }
   });
 });

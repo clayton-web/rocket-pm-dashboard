@@ -8,13 +8,6 @@ import { isMarketRentResearchEnabled } from "@/lib/market-rent-research/feature-
 import type { MarketRentResearchActionResult, MarketRentResearchActionState } from "@/lib/market-rent-research/types";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
 
-const idleState: MarketRentResearchActionState = {
-  ok: true,
-  status: "no_providers",
-  message: "",
-  completedAt: 0,
-};
-
 function wrapActionError(error: unknown): MarketRentResearchActionState {
   if (error instanceof StaffAuthError) {
     return { ok: false, error: error.message, completedAt: Date.now() };
@@ -63,5 +56,3 @@ export async function runMarketRentResearchAction(
     return wrapActionError(error);
   }
 }
-
-export { idleState as marketRentResearchIdleState };
