@@ -2,21 +2,30 @@ import type {
   MarketRentResearchInputs,
   MarketRentSourceId,
 } from "@/lib/validation/market-rent-research";
+import { loadMarketRentSampleFixtureListings } from "@/lib/scrapers/fixtures/market-rent-sample-comps";
 import { isMarketRentScrapeCraigslistEnabled } from "@/lib/scrapers/feature-flag";
 import { dedupeListings } from "@/lib/scrapers/normalize/dedupe-listings";
 import { normalizeScraperListings } from "@/lib/scrapers/normalize/normalize-listing";
 import {
-  fetchCraigslistRentals,
+  fetchCraigslistRentalsWithRetry,
   type CraigslistFetchFn,
 } from "@/lib/scrapers/providers/craigslist/craigslist-client";
 import { buildCraigslistSearchParams } from "@/lib/scrapers/search/build-search-query";
 import type { NormalizedComparable, ProviderFetchStatus, RawScraperListing } from "@/lib/scrapers/types";
 import {
+  MARKET_RENT_FIXTURE_SAMPLE_NOTE,
   MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
   MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE,
+  MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE,
 } from "./constants";
+import { isMarketRentUseFixtureCompsEnabled } from "./fixture-flag";
 import { applyOutlierExclusions, matchComparableListings } from "./matching";
 import { isOpenAiApiKeyConfigured, type CreateMarketRentChatJsonCompletion } from "./openai-client";
+import {
+  buildCraigslistProviderStatus,
+  classifyCraigslistFetchError,
+  logProviderFailure,
+} from "./provider-status";
 import {
   computeConfidenceFromCompCount,
   computeDeterministicSuggestedRent,
@@ -30,7 +39,11 @@ import type { MarketRentComparableListing, MarketRentResearchResult } from "./ty
 export type MarketRentResearchRunResult =
   | { ok: true; status: "success"; result: MarketRentResearchResult; statistics: RentStatistics }
   | { ok: true; status: "no_providers"; message: string }
-  | { ok: false; error: string };
+  | {
+      ok: false;
+      error: string;
+      providerStatuses: ProviderFetchStatus[];
+    };
 
 export type RunMarketRentResearchOptions = {
   fetchCraigslist?: CraigslistFetchFn;
@@ -63,11 +76,78 @@ function buildExplanation(
   if (stats.median != null) {
     parts.push(`Craigslist median asking rent: $${Math.round(stats.median)} CAD.`);
   }
-  const failed = providerStatuses.filter((status) => !status.ok);
+  const failed = providerStatuses.filter((status) => status.status !== "success");
   if (failed.length > 0) {
-    parts.push(`Source notes: ${failed.map((f) => f.error).filter(Boolean).join("; ")}`);
+    parts.push(
+      `Source notes: ${failed.map((f) => f.errorMessage).filter(Boolean).join("; ")}`,
+    );
   }
   return parts.join(" ");
+}
+
+async function fetchRawListings(
+  inputs: MarketRentResearchInputs,
+  options?: RunMarketRentResearchOptions,
+): Promise<{
+  rawListings: RawScraperListing[];
+  providerStatus: ProviderFetchStatus;
+  usedFixtureComps: boolean;
+  dataQualityNotes: string[];
+}> {
+  const dataQualityNotes: string[] = [];
+
+  if (isMarketRentUseFixtureCompsEnabled()) {
+    const rawListings = loadMarketRentSampleFixtureListings(inputs.city);
+    dataQualityNotes.push(MARKET_RENT_FIXTURE_SAMPLE_NOTE);
+    return {
+      rawListings,
+      providerStatus: buildCraigslistProviderStatus({
+        status: "success",
+        listingCount: rawListings.length,
+      }),
+      usedFixtureComps: true,
+      dataQualityNotes,
+    };
+  }
+
+  try {
+    const params = buildCraigslistSearchParams(inputs);
+    const rawListings = await fetchCraigslistRentalsWithRetry(params, {
+      fetchFn: options?.fetchCraigslist,
+      timeoutMs: options?.craigslistTimeoutMs,
+      cityDisplay: inputs.city,
+    });
+
+    const status =
+      rawListings.length === 0
+        ? buildCraigslistProviderStatus({ status: "no_results", listingCount: 0 })
+        : buildCraigslistProviderStatus({ status: "success", listingCount: rawListings.length });
+
+    if (rawListings.length === 0) {
+      dataQualityNotes.push("Craigslist returned zero raw listings for this search.");
+    }
+
+    return {
+      rawListings,
+      providerStatus: status,
+      usedFixtureComps: false,
+      dataQualityNotes,
+    };
+  } catch (error) {
+    const { status, errorMessage } = classifyCraigslistFetchError(error);
+    logProviderFailure("craigslist", status, errorMessage, { city: inputs.city });
+    dataQualityNotes.push(`Craigslist: ${errorMessage}`);
+    return {
+      rawListings: [],
+      providerStatus: buildCraigslistProviderStatus({
+        status,
+        listingCount: 0,
+        errorMessage,
+      }),
+      usedFixtureComps: false,
+      dataQualityNotes,
+    };
+  }
 }
 
 export async function runMarketRentResearch(
@@ -79,32 +159,9 @@ export async function runMarketRentResearch(
     return { ok: true, status: "no_providers", message: MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE };
   }
 
-  const providerStatuses: ProviderFetchStatus[] = [];
-  const dataQualityNotes: string[] = [];
-  let rawListings: RawScraperListing[] = [];
-
-  try {
-    const params = buildCraigslistSearchParams(inputs);
-    rawListings = await fetchCraigslistRentals(params, {
-      fetchFn: options?.fetchCraigslist,
-      timeoutMs: options?.craigslistTimeoutMs,
-      cityDisplay: inputs.city,
-    });
-    providerStatuses.push({
-      source: "craigslist",
-      ok: true,
-      listingCount: rawListings.length,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Craigslist search failed.";
-    providerStatuses.push({
-      source: "craigslist",
-      ok: false,
-      listingCount: 0,
-      error: message,
-    });
-    dataQualityNotes.push(`Craigslist: ${message}`);
-  }
+  const { rawListings, providerStatus, usedFixtureComps, dataQualityNotes } =
+    await fetchRawListings(inputs, options);
+  const providerStatuses: ProviderFetchStatus[] = [providerStatus];
 
   const normalized = dedupeListings(normalizeScraperListings(rawListings));
   const { matched, excluded } = matchComparableListings(inputs, normalized);
@@ -112,17 +169,29 @@ export async function runMarketRentResearch(
   const allExcluded = [...excluded, ...outlierExcluded];
 
   if (kept.length === 0) {
-    if (providerStatuses.every((status) => !status.ok)) {
-      return { ok: false, error: dataQualityNotes[0] ?? "Listing source request failed." };
+    if (providerStatus.status !== "success") {
+      return {
+        ok: false,
+        error: MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE,
+        providerStatuses,
+      };
     }
-    return { ok: false, error: MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE };
+    return {
+      ok: false,
+      error: MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
+      providerStatuses,
+    };
   }
 
   const rents = kept.map((listing) => listing.monthlyRent);
   const statistics = computeRentStatistics(rents);
   const suggestedRent = computeDeterministicSuggestedRent(statistics);
   if (!suggestedRent) {
-    return { ok: false, error: MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE };
+    return {
+      ok: false,
+      error: MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
+      providerStatuses,
+    };
   }
 
   const missingFieldRatio = computeMissingFieldRatio(kept);
@@ -133,9 +202,6 @@ export async function runMarketRentResearch(
 
   if (outlierExcluded.length > 0) {
     dataQualityNotes.push(`Removed ${outlierExcluded.length} rent outlier(s) using IQR.`);
-  }
-  if (rawListings.length === 0) {
-    dataQualityNotes.push("Craigslist returned zero raw listings for this search.");
   }
 
   const result: MarketRentResearchResult = {
@@ -150,6 +216,8 @@ export async function runMarketRentResearch(
       craigslist: kept.length,
       rew: 0,
     },
+    providerStatuses,
+    usedFixtureComps,
     statistics,
     excludedCount: allExcluded.length,
     rawListingCount: rawListings.length,

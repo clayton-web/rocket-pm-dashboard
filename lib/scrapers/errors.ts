@@ -9,10 +9,12 @@ export class ScraperTimeoutError extends Error {
 
 export class ScraperFetchError extends Error {
   readonly provider: string;
+  readonly httpStatus?: number;
 
-  constructor(provider: string, message: string) {
+  constructor(provider: string, message: string, httpStatus?: number) {
     super(message);
     this.name = "ScraperFetchError";
     this.provider = provider;
+    this.httpStatus = httpStatus;
   }
 }

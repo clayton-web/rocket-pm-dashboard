@@ -4,6 +4,7 @@ import type {
   MarketRentResearchInputs,
   MarketRentSourceId,
 } from "@/lib/validation/market-rent-research";
+import type { ProviderFetchStatus } from "@/lib/scrapers/types";
 import type { RentStatistics } from "./stats";
 
 export type { MarketRentConfidence, MarketRentFurnished, MarketRentResearchInputs, MarketRentSourceId };
@@ -42,6 +43,8 @@ export type MarketRentResearchResult = {
   comparableListingsUsed: MarketRentComparableListing[];
   dataQualityNotes: string[];
   sourceBreakdown: MarketRentSourceBreakdown;
+  providerStatuses: ProviderFetchStatus[];
+  usedFixtureComps: boolean;
   statistics: RentStatistics;
   excludedCount: number;
   rawListingCount: number;
@@ -50,7 +53,7 @@ export type MarketRentResearchResult = {
 export type MarketRentResearchActionResult =
   | { ok: true; status: "success"; result: MarketRentResearchResult }
   | { ok: true; status: "no_providers"; message: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; providerStatuses?: ProviderFetchStatus[] };
 
 export type MarketRentResearchActionState = MarketRentResearchActionResult & {
   completedAt: number;

@@ -51,9 +51,16 @@ export type CraigslistSearchParams = {
   bedrooms: number;
 };
 
+export type ProviderSourceStatus =
+  | "success"
+  | "timeout"
+  | "blocked"
+  | "http_error"
+  | "no_results";
+
 export type ProviderFetchStatus = {
   source: ScraperSourceId;
-  ok: boolean;
+  status: ProviderSourceStatus;
   listingCount: number;
-  error?: string;
+  errorMessage?: string;
 };

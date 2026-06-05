@@ -3,8 +3,10 @@ import { afterEach, describe, it } from "node:test";
 import { readFile } from "node:fs/promises";
 import { ScraperFetchError } from "@/lib/scrapers/errors";
 import {
+  MARKET_RENT_FIXTURE_SAMPLE_NOTE,
   MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
   MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE,
+  MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE,
 } from "./constants";
 import { runMarketRentResearch } from "./run-market-rent-research";
 import { MARKET_RENT_OPENAI_FALLBACK_NOTE } from "./synthesize-with-openai";
@@ -90,12 +92,17 @@ const mockOpenAiSuccess = async () => ({
 describe("runMarketRentResearch", () => {
   const originalCraigslist = process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
   const originalOpenAi = process.env.OPENAI_API_KEY;
+  const originalFixture = process.env.MARKET_RENT_USE_FIXTURE_COMPS;
+  const originalNodeEnv = process.env.NODE_ENV;
 
   afterEach(() => {
     if (originalCraigslist === undefined) delete process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
     else process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = originalCraigslist;
     if (originalOpenAi === undefined) delete process.env.OPENAI_API_KEY;
     else process.env.OPENAI_API_KEY = originalOpenAi;
+    if (originalFixture === undefined) delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
+    else process.env.MARKET_RENT_USE_FIXTURE_COMPS = originalFixture;
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   it("returns no_providers when Craigslist flag is off", async () => {
@@ -118,18 +125,92 @@ describe("runMarketRentResearch", () => {
     assert.ok(result.result.suggestedRent.recommended > 0);
     assert.equal(result.result.explanationSource, "deterministic");
     assert.ok(result.result.comparableListingsUsed.length >= 3);
+    assert.equal(result.result.providerStatuses[0]?.status, "success");
+    assert.equal(result.result.usedFixtureComps, false);
   });
 
-  it("returns deterministic fallback when OpenAI key is missing", async () => {
+  it("returns http_error provider status when Craigslist fails", async () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
-    delete process.env.OPENAI_API_KEY;
     const result = await runMarketRentResearch(validInputs, {
-      fetchCraigslist: fixtureFetch(),
+      fetchCraigslist: async () => {
+        throw new ScraperFetchError("craigslist", "Craigslist search failed (500).", 500);
+      },
     });
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error, MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE);
+    assert.equal(result.providerStatuses[0]?.status, "http_error");
+  });
+
+  it("returns timeout provider status when Craigslist times out", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    const result = await runMarketRentResearch(validInputs, {
+      fetchCraigslist: async (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            const error = new Error("Aborted");
+            error.name = "AbortError";
+            reject(error);
+          });
+        }),
+      craigslistTimeoutMs: 5,
+    });
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.providerStatuses[0]?.status, "timeout");
+  });
+
+  it("does not call OpenAI when no valid comps", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    process.env.OPENAI_API_KEY = "test-key";
+    let openAiCalls = 0;
+    const result = await runMarketRentResearch(validInputs, {
+      fetchCraigslist: async () => {
+        throw new ScraperFetchError("craigslist", "Craigslist search failed (503).", 503);
+      },
+      createOpenAiCompletion: async () => {
+        openAiCalls += 1;
+        return mockOpenAiSuccess();
+      },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(openAiCalls, 0);
+  });
+
+  it("returns stable no-results state when listings do not match criteria", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    const result = await runMarketRentResearch(
+      { ...validInputs, city: "Victoria", bedrooms: 5 },
+      { fetchCraigslist: fixtureFetch() },
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error, MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE);
+    assert.equal(result.providerStatuses[0]?.status, "success");
+  });
+
+  it("uses fixture comps when fixture flag is enabled in non-production", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    process.env.MARKET_RENT_USE_FIXTURE_COMPS = "true";
+    process.env.NODE_ENV = "development";
+    delete process.env.OPENAI_API_KEY;
+
+    const result = await runMarketRentResearch({
+      city: "Port Moody",
+      propertyType: "Condo",
+      bedrooms: 2,
+      bathrooms: 2,
+      sqft: 850,
+    });
+
     assert.equal(result.ok, true);
     if (!result.ok || result.status !== "success") return;
-    assert.equal(result.result.explanationSource, "deterministic");
-    assert.ok(result.result.suggestedRent.recommended > 0);
+    assert.equal(result.result.usedFixtureComps, true);
+    assert.ok(result.result.dataQualityNotes.some((note) => note.includes(MARKET_RENT_FIXTURE_SAMPLE_NOTE)));
+    assert.ok(result.result.comparableListingsUsed.length >= 3);
   });
 
   it("uses OpenAI explanation when mocked completion succeeds", async () => {
@@ -161,41 +242,14 @@ describe("runMarketRentResearch", () => {
     assert.ok(result.result.suggestedRent.recommended > 0);
     assert.ok(result.result.dataQualityNotes.some((note) => note.includes(MARKET_RENT_OPENAI_FALLBACK_NOTE)));
   });
-
-  it("returns graceful error when provider fails", async () => {
-    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
-    const result = await runMarketRentResearch(validInputs, {
-      fetchCraigslist: async () => {
-        throw new ScraperFetchError("craigslist", "Craigslist search failed (503).");
-      },
-    });
-
-    assert.equal(result.ok, false);
-    if (result.ok) return;
-    assert.match(result.error, /Craigslist search failed/);
-  });
-
-  it("returns no comps message when listings do not match criteria", async () => {
-    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
-    const result = await runMarketRentResearch(
-      { ...validInputs, city: "Victoria", bedrooms: 5 },
-      { fetchCraigslist: fixtureFetch() },
-    );
-
-    assert.equal(result.ok, false);
-    if (result.ok) return;
-    assert.equal(result.error, MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE);
-  });
 });
 
-describe("market rent research PR3 boundaries", () => {
-  it("does not import Gemini or old rental ad assistant modules", async () => {
+describe("market rent research PR4 boundaries", () => {
+  it("does not import REW, Gemini, or old rental ad assistant modules", async () => {
     const files = [
       "./run-market-rent-research.ts",
-      "./openai-client.ts",
-      "./build-openai-prompt.ts",
-      "./parse-openai-output.ts",
-      "./synthesize-with-openai.ts",
+      "./provider-status.ts",
+      "./fixture-flag.ts",
       "./action-handlers.ts",
     ];
 
@@ -203,7 +257,7 @@ describe("market rent research PR3 boundaries", () => {
       const source = await readFile(new URL(relativePath, import.meta.url), "utf8");
       assert.doesNotMatch(source, /from ["']@\/lib\/ai\//);
       assert.doesNotMatch(source, /from ["']@\/lib\/rental-ad-assistant\//);
-      assert.doesNotMatch(source, /gemini/i);
+      assert.doesNotMatch(source, /from ["']@\/lib\/scrapers\/providers\/rew/);
     }
   });
 

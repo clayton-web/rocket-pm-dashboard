@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ScraperTimeoutError } from "../../errors";
-import { fetchCraigslistRentals, fetchCraigslistSearchPayload } from "./craigslist-client";
+import {
+  fetchCraigslistRentals,
+  fetchCraigslistRentalsWithRetry,
+  fetchCraigslistSearchPayload,
+} from "./craigslist-client";
 import { mapCraigslistSearchPayload } from "./craigslist-mapper";
 
 const FIXTURE_PAYLOAD = {
@@ -103,5 +107,27 @@ describe("fetchCraigslistRentals", () => {
         ),
       (error: unknown) => error instanceof ScraperTimeoutError,
     );
+  });
+
+  it("retries once on HTTP 500 then succeeds", async () => {
+    let attempts = 0;
+    const fetchFn = async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return new Response("error", { status: 500 });
+      }
+      return new Response(JSON.stringify(FIXTURE_PAYLOAD), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+
+    const listings = await fetchCraigslistRentalsWithRetry(
+      { citySlug: "vancouver", query: "Vancouver 2br condo", bedrooms: 2 },
+      { fetchFn, cityDisplay: "Vancouver" },
+    );
+
+    assert.equal(attempts, 2);
+    assert.equal(listings.length, 2);
   });
 });

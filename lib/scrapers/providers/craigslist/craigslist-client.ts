@@ -6,6 +6,7 @@ import type { RawScraperListing } from "../../types";
 export type CraigslistFetchFn = (url: string, init?: RequestInit) => Promise<Response>;
 
 const DEFAULT_TIMEOUT_MS = 8_000;
+const RETRY_BACKOFF_MS = 400;
 const SEARCH_API = "https://sapi.craigslist.org/web/v8/postings/search/full";
 
 function buildSearchUrl(params: CraigslistSearchParams): string {
@@ -17,6 +18,18 @@ function buildSearchUrl(params: CraigslistSearchParams): string {
     batch: "0-360-0-0-0-0-0-0-0-0",
   });
   return `${SEARCH_API}?${searchParams.toString()}`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldRetryCraigslistFetch(error: unknown): boolean {
+  if (error instanceof ScraperTimeoutError) return true;
+  if (error instanceof ScraperFetchError && error.httpStatus != null && error.httpStatus >= 500) {
+    return true;
+  }
+  return false;
 }
 
 export async function fetchCraigslistSearchPayload(
@@ -47,6 +60,7 @@ export async function fetchCraigslistSearchPayload(
       throw new ScraperFetchError(
         "craigslist",
         `Craigslist search failed (${response.status}).`,
+        response.status,
       );
     }
 
@@ -74,4 +88,22 @@ export async function fetchCraigslistRentals(
   const payload = await fetchCraigslistSearchPayload(params, options);
   const city = options?.cityDisplay ?? params.citySlug;
   return mapCraigslistSearchPayload(payload, city);
+}
+
+/** Fetches Craigslist listings with one retry on timeout or HTTP 5xx. */
+export async function fetchCraigslistRentalsWithRetry(
+  params: CraigslistSearchParams,
+  options?: {
+    fetchFn?: CraigslistFetchFn;
+    timeoutMs?: number;
+    cityDisplay?: string;
+  },
+): Promise<RawScraperListing[]> {
+  try {
+    return await fetchCraigslistRentals(params, options);
+  } catch (error) {
+    if (!shouldRetryCraigslistFetch(error)) throw error;
+    await sleep(RETRY_BACKOFF_MS);
+    return await fetchCraigslistRentals(params, options);
+  }
 }

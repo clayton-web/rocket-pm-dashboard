@@ -70,7 +70,11 @@ export async function handleRunMarketRentResearch(
   const runResult = await runMarketRentResearch(parsedInputs, args.researchOptions);
 
   if (!runResult.ok) {
-    return { ok: false, error: runResult.error };
+    return {
+      ok: false,
+      error: runResult.error,
+      providerStatuses: runResult.providerStatuses,
+    };
   }
 
   if (runResult.status === "no_providers") {

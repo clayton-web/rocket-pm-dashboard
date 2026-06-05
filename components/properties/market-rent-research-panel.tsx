@@ -11,9 +11,11 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import {
+  MARKET_RENT_FIXTURE_SAMPLE_NOTE,
   MARKET_RENT_RESEARCH_DISCLAIMER,
   MARKET_RENT_RESEARCH_PANEL_TITLE,
 } from "@/lib/market-rent-research/constants";
+import { providerStatusUiMessage } from "@/lib/market-rent-research/provider-status";
 import type { MarketRentResearchResult } from "@/lib/market-rent-research/types";
 import {
   MARKET_RENT_FURNISHED_VALUES,
@@ -87,6 +89,21 @@ function ResearchResults({ result }: { result: MarketRentResearchResult }) {
   const stats = result.statistics;
   return (
     <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
+      {result.usedFixtureComps ? (
+        <InlineNotice>{MARKET_RENT_FIXTURE_SAMPLE_NOTE}</InlineNotice>
+      ) : null}
+
+      {result.providerStatuses.length > 0 ? (
+        <section className="text-xs text-neutral-600">
+          <h3 className="font-semibold text-neutral-800">Listing sources</h3>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {result.providerStatuses.map((status) => (
+              <li key={status.source}>{providerStatusUiMessage(status)}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section>
         <h3 className="text-sm font-semibold text-neutral-900">Suggested advertising rent</h3>
         <ul className="mt-2 space-y-1 text-sm text-neutral-700">
