@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import type { PrismaClient } from "@prisma/client";
 import { ForbiddenError } from "@/lib/services/errors";
 import type { StaffContext } from "@/lib/services/staff-context";
 import { handleRunMarketRentResearch } from "./action-handlers";
-import { MARKET_RENT_RESEARCH_NOT_IMPLEMENTED_MESSAGE } from "./constants";
+import {
+  MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE,
+} from "./constants";
 
 const ORG_ID = "org_test";
 const PROPERTY_ID = "prop_test";
@@ -83,7 +85,15 @@ function createMockPrisma(state: MockState) {
 }
 
 describe("handleRunMarketRentResearch", () => {
-  it("returns not_implemented without DB writes for authorized PM/admin", async () => {
+  const originalCraigslist = process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
+
+  afterEach(() => {
+    if (originalCraigslist === undefined) delete process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
+    else process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = originalCraigslist;
+  });
+
+  it("returns no_providers without DB writes when Craigslist is disabled", async () => {
+    delete process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
     const state: MockState = {
       propertyUpdates: [],
       unitUpdates: [],
@@ -99,8 +109,8 @@ describe("handleRunMarketRentResearch", () => {
 
     assert.equal(result.ok, true);
     if (!result.ok) return;
-    assert.equal(result.status, "not_implemented");
-    assert.equal(result.message, MARKET_RENT_RESEARCH_NOT_IMPLEMENTED_MESSAGE);
+    assert.equal(result.status, "no_providers");
+    assert.equal(result.message, MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE);
     assert.equal(state.propertyUpdates.length, 0);
     assert.equal(state.unitUpdates.length, 0);
     assert.equal(state.tenancyWrites.length, 0);
@@ -145,13 +155,13 @@ describe("handleRunMarketRentResearch", () => {
   });
 });
 
-describe("market rent research PR1 boundaries", () => {
-  it("does not import OpenAI or scraper modules from action-handlers", async () => {
+describe("market rent research PR2 boundaries", () => {
+  it("does not import OpenAI from action-handlers", async () => {
     const source = await import("node:fs/promises").then((fs) =>
       fs.readFile(new URL("./action-handlers.ts", import.meta.url), "utf8"),
     );
     assert.doesNotMatch(source, /from ["']@\/lib\/ai\//);
-    assert.doesNotMatch(source, /from ["']@\/lib\/scrapers\//);
     assert.doesNotMatch(source, /from ["'].*openai/i);
+    assert.doesNotMatch(source, /from ["']@\/lib\/rental-ad-assistant\//);
   });
 });

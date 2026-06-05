@@ -1,7 +1,6 @@
 /**
  * Market Rent Research action handlers — reference tool only.
  * Does not write to Tenancy, Property, Unit, Application, lease/RTB-1, or portal records.
- * PR 1: validates access and inputs; no scraping, OpenAI, or persistence.
  */
 import type { PrismaClient } from "@prisma/client";
 import { parseMarketRentResearchInputs } from "@/lib/validation/market-rent-research";
@@ -14,8 +13,8 @@ import {
 } from "@/lib/services/property-access";
 import { NotFoundError } from "@/lib/services/errors";
 import type { StaffContext } from "@/lib/services/staff-context";
-import { MARKET_RENT_RESEARCH_NOT_IMPLEMENTED_MESSAGE } from "./constants";
-import type { MarketRentResearchActionResult } from "./types";
+import { runMarketRentResearch, type RunMarketRentResearchOptions } from "./run-market-rent-research";
+import { serializeMarketRentResearchResult, type MarketRentResearchActionResult } from "./types";
 
 async function getUnitPropertyId(
   prisma: PrismaClient,
@@ -56,6 +55,7 @@ export async function handleRunMarketRentResearch(
   args: {
     unitId: string;
     inputs: unknown;
+    researchOptions?: RunMarketRentResearchOptions;
   },
 ): Promise<MarketRentResearchActionResult> {
   const trimmedUnitId = args.unitId.trim();
@@ -67,9 +67,19 @@ export async function handleRunMarketRentResearch(
   const propertyId = await getUnitPropertyId(prisma, principal, trimmedUnitId);
   await requireResearchEditorAccess(prisma, principal, propertyId);
 
+  const runResult = await runMarketRentResearch(parsedInputs, args.researchOptions);
+
+  if (!runResult.ok) {
+    return { ok: false, error: runResult.error };
+  }
+
+  if (runResult.status === "no_providers") {
+    return { ok: true, status: "no_providers", message: runResult.message };
+  }
+
   return {
     ok: true,
-    status: "not_implemented",
-    message: MARKET_RENT_RESEARCH_NOT_IMPLEMENTED_MESSAGE,
+    status: "success",
+    result: serializeMarketRentResearchResult(runResult.result),
   };
 }

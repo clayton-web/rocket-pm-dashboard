@@ -4,6 +4,7 @@ import type {
   MarketRentResearchInputs,
   MarketRentSourceId,
 } from "@/lib/validation/market-rent-research";
+import type { RentStatistics } from "./stats";
 
 export type { MarketRentConfidence, MarketRentFurnished, MarketRentResearchInputs, MarketRentSourceId };
 
@@ -18,6 +19,7 @@ export type MarketRentSuggestedRent = {
 export type MarketRentComparableListing = {
   source: MarketRentSourceId;
   sourceUrl: string;
+  title: string;
   monthlyRent: number;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -31,7 +33,6 @@ export type MarketRentSourceBreakdown = {
   rew: number;
 };
 
-/** Placeholder result shape for future OpenAI synthesis (PR 1: not populated). */
 export type MarketRentResearchResult = {
   suggestedRent: MarketRentSuggestedRent;
   confidence: MarketRentConfidence;
@@ -40,12 +41,23 @@ export type MarketRentResearchResult = {
   comparableListingsUsed: MarketRentComparableListing[];
   dataQualityNotes: string[];
   sourceBreakdown: MarketRentSourceBreakdown;
+  statistics: RentStatistics;
+  excludedCount: number;
+  rawListingCount: number;
 };
 
 export type MarketRentResearchActionResult =
-  | { ok: true; status: "not_implemented"; message: string }
+  | { ok: true; status: "success"; result: MarketRentResearchResult }
+  | { ok: true; status: "no_providers"; message: string }
   | { ok: false; error: string };
 
 export type MarketRentResearchActionState = MarketRentResearchActionResult & {
   completedAt: number;
 };
+
+/** Ensures server-action responses contain only JSON-serializable plain data. */
+export function serializeMarketRentResearchResult(
+  result: MarketRentResearchResult,
+): MarketRentResearchResult {
+  return JSON.parse(JSON.stringify(result)) as MarketRentResearchResult;
+}

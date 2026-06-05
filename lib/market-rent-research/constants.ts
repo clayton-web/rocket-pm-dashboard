@@ -5,5 +5,8 @@ export const MARKET_RENT_RESEARCH_DISCLAIMER =
 
 export const MARKET_RENT_RESEARCH_DISABLED_MESSAGE = "Market Rent Research is disabled.";
 
-export const MARKET_RENT_RESEARCH_NOT_IMPLEMENTED_MESSAGE =
-  "Market rent research will search comparable listings in a future release.";
+export const MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE =
+  "No listing sources are enabled. Set MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED=true to search Craigslist.";
+
+export const MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE =
+  "No comparable listings found. Try broadening the search.";

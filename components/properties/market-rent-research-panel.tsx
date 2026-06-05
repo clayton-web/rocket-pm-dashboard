@@ -14,6 +14,7 @@ import {
   MARKET_RENT_RESEARCH_DISCLAIMER,
   MARKET_RENT_RESEARCH_PANEL_TITLE,
 } from "@/lib/market-rent-research/constants";
+import type { MarketRentResearchResult } from "@/lib/market-rent-research/types";
 import {
   MARKET_RENT_FURNISHED_VALUES,
   type MarketRentResearchInputs,
@@ -78,6 +79,85 @@ function formToInputs(form: FormState): MarketRentResearchInputs {
   return inputs;
 }
 
+function formatCurrency(amount: number): string {
+  return `$${amount.toLocaleString("en-CA")} CAD`;
+}
+
+function ResearchResults({ result }: { result: MarketRentResearchResult }) {
+  const stats = result.statistics;
+  return (
+    <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
+      <section>
+        <h3 className="text-sm font-semibold text-neutral-900">Suggested advertising rent</h3>
+        <ul className="mt-2 space-y-1 text-sm text-neutral-700">
+          <li>Conservative · {formatCurrency(result.suggestedRent.conservative)}</li>
+          <li>Recommended · {formatCurrency(result.suggestedRent.recommended)}</li>
+          <li>Aggressive · {formatCurrency(result.suggestedRent.aggressive)}</li>
+        </ul>
+        <p className="mt-2 text-sm text-neutral-600">
+          Confidence · {result.confidence} — {result.confidenceReason}
+        </p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{result.explanation}</p>
+      </section>
+
+      <section className="rounded-xl border border-neutral-200 bg-neutral-50 px-3.5 py-3 text-sm text-neutral-700">
+        <h3 className="font-semibold text-neutral-900">Statistics</h3>
+        <p className="mt-2">
+          Count {stats.count}
+          {stats.median != null ? ` · Median ${formatCurrency(stats.median)}` : ""}
+          {stats.mean != null ? ` · Mean ${formatCurrency(Math.round(stats.mean))}` : ""}
+          {stats.p25 != null && stats.p75 != null
+            ? ` · Range ${formatCurrency(stats.p25)}–${formatCurrency(stats.p75)}`
+            : ""}
+        </p>
+        <p className="mt-1 text-xs text-neutral-600">
+          Sources · Craigslist {result.sourceBreakdown.craigslist}
+          {result.sourceBreakdown.rew > 0 ? ` · REW ${result.sourceBreakdown.rew}` : ""}
+          {result.excludedCount > 0 ? ` · ${result.excludedCount} excluded` : ""}
+        </p>
+      </section>
+
+      {result.dataQualityNotes.length > 0 ? (
+        <section className="text-xs text-neutral-600">
+          <h3 className="font-semibold text-neutral-800">Data quality notes</h3>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            {result.dataQualityNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {result.comparableListingsUsed.length > 0 ? (
+        <section>
+          <h3 className="text-sm font-semibold text-neutral-900">Comparable listings used</h3>
+          <ul className="mt-2 space-y-2 text-sm text-neutral-700">
+            {result.comparableListingsUsed.map((listing) => (
+              <li key={`${listing.source}-${listing.sourceUrl}`} className="rounded-lg border border-neutral-200 px-3 py-2">
+                <a
+                  href={listing.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-neutral-900 underline"
+                >
+                  {listing.title}
+                </a>
+                <p className="mt-1 text-neutral-600">
+                  {formatCurrency(listing.monthlyRent)}
+                  {listing.bedrooms != null ? ` · ${listing.bedrooms} bed` : ""}
+                  {listing.bathrooms != null ? ` · ${listing.bathrooms} bath` : ""}
+                  {listing.sqft != null ? ` · ${listing.sqft} sqft` : ""}
+                  {` · ${listing.source}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
 const inputClassName = "w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm";
 
 export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
@@ -112,9 +192,18 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
 
   const actionMessage =
     researchState.completedAt > 0
-      ? researchState.ok
-        ? researchState.message
-        : researchState.error
+      ? !researchState.ok
+        ? researchState.error
+        : researchState.status === "no_providers"
+          ? researchState.message
+          : null
+      : null;
+
+  const successResult =
+    researchState.completedAt > 0 &&
+    researchState.ok &&
+    researchState.status === "success"
+      ? researchState.result
       : null;
 
   if (!canEdit) {
@@ -258,6 +347,7 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
         </form>
 
         {actionMessage ? <InlineNotice>{actionMessage}</InlineNotice> : null}
+        {successResult ? <ResearchResults result={successResult} /> : null}
       </div>
     </details>
   );

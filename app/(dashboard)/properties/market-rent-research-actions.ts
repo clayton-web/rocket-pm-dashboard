@@ -10,7 +10,7 @@ import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
 
 const idleState: MarketRentResearchActionState = {
   ok: true,
-  status: "not_implemented",
+  status: "no_providers",
   message: "",
   completedAt: 0,
 };
