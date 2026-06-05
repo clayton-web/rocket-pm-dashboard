@@ -6,9 +6,11 @@ import {
   InlineNotice,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import { InboxCrateNav, inboxCommandCenterQuery } from "@/components/inbox/inbox-crate-nav";
 import { InboxThreadRow } from "@/components/inbox/inbox-thread-row";
 import { ThreadList } from "@/components/inbox/thread-list";
 import type { InboxCommandCenterData } from "@/lib/inbox/inbox-command-center.service";
+import type { InboxCrateFilter } from "@/lib/inbox/email-thread-category";
 import type { InboxQueueParam } from "@/lib/inbox/inbox-thread-queues";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -118,18 +120,22 @@ export function InboxCommandCenter(props: {
   data: InboxCommandCenterData;
   mailboxId: string;
   queue: InboxQueueParam | null;
+  crate: InboxCrateFilter | null;
   lastSyncedAt: string | null;
 }) {
-  const { data, mailboxId, queue, lastSyncedAt } = props;
+  const { data, mailboxId, queue, crate, lastSyncedAt } = props;
   const { summary } = data;
 
   let filteredContent: ReactNode = null;
-  if (queue && data.filteredThreads) {
+  if ((crate || queue) && data.filteredThreads && data.filteredViewTitle) {
     filteredContent = (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-neutral-900">{QUEUE_TITLES[queue]}</h2>
-          <Link href={mailboxQuery(mailboxId)} className="text-sm font-medium text-neutral-900 underline">
+          <h2 className="text-lg font-semibold text-neutral-900">{data.filteredViewTitle}</h2>
+          <Link
+            href={inboxCommandCenterQuery(mailboxId)}
+            className="text-sm font-medium text-neutral-900 underline"
+          >
             Back to command center
           </Link>
         </div>
@@ -137,7 +143,7 @@ export function InboxCommandCenter(props: {
           mailboxId={mailboxId}
           threads={data.filteredThreads}
           lastSyncedAt={lastSyncedAt ? new Date(lastSyncedAt) : null}
-          emptyMessage={`No threads in ${QUEUE_TITLES[queue].toLowerCase()}.`}
+          emptyMessage={`No threads in ${data.filteredViewTitle.toLowerCase()}.`}
         />
       </div>
     );
@@ -145,6 +151,12 @@ export function InboxCommandCenter(props: {
 
   return (
     <div className="space-y-8">
+      <InboxCrateNav
+        mailboxId={mailboxId}
+        crateCounts={data.crateCounts}
+        activeCrate={crate}
+      />
+
       <div id="unread-inbound">
         <FormField label="Attention summary" htmlFor="inbox-command-center-summary">
         <output

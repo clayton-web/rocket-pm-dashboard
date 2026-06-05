@@ -1,4 +1,5 @@
 import { isPmContextLink, parseEmailThreadContextLinks, type PmContextLink } from "@/lib/ai/email-context-links";
+import type { EmailThreadCategory } from "@prisma/client";
 import type { LatestDraftSnapshot, LatestMessageSnapshot, InboxThreadRecord } from "@/lib/inbox/inbox-thread-data";
 import { getPmLinkDisplay, resolvePmLinkDisplay, type PmLinkDisplay } from "@/lib/inbox/pm-link-display";
 
@@ -18,6 +19,7 @@ export type InboxThreadDisplayRow = {
   lastMessageAt: string | null;
   isUnread: boolean;
   participantEmails: string[];
+  category: EmailThreadCategory;
   needsReply: boolean;
   unreadInbound: boolean;
   unlinked: boolean;
@@ -86,6 +88,7 @@ export async function buildInboxThreadDisplayRows(
       lastMessageAt: thread.lastMessageAt?.toISOString() ?? null,
       isUnread: thread.isUnread,
       participantEmails: thread.participantEmails,
+      category: thread.category,
       needsReply,
       unreadInbound,
       unlinked,

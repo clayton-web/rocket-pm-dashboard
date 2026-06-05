@@ -6,6 +6,7 @@ import { getActiveGmailSyncAccountIds } from "@/lib/gmail/enqueue-gmail-sync";
 import { getSyncFreshness } from "@/lib/gmail/sync-freshness";
 import { listMailboxesForInbox } from "@/lib/gmail/sync-permissions";
 import { getInboxCommandCenter } from "@/lib/inbox/inbox-command-center.service";
+import { isInboxCrateFilter } from "@/lib/inbox/email-thread-category";
 import { isInboxQueueParam } from "@/lib/inbox/inbox-thread-queues";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
 
@@ -13,6 +14,7 @@ type PageProps = {
   searchParams: Promise<{
     mailbox?: string;
     queue?: string;
+    crate?: string;
     sync?: string;
     sync_error?: string;
   }>;
@@ -65,7 +67,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
     ? mailboxes.find((m) => m.id === selectedMailboxId) ?? null
     : null;
 
-  const queue = isInboxQueueParam(params.queue) ? params.queue : null;
+  const crate = isInboxCrateFilter(params.crate) ? params.crate : null;
+  const queue = !crate && isInboxQueueParam(params.queue) ? params.queue : null;
 
   const commandCenter =
     selectedMailboxId && selectedMailbox
@@ -74,6 +77,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
           mailboxId: selectedMailboxId,
           mailboxStatus: selectedMailbox.status,
           queue,
+          crate,
         })
       : null;
 
@@ -101,6 +105,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
           data={commandCenter}
           mailboxId={selectedMailboxId}
           queue={queue}
+          crate={crate}
           lastSyncedAt={selectedMailbox?.lastSyncedAt?.toISOString() ?? null}
         />
       ) : null}

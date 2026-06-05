@@ -1,5 +1,7 @@
+import type { EmailThreadCategory } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import type { ParsedGmailMessage } from "@/lib/gmail/gmail-message-parser";
+import { resolveCategoryForNewSyncedThread } from "@/lib/inbox/sender-category-memory";
 
 type UpsertThreadArgs = {
   organizationId: string;
@@ -16,6 +18,33 @@ type UpsertThreadArgs = {
 
 export async function upsertSyncedThread(args: UpsertThreadArgs) {
   return prisma.$transaction(async (tx) => {
+    const existing = await tx.emailThread.findUnique({
+      where: {
+        connectedAccountId_providerThreadId: {
+          connectedAccountId: args.connectedAccountId,
+          providerThreadId: args.providerThreadId,
+        },
+      },
+      select: { id: true },
+    });
+
+    let createCategory: EmailThreadCategory = "UNCATEGORIZED";
+    let createCategorySource: string | undefined;
+    let createCategoryUpdatedAt: Date | undefined;
+
+    if (!existing) {
+      const resolved = await resolveCategoryForNewSyncedThread(tx, {
+        organizationId: args.organizationId,
+        connectedAccountId: args.connectedAccountId,
+        messages: args.messages,
+      });
+      if (resolved) {
+        createCategory = resolved.category;
+        createCategorySource = resolved.categorySource;
+        createCategoryUpdatedAt = resolved.categoryUpdatedAt;
+      }
+    }
+
     const thread = await tx.emailThread.upsert({
       where: {
         connectedAccountId_providerThreadId: {
@@ -33,6 +62,9 @@ export async function upsertSyncedThread(args: UpsertThreadArgs) {
         labelIds: args.labelIds,
         isUnread: args.isUnread,
         participantEmails: args.participantEmails,
+        category: createCategory,
+        categorySource: createCategorySource,
+        categoryUpdatedAt: createCategoryUpdatedAt,
       },
       update: {
         subject: args.subject,

@@ -14,6 +14,9 @@ import { loadPmContextSnippets } from "@/lib/ai/load-pm-context";
 import { createThreadReplyGmailDraft } from "@/lib/gmail/create-thread-reply-gmail-draft";
 import { isGmailAuthError } from "@/lib/gmail/gmail-errors";
 import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
+import { isEmailThreadCategory } from "@/lib/inbox/email-thread-category";
+import { upsertSenderCategoryMemoryFromThread } from "@/lib/inbox/sender-category-memory";
+import { updateEmailThreadCategory } from "@/lib/inbox/update-thread-category";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
 
 const PM_KINDS = new Set<PmContextKind>([
@@ -321,4 +324,54 @@ export async function removeThreadPmContextLinkAction(formData: FormData): Promi
   });
 
   revalidatePath(`/inbox/${threadId}`);
+}
+
+export async function updateThreadCategoryAction(formData: FormData): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) return;
+
+  const threadId = formData.get("threadId");
+  const category = formData.get("category");
+  if (typeof threadId !== "string" || typeof category !== "string") return;
+  if (!isEmailThreadCategory(category)) return;
+
+  const active = await getActiveOrganizationContext();
+  if (!active) return;
+
+  const thread = await prisma.emailThread.findFirst({
+    where: { id: threadId, organizationId: active.id },
+    include: {
+      connectedAccount: {
+        select: { id: true, email: true, userId: true, organizationId: true },
+      },
+    },
+  });
+  if (!thread) return;
+
+  try {
+    await assertCanUseMailbox({
+      userId: session.user.id,
+      organizationId: active.id,
+      activeRole: active.role,
+      account: thread.connectedAccount,
+    });
+  } catch {
+    return;
+  }
+
+  await updateEmailThreadCategory({
+    threadId: thread.id,
+    organizationId: active.id,
+    category,
+    categorySource: "manual",
+  });
+
+  await upsertSenderCategoryMemoryFromThread({
+    threadId: thread.id,
+    category,
+    userId: session.user.id,
+  });
+
+  revalidatePath(`/inbox/${threadId}`);
+  revalidatePath("/inbox");
 }

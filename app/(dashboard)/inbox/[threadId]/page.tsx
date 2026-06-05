@@ -5,6 +5,7 @@ import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
 import { ThreadMessages } from "@/components/inbox/thread-messages";
 import { ResponderPanel } from "@/components/inbox/responder-panel";
+import { ThreadCategoryPanel } from "@/components/inbox/thread-category-panel";
 import { ThreadContextLinksPanel } from "@/components/inbox/thread-context-links-panel";
 import { loadThreadContextLinkOptions } from "@/lib/ai/thread-context-link-options";
 import { isPmContextLink, parseEmailThreadContextLinks } from "@/lib/ai/email-context-links";
@@ -95,6 +96,12 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
         <ThreadMessages thread={thread} mailboxQuery={mailboxQuery} />
         <div className="flex flex-col gap-4">
+          <ThreadCategoryPanel
+            threadId={thread.id}
+            category={thread.category}
+            categorySource={thread.categorySource}
+            categoryUpdatedAt={thread.categoryUpdatedAt}
+          />
           <ThreadContextLinksPanel
             threadId={thread.id}
             contextLinksJson={thread.contextLinks}

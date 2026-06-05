@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import type { EmailThreadCategory } from "@prisma/client";
 import { parseDraftClassification } from "@/lib/inbox/draft-classification";
 
 export type InboxThreadRecord = {
@@ -9,6 +10,7 @@ export type InboxThreadRecord = {
   isUnread: boolean;
   participantEmails: string[];
   contextLinks: unknown;
+  category: EmailThreadCategory;
 };
 
 export type LatestMessageSnapshot = {
@@ -43,6 +45,7 @@ export async function loadInboxThreadsForMailbox(
       isUnread: true,
       participantEmails: true,
       contextLinks: true,
+      category: true,
     },
   });
 }

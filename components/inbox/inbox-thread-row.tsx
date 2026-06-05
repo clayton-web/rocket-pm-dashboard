@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EMAIL_THREAD_CATEGORY_LABELS } from "@/lib/inbox/email-thread-category";
 import type { InboxThreadBadge, InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 
 function formatLastMessageAt(iso: string | null) {
@@ -52,6 +53,9 @@ export function InboxThreadRow(props: { row: InboxThreadDisplayRow; mailboxId: s
                 {badgeLabel(badge)}
               </span>
             ))}
+            <span className="inline-flex shrink-0 items-center rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-medium text-neutral-600">
+              {EMAIL_THREAD_CATEGORY_LABELS[row.category]}
+            </span>
           </div>
           <div className="truncate text-xs text-neutral-500">{row.snippet}</div>
           {row.participantEmails.length ? (

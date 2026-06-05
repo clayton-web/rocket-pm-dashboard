@@ -62,8 +62,9 @@ model User {
   auditLogs                   AuditLog[]
   backgroundJobsTriggered     BackgroundJob[] @relation("BackgroundJobTriggeredBy")
   agentRunsCreated            AgentRun[]      @relation("AgentRunCreatedBy")
-  connectedEmailAccounts      ConnectedEmailAccount[]
-  styleExamples               AiStyleExample[]
+  connectedEmailAccounts         ConnectedEmailAccount[]
+  emailSenderCategoryMemories    EmailSenderCategoryMemory[]
+  styleExamples                  AiStyleExample[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,9 +96,10 @@ model Organization {
   maintenanceRequests    MaintenanceRequest[]
   maintenanceAttachments MaintenanceAttachment[]
   auditLogs              AuditLog[]
-  connectedEmailAccounts ConnectedEmailAccount[]
-  emailThreads           EmailThread[]
-  emailMessages          EmailMessage[]
+  connectedEmailAccounts      ConnectedEmailAccount[]
+  emailThreads                EmailThread[]
+  emailMessages               EmailMessage[]
+  emailSenderCategoryMemories EmailSenderCategoryMemory[]
   knowledgeSources       AiKnowledgeSource[]
   responderRules         AiResponderRule[]
   styleExamples          AiStyleExample[]
@@ -1036,8 +1038,9 @@ model ConnectedEmailAccount {
   scopes          String[]
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  connector    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  threads      EmailThread[]
+  connector                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads                     EmailThread[]
+  emailSenderCategoryMemories EmailSenderCategoryMemory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1045,6 +1048,14 @@ model ConnectedEmailAccount {
   @@unique([organizationId, email])
   @@index([organizationId])
   @@index([organizationId, userId])
+}
+
+enum EmailThreadCategory {
+  LANDLORD_COMMUNICATION
+  TENANT_COMMUNICATION
+  STRATA
+  TENANT_INQUIRY
+  UNCATEGORIZED
 }
 
 model EmailThread {
@@ -1059,6 +1070,11 @@ model EmailThread {
   isUnread           Boolean   @default(false)
   participantEmails  String[]  @default([])
 
+  /// Rocket PM inbox crate — dashboard source of truth (not Gmail labels).
+  category          EmailThreadCategory @default(UNCATEGORIZED)
+  categorySource    String?
+  categoryUpdatedAt DateTime?
+
   /// Future: correlate to Core / Maintenance / etc. without tangling domains in code.
   contextLinks Json?
 
@@ -1072,6 +1088,32 @@ model EmailThread {
 
   @@unique([connectedAccountId, providerThreadId])
   @@index([organizationId, lastMessageAt])
+  @@index([organizationId, category, lastMessageAt])
+}
+
+/// Remembers which inbox crate a sender usually belongs to (per org + mailbox).
+model EmailSenderCategoryMemory {
+  id                 String              @id @default(cuid())
+  organizationId     String
+  connectedAccountId String
+  senderEmail        String
+  senderName         String?
+  category           EmailThreadCategory
+  contextNote        String?             @db.Text
+  source             String
+  createdByUserId    String?
+  lastMatchedAt      DateTime?
+  matchCount         Int                 @default(0)
+
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccount ConnectedEmailAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  createdBy        User?                 @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, connectedAccountId, senderEmail])
+  @@index([organizationId, connectedAccountId])
 }
 
 model EmailMessage {
