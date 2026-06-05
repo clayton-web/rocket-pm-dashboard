@@ -1,5 +1,7 @@
 import type { Prisma, PrismaClient, Property } from "@prisma/client";
+import { entirePropertyUnitCreateInput } from "@/lib/property/entire-property-unit";
 import type { StaffContext } from "./staff-context";
+import { createUnit } from "./unit.service";
 import {
   ForbiddenError,
   getAllowedPropertyIds,
@@ -50,22 +52,26 @@ export async function createProperty(
   if (input.organizationId !== principal.organizationId) {
     throw new ForbiddenError("Property must be created in the active organization only");
   }
-  const row = await prisma.property.create({
-    data: {
-      organizationId: input.organizationId,
-      name: trimRequired(input.name, "name"),
-      streetLine1: trimRequired(input.streetLine1, "streetLine1"),
-      streetLine2: input.streetLine2?.trim() || null,
-      city: trimRequired(input.city, "city"),
-      province: input.province?.trim() || "BC",
-      postalCode: trimRequired(input.postalCode, "postalCode"),
-      country: input.country?.trim() || "CA",
-    },
+  return prisma.$transaction(async (tx) => {
+    const db = tx as PrismaClient;
+    const row = await db.property.create({
+      data: {
+        organizationId: input.organizationId,
+        name: trimRequired(input.name, "name"),
+        streetLine1: trimRequired(input.streetLine1, "streetLine1"),
+        streetLine2: input.streetLine2?.trim() || null,
+        city: trimRequired(input.city, "city"),
+        province: input.province?.trim() || "BC",
+        postalCode: trimRequired(input.postalCode, "postalCode"),
+        country: input.country?.trim() || "CA",
+      },
+    });
+    await logPropertyActivity(db, principal, row.id, "Property", row.id, "property.created", {
+      newValues: pickForAudit(row, ["name", "city", "province", "postalCode", "isActive"]),
+    });
+    await createUnit(db, principal, row.id, entirePropertyUnitCreateInput());
+    return row;
   });
-  await logPropertyActivity(prisma, principal, row.id, "Property", row.id, "property.created", {
-    newValues: pickForAudit(row, ["name", "city", "province", "postalCode", "isActive"]),
-  });
-  return row;
 }
 
 /** PM / org admin (active org) on this property. Field agents cannot edit property records. */

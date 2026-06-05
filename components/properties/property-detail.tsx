@@ -125,14 +125,17 @@ function PropertyDetailBody({
           {detail.isActive ? "Active" : "Inactive"}
         </p>
         <p className="mt-2 text-sm text-neutral-600">
-          Active properties with at least one active unit appear on public leasing forms.
+          Whole-property rentals include an active{" "}
+          <span className="font-medium text-neutral-800">Entire Property</span> unit automatically.
+          Add more unit labels below for basement, upper, suite, or numbered units.
         </p>
       </div>
 
       <FormSection legend="Units">
         {detail.units.length === 0 ? (
           <p className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-600`}>
-            No units yet. Add a unit below so applicants can select it on the application form.
+            No units listed yet. New properties should include Entire Property automatically — refresh
+            if you expected it.
           </p>
         ) : (
           <ul className="flex list-none flex-col gap-2 p-0">
@@ -159,7 +162,10 @@ function PropertyDetailBody({
 
       {canAddUnit ? (
         <div className="mt-8">
-          <FormSection legend="Add unit">
+          <FormSection
+            legend="Add unit"
+            helper="For duplexes and multi-suite buildings, add labels like Basement, Upper, Suite A, or 101."
+          >
             {error ? <InlineNotice className="mb-4">{error}</InlineNotice> : null}
             <form className={`flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onAddUnit}>
               <FormField
