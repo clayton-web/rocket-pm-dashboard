@@ -101,6 +101,10 @@ function parseNonNegativeInt(value: unknown, field: string, max: number): number
 }
 
 function parseStringArray(value: unknown, field: string): string[] | { error: string } {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
   if (!Array.isArray(value)) return { error: `${field} must be an array` };
   const items: string[] = [];
   for (const item of value) {
@@ -194,7 +198,9 @@ function parseSuggestedAdvertisingRent(
   const aggressive = parsePositiveNumber(raw.aggressive, "Aggressive rent");
   if (typeof aggressive === "object") return aggressive;
 
-  if (raw.currency !== "CAD") {
+  const currencyRaw =
+    typeof raw.currency === "string" ? raw.currency.trim().toUpperCase() : raw.currency;
+  if (currencyRaw !== "CAD") {
     return { error: "Suggested advertising rent currency must be CAD" };
   }
 
@@ -214,9 +220,10 @@ export function parseRentalAdAssistantOutput(
     return suggestedAdvertisingRent;
   }
 
+  const confidenceRaw = typeof raw.confidence === "string" ? raw.confidence.trim().toLowerCase() : raw.confidence;
   if (
-    typeof raw.confidence !== "string" ||
-    !(RENTAL_AD_CONFIDENCE_VALUES as readonly string[]).includes(raw.confidence)
+    typeof confidenceRaw !== "string" ||
+    !(RENTAL_AD_CONFIDENCE_VALUES as readonly string[]).includes(confidenceRaw)
   ) {
     return { error: "Confidence must be high, medium, or low" };
   }
@@ -250,7 +257,7 @@ export function parseRentalAdAssistantOutput(
 
   return {
     suggestedAdvertisingRent,
-    confidence: raw.confidence as RentalAdConfidence,
+    confidence: confidenceRaw as RentalAdConfidence,
     confidenceReason,
     explanation,
     headline,

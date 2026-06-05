@@ -4,9 +4,11 @@ import { INTERNAL_RENT_COMPS_LABEL } from "@/lib/leasing/internal-rent-comps";
 import { RENTAL_AD_ASSISTANT_DISCLAIMER } from "./draft-dto";
 import {
   AGGRESSIVE_RENT_LABEL,
+  buildRentalAdOutputFormState,
   CONFIDENCE_HELPER_TEXT,
   CONSERVATIVE_RENT_LABEL,
   formatRentalAdReviewFlagsForDisplay,
+  hasRenderableRentalAdOutput,
   HISTORICAL_COMPS_HELPER_TEXT,
   RECOMMENDED_RENT_LABEL,
   rentalAdActionsAllowedWithReviewFlags,
@@ -83,6 +85,47 @@ describe("rental ad assistant panel UI copy", () => {
 
   it("does not block copy or save when review flags exist", () => {
     assert.equal(rentalAdActionsAllowedWithReviewFlags(), true);
+  });
+
+  it("coerces non-array value-add suggestions for form display", () => {
+    const formState = buildRentalAdOutputFormState({
+      suggestedAdvertisingRent: {
+        conservative: 2200,
+        recommended: 2400,
+        aggressive: 2550,
+        currency: "CAD",
+      },
+      confidence: "low",
+      confidenceReason: "Limited comps.",
+      explanation: "Suggested advertising rent only.",
+      headline: "Bright condo",
+      fullDescription: "Full copy.",
+      shortDescription: "Short copy.",
+      valueAddSuggestions: "Highlight balcony",
+    } as never);
+    assert.equal(formState.valueAddSuggestions, "Highlight balcony");
+  });
+
+  it("guards output rendering when rent tiers are missing", () => {
+    assert.equal(hasRenderableRentalAdOutput(null), false);
+    assert.equal(
+      hasRenderableRentalAdOutput({
+        suggestedAdvertisingRent: {
+          conservative: 2200,
+          recommended: 2400,
+          aggressive: 2550,
+          currency: "CAD",
+        },
+        confidence: "low",
+        confidenceReason: "x",
+        explanation: "x",
+        headline: "x",
+        fullDescription: "x",
+        shortDescription: "x",
+        valueAddSuggestions: [],
+      }),
+      true,
+    );
   });
 
   it("distinguishes suggested rent, historical comps, and confidence with hardened labels", () => {

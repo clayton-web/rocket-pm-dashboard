@@ -20,10 +20,13 @@ import {
 } from "@/lib/rental-ad-assistant/draft-dto";
 import {
   AGGRESSIVE_RENT_LABEL,
+  buildRentalAdOutputFormState,
   CONFIDENCE_HELPER_TEXT,
   CONSERVATIVE_RENT_LABEL,
+  coerceReviewFlagsForDisplay,
   formatRentalAdReviewFlagsForDisplay,
   formatUtilitiesForInput,
+  hasRenderableRentalAdOutput,
   HISTORICAL_COMPS_HELPER_TEXT,
   parseUtilitiesFromInput,
   RECOMMENDED_RENT_LABEL,
@@ -40,7 +43,8 @@ import {
   type RentalAdAssistantInputs,
   type RentalAdAssistantOutput,
 } from "@/lib/validation/rental-ad-assistant";
-import { useActionState, useEffect, useId, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 
 export type RentalAdAssistantPanelProps = {
   unitId: string;
@@ -68,12 +72,7 @@ type FormState = {
   targetRentHint: string;
 };
 
-type OutputFormState = {
-  headline: string;
-  fullDescription: string;
-  shortDescription: string;
-  valueAddSuggestions: string;
-};
+type OutputFormState = ReturnType<typeof buildRentalAdOutputFormState>;
 
 function buildInitialFormState(
   draft: RentalAdAssistantDraftDto | null,
@@ -102,13 +101,7 @@ function buildInitialFormState(
 }
 
 function buildInitialOutputState(draft: RentalAdAssistantDraftDto | null): OutputFormState {
-  const output = draft?.output;
-  return {
-    headline: output?.headline ?? "",
-    fullDescription: output?.fullDescription ?? "",
-    shortDescription: output?.shortDescription ?? "",
-    valueAddSuggestions: output?.valueAddSuggestions?.join("\n") ?? "",
-  };
+  return buildRentalAdOutputFormState(draft?.output);
 }
 
 function formToInputs(form: FormState): RentalAdAssistantInputs {
@@ -173,6 +166,9 @@ export function RentalAdAssistantPanel(props: RentalAdAssistantPanelProps) {
     canEdit,
   } = props;
 
+  const router = useRouter();
+  const lastGenerateCompletedAt = useRef(0);
+
   const [draft, setDraft] = useState(initialDraft);
   const [form, setForm] = useState(() => buildInitialFormState(initialDraft, unitBedrooms));
   const [outputForm, setOutputForm] = useState(() => buildInitialOutputState(initialDraft));
@@ -205,11 +201,16 @@ export function RentalAdAssistantPanel(props: RentalAdAssistantPanelProps) {
   }, [saveState]);
 
   useEffect(() => {
-    if (generateState.completedAt > 0 && generateState.ok && generateState.draft) {
-      setDraft(generateState.draft);
-      setOutputForm(buildInitialOutputState(generateState.draft));
+    if (generateState.completedAt <= lastGenerateCompletedAt.current) return;
+    lastGenerateCompletedAt.current = generateState.completedAt;
+    if (generateState.ok) {
+      if (generateState.draft) {
+        setDraft(generateState.draft);
+        setOutputForm(buildInitialOutputState(generateState.draft));
+      }
+      router.refresh();
     }
-  }, [generateState]);
+  }, [generateState, router]);
 
   useEffect(() => {
     if (clearState.completedAt > 0 && clearState.ok && clearState.draft) {
@@ -234,7 +235,8 @@ export function RentalAdAssistantPanel(props: RentalAdAssistantPanelProps) {
   const shortDescriptionId = useId();
   const valueAddId = useId();
 
-  const output = draft?.output ?? null;
+  const output = hasRenderableRentalAdOutput(draft?.output) ? draft.output : null;
+  const reviewFlags = coerceReviewFlagsForDisplay(output?.reviewFlags);
   const comps = draft?.compsSnapshot ?? null;
   const generateDisabled = shouldDisableRentalAdGenerate(aiGenerationConfigured);
   const generateUnavailable = rentalAdGenerateUnavailableMessage(aiGenerationConfigured);
@@ -462,14 +464,14 @@ export function RentalAdAssistantPanel(props: RentalAdAssistantPanelProps) {
 
         {output ? (
           <div className="flex flex-col gap-4">
-            {shouldShowRentalAdReviewBanner(output.reviewFlags) ? (
+            {shouldShowRentalAdReviewBanner(reviewFlags) ? (
               <section
                 className="rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-3 text-sm text-amber-950"
                 role="status"
               >
                 <p className="font-semibold">{RENTAL_AD_REVIEW_BANNER_MESSAGE}</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-                  {formatRentalAdReviewFlagsForDisplay(output.reviewFlags ?? []).map((flag) => (
+                  {formatRentalAdReviewFlagsForDisplay(reviewFlags).map((flag) => (
                     <li key={flag}>{flag}</li>
                   ))}
                 </ul>

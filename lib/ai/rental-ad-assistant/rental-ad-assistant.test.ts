@@ -186,6 +186,33 @@ describe("parseRentalAdGeneratedOutput", () => {
     assert.ok(parsed.reviewFlags?.includes("must_be_employed"));
   });
 
+  it("coerces string valueAddSuggestions from OpenAI output", () => {
+    const parsed = parseRentalAdGeneratedOutput(
+      {
+        ...validGeneratedOutput,
+        valueAddSuggestions: "Highlight recent paint",
+      },
+      2,
+    );
+    assert.deepEqual(parsed.valueAddSuggestions, ["Highlight recent paint"]);
+  });
+
+  it("normalizes confidence casing and cad currency", () => {
+    const parsed = parseRentalAdGeneratedOutput(
+      {
+        ...validGeneratedOutput,
+        confidence: "Medium",
+        suggestedAdvertisingRent: {
+          ...validGeneratedOutput.suggestedAdvertisingRent,
+          currency: "cad",
+        },
+      },
+      2,
+    );
+    assert.equal(parsed.confidence, "medium");
+    assert.equal(parsed.suggestedAdvertisingRent.currency, "CAD");
+  });
+
   it("rejects missing conservative/recommended/aggressive tiers", () => {
     assert.throws(
       () =>

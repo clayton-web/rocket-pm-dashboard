@@ -47,7 +47,7 @@ function parseStoredComps(value: unknown): RentalAdAssistantCompsSnapshot | null
 export function rentalAdAssistantDraftToDto(
   draft: RentalAdAssistantDraft,
 ): RentalAdAssistantDraftDto {
-  return {
+  return serializeRentalAdAssistantDraftDto({
     id: draft.id,
     unitId: draft.unitId,
     propertyId: draft.propertyId,
@@ -58,7 +58,15 @@ export function rentalAdAssistantDraftToDto(
     promptVersion: draft.promptVersion,
     lastGeneratedAt: draft.lastGeneratedAt?.toISOString() ?? null,
     updatedAt: draft.updatedAt.toISOString(),
-  };
+  })!;
+}
+
+/** Ensures server-action responses contain only JSON-serializable plain data. */
+export function serializeRentalAdAssistantDraftDto(
+  draft: RentalAdAssistantDraftDto | null,
+): RentalAdAssistantDraftDto | null {
+  if (!draft) return null;
+  return JSON.parse(JSON.stringify(draft)) as RentalAdAssistantDraftDto;
 }
 
 export function isOpenAiConfiguredForRentalAdAssistant(): boolean {

@@ -1,3 +1,4 @@
+import type { RentalAdAssistantOutput } from "@/lib/validation/rental-ad-assistant";
 import {
   formatListingReviewFlag,
   scanListingCopyForReview,
@@ -62,8 +63,52 @@ export const HISTORICAL_COMPS_HELPER_TEXT =
 export const CONFIDENCE_HELPER_TEXT =
   "Confidence reflects portfolio comps and inputs — not a market guarantee.";
 
-export function shouldShowRentalAdReviewBanner(reviewFlags: string[] | undefined): boolean {
-  return Boolean(reviewFlags && reviewFlags.length > 0);
+export function shouldShowRentalAdReviewBanner(reviewFlags: unknown): boolean {
+  return Array.isArray(reviewFlags) && reviewFlags.length > 0;
+}
+
+export function coerceReviewFlagsForDisplay(reviewFlags: unknown): string[] {
+  if (!Array.isArray(reviewFlags)) return [];
+  return reviewFlags.filter((flag): flag is string => typeof flag === "string");
+}
+
+export type RentalAdOutputFormState = {
+  headline: string;
+  fullDescription: string;
+  shortDescription: string;
+  valueAddSuggestions: string;
+};
+
+export function coerceValueAddSuggestionsForForm(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string").join("\n");
+  }
+  if (typeof value === "string") return value;
+  return "";
+}
+
+export function buildRentalAdOutputFormState(
+  output: RentalAdAssistantOutput | null | undefined,
+): RentalAdOutputFormState {
+  return {
+    headline: typeof output?.headline === "string" ? output.headline : "",
+    fullDescription: typeof output?.fullDescription === "string" ? output.fullDescription : "",
+    shortDescription: typeof output?.shortDescription === "string" ? output.shortDescription : "",
+    valueAddSuggestions: coerceValueAddSuggestionsForForm(output?.valueAddSuggestions),
+  };
+}
+
+export function hasRenderableRentalAdOutput(
+  output: RentalAdAssistantOutput | null | undefined,
+): output is RentalAdAssistantOutput {
+  if (!output || typeof output !== "object") return false;
+  const rent = output.suggestedAdvertisingRent;
+  if (!rent || typeof rent !== "object") return false;
+  return (
+    Number.isFinite(rent.conservative) &&
+    Number.isFinite(rent.recommended) &&
+    Number.isFinite(rent.aggressive)
+  );
 }
 
 /** Copy/save remain available even when review flags exist. */
@@ -71,8 +116,8 @@ export function rentalAdActionsAllowedWithReviewFlags(): boolean {
   return true;
 }
 
-export function formatRentalAdReviewFlagsForDisplay(reviewFlags: string[]): string[] {
-  return reviewFlags.map(formatListingReviewFlag);
+export function formatRentalAdReviewFlagsForDisplay(reviewFlags: unknown): string[] {
+  return coerceReviewFlagsForDisplay(reviewFlags).map(formatListingReviewFlag);
 }
 
 export function rentalAdReviewFlagsFromCopy(input: {

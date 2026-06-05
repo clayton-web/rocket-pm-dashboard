@@ -25,6 +25,14 @@ function lowerConfidence(
   return CONFIDENCE_RANK[current] > CONFIDENCE_RANK[maxAllowed] ? maxAllowed : current;
 }
 
+function coerceAiStringArray(value: unknown): unknown {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  return value;
+}
+
 export function appendConfidenceNote(reason: string, note: string): string {
   const trimmed = reason.trim();
   if (!trimmed) return note;
@@ -61,16 +69,16 @@ export function normalizeRentalAdGeneratedRaw(raw: unknown): Record<string, unkn
       conservative: rent.conservative,
       recommended: rent.recommended,
       aggressive: rent.aggressive,
-      currency: rent.currency ?? "CAD",
+      currency:
+        typeof rent.currency === "string" ? rent.currency.trim().toUpperCase() : "CAD",
     },
-    confidence: o.confidence,
+    confidence: typeof o.confidence === "string" ? o.confidence.trim().toLowerCase() : o.confidence,
     confidenceReason: o.confidenceReason,
     explanation: o.explanation,
     headline: o.headline,
     fullDescription: o.fullDescription,
     shortDescription: o.shortDescription,
-    valueAddSuggestions: o.valueAddSuggestions ?? [],
-    reviewFlags: o.reviewFlags,
+    valueAddSuggestions: coerceAiStringArray(o.valueAddSuggestions ?? []),
   };
 }
 

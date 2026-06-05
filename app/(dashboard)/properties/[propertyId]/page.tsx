@@ -13,6 +13,8 @@ import { listUnitsForProperty } from "@/lib/services/unit.service";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
 import { redirect } from "next/navigation";
 
+export const maxDuration = 60;
+
 type PageProps = {
   params: Promise<{ propertyId: string }>;
 };
