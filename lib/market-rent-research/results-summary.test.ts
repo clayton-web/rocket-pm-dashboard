@@ -10,6 +10,7 @@ import {
   isOpenAiRelatedNote,
   partitionDataQualityNotes,
 } from "./results-summary";
+import { MARKET_RENT_LIMITED_SAMPLE_NOTE } from "./constants";
 import { MARKET_RENT_OPENAI_FALLBACK_NOTE } from "./synthesize-with-openai";
 
 const inputs: MarketRentResearchInputs = {
@@ -61,6 +62,15 @@ describe("results-summary", () => {
     assert.ok(bullets.includes("Same bedroom count"));
     assert.ok(bullets.includes("Similar square footage"));
     assert.ok(bullets.includes("Same neighbourhood / area"));
+  });
+
+  it("adds low-confidence warning bullets", () => {
+    const bullets = buildWhyThisRentBullets(
+      { ...baseResult, confidence: "low", statistics: { ...baseResult.statistics, count: 2 } },
+      inputs,
+    );
+    assert.ok(bullets.some((line) => /Low confidence/i.test(line)));
+    assert.ok(bullets.includes(MARKET_RENT_LIMITED_SAMPLE_NOTE));
   });
 
   it("handles blank neighbourhood without crashing", () => {

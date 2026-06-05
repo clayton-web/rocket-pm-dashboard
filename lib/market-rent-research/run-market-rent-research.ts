@@ -7,12 +7,10 @@ import { isMarketRentScrapeCraigslistEnabled } from "@/lib/scrapers/feature-flag
 import { dedupeListings } from "@/lib/scrapers/normalize/dedupe-listings";
 import { normalizeScraperListings } from "@/lib/scrapers/normalize/normalize-listing";
 import {
-  fetchCraigslistRentalsWithRetry,
   getLastCraigslistProviderDiagnostics,
   type CraigslistFetchFn,
 } from "@/lib/scrapers/providers/craigslist/craigslist-client";
 import {
-  buildCraigslistSearchParams,
   buildCraigslistSearchText,
 } from "@/lib/scrapers/search/build-search-query";
 import {
@@ -26,12 +24,17 @@ import { buildSubAreaDataQualityNote } from "./sub-areas";
 import type { NormalizedComparable, ProviderFetchStatus, ProviderRequestDiagnostics, RawScraperListing } from "@/lib/scrapers/types";
 import {
   MARKET_RENT_FIXTURE_SAMPLE_NOTE,
+  MARKET_RENT_LIMITED_SAMPLE_NOTE,
   MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
   MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE,
   MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE,
 } from "./constants";
 import { isMarketRentUseFixtureCompsEnabled } from "./fixture-flag";
 import { applyOutlierExclusions, matchComparableListings } from "./matching";
+import {
+  buildWideningDataQualityNotes,
+  runCompSearchWithWidening,
+} from "./comp-search";
 import { isOpenAiApiKeyConfigured, type CreateMarketRentChatJsonCompletion } from "./openai-client";
 import {
   buildCraigslistProviderStatus,
@@ -99,82 +102,6 @@ function buildExplanation(
   return parts.join(" ");
 }
 
-async function fetchRawListings(
-  inputs: MarketRentResearchInputs,
-  options?: RunMarketRentResearchOptions,
-): Promise<{
-  rawListings: RawScraperListing[];
-  providerStatus: ProviderFetchStatus;
-  providerDiagnostics: ProviderRequestDiagnostics[];
-  usedFixtureComps: boolean;
-  dataQualityNotes: string[];
-}> {
-  const dataQualityNotes: string[] = [];
-
-  if (isMarketRentUseFixtureCompsEnabled()) {
-    const rawListings = loadMarketRentSampleFixtureListings(inputs.city);
-    dataQualityNotes.push(MARKET_RENT_FIXTURE_SAMPLE_NOTE);
-    return {
-      rawListings,
-      providerStatus: buildCraigslistProviderStatus({
-        status: "success",
-        listingCount: rawListings.length,
-      }),
-      providerDiagnostics: [],
-      usedFixtureComps: true,
-      dataQualityNotes,
-    };
-  }
-
-  try {
-    const params = buildCraigslistSearchParams(inputs);
-    const rawListings = await fetchCraigslistRentalsWithRetry(params, {
-      fetchFn: options?.fetchCraigslist,
-      timeoutMs: options?.craigslistTimeoutMs,
-      cityDisplay: inputs.city,
-    });
-
-    const diagnostics = getLastCraigslistProviderDiagnostics();
-    const providerDiagnostics = diagnostics ? [diagnostics] : [];
-
-    const status =
-      rawListings.length === 0
-        ? buildCraigslistProviderStatus({ status: "no_results", listingCount: 0 })
-        : buildCraigslistProviderStatus({ status: "success", listingCount: rawListings.length });
-
-    if (rawListings.length === 0) {
-      dataQualityNotes.push("Craigslist returned zero raw listings for this search.");
-    }
-
-    return {
-      rawListings,
-      providerStatus: status,
-      providerDiagnostics,
-      usedFixtureComps: false,
-      dataQualityNotes,
-    };
-  } catch (error) {
-    const { status, errorMessage } = classifyCraigslistFetchError(error);
-    const diagnostics = getLastCraigslistProviderDiagnostics();
-    logProviderFailure("craigslist", status, errorMessage, {
-      city: inputs.city,
-      diagnostics,
-    });
-    dataQualityNotes.push("Craigslist provider unavailable for this search.");
-    return {
-      rawListings: [],
-      providerStatus: buildCraigslistProviderStatus({
-        status,
-        listingCount: 0,
-        errorMessage,
-      }),
-      providerDiagnostics: diagnostics ? [diagnostics] : [],
-      usedFixtureComps: false,
-      dataQualityNotes,
-    };
-  }
-}
-
 export async function runMarketRentResearch(
   inputs: MarketRentResearchInputs,
   options?: RunMarketRentResearchOptions,
@@ -184,13 +111,80 @@ export async function runMarketRentResearch(
     return { ok: true, status: "no_providers", message: MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE };
   }
 
-  const { rawListings, providerStatus, providerDiagnostics, usedFixtureComps, dataQualityNotes } =
-    await fetchRawListings(inputs, options);
-  const providerStatuses: ProviderFetchStatus[] = [providerStatus];
+  const usedFixtureComps = isMarketRentUseFixtureCompsEnabled();
+  const dataQualityNotes: string[] = [];
+  let rawListings: RawScraperListing[] = [];
+  let providerStatus: ProviderFetchStatus;
+  let providerDiagnostics: ProviderRequestDiagnostics[] = [];
+  let matched: NormalizedComparable[] = [];
+  let excluded: NormalizedComparable[] = [];
+  let kept: NormalizedComparable[] = [];
+  let outlierExcluded: NormalizedComparable[] = [];
+  let searchAttempts: MarketRentMatchingDiagnostics["searchAttempts"];
+  let searchWasGeographicallyBroadened = false;
 
-  const normalized = dedupeListings(normalizeScraperListings(rawListings));
-  const { matched, excluded } = matchComparableListings(inputs, normalized);
-  const { kept, outlierExcluded } = applyOutlierExclusions(matched);
+  if (usedFixtureComps) {
+    rawListings = loadMarketRentSampleFixtureListings(inputs.city);
+    dataQualityNotes.push(MARKET_RENT_FIXTURE_SAMPLE_NOTE);
+    providerStatus = buildCraigslistProviderStatus({
+      status: "success",
+      listingCount: rawListings.length,
+    });
+
+    const normalized = dedupeListings(normalizeScraperListings(rawListings));
+    const matchResult = matchComparableListings(inputs, normalized);
+    matched = matchResult.matched;
+    excluded = matchResult.excluded;
+    const outlierResult = applyOutlierExclusions(matched);
+    kept = outlierResult.kept;
+    outlierExcluded = outlierResult.outlierExcluded;
+  } else {
+    try {
+      const compSearch = await runCompSearchWithWidening(inputs, {
+        fetchFn: options?.fetchCraigslist,
+        timeoutMs: options?.craigslistTimeoutMs,
+      });
+      rawListings = compSearch.rawListings;
+      providerDiagnostics = compSearch.providerDiagnostics;
+      matched = compSearch.matched;
+      excluded = compSearch.excluded;
+      kept = compSearch.kept;
+      outlierExcluded = compSearch.outlierExcluded;
+      searchAttempts = compSearch.searchAttempts;
+      searchWasGeographicallyBroadened = compSearch.searchWasGeographicallyBroadened;
+
+      dataQualityNotes.push(...buildWideningDataQualityNotes({
+        searchWasGeographicallyBroadened,
+        inputs,
+        keptCount: kept.length,
+      }));
+
+      if (rawListings.length === 0) {
+        dataQualityNotes.push("Craigslist returned zero raw listings for this search.");
+      }
+
+      providerStatus =
+        rawListings.length === 0
+          ? buildCraigslistProviderStatus({ status: "no_results", listingCount: 0 })
+          : buildCraigslistProviderStatus({ status: "success", listingCount: rawListings.length });
+    } catch (error) {
+      const { status, errorMessage } = classifyCraigslistFetchError(error);
+      const diagnostics = getLastCraigslistProviderDiagnostics();
+      logProviderFailure("craigslist", status, errorMessage, {
+        city: inputs.city,
+        diagnostics,
+      });
+      dataQualityNotes.push("Craigslist provider unavailable for this search.");
+      providerStatus = buildCraigslistProviderStatus({
+        status,
+        listingCount: 0,
+        errorMessage,
+      });
+      providerDiagnostics = diagnostics ? [diagnostics] : [];
+    }
+  }
+
+  const providerStatuses: ProviderFetchStatus[] = [providerStatus];
   const allExcluded = [...excluded, ...outlierExcluded];
 
   const previewDiagnostics = isMarketRentPreviewMatchingDiagnosticsEnabled();
@@ -209,6 +203,9 @@ export async function runMarketRentResearch(
         craigslistSearchQuery: buildCraigslistSearchText(inputs),
         craigslistHostname,
         craigslistAreaId,
+        searchAttempts,
+        searchWasGeographicallyBroadened,
+        finalCompsUsed: kept.length,
       })
     : undefined;
 
@@ -246,10 +243,15 @@ export async function runMarketRentResearch(
   const { confidence, reason: confidenceReason } = computeConfidenceFromCompCount(
     kept.length,
     missingFieldRatio,
+    { searchWasGeographicallyBroadened },
   );
 
   if (outlierExcluded.length > 0) {
     dataQualityNotes.push(`Removed ${outlierExcluded.length} rent outlier(s) using IQR.`);
+  }
+
+  if (kept.length < 3) {
+    dataQualityNotes.push(MARKET_RENT_LIMITED_SAMPLE_NOTE);
   }
 
   const subAreaNote = buildSubAreaDataQualityNote(inputs.neighbourhood);
@@ -286,6 +288,7 @@ export async function runMarketRentResearch(
     compCount: kept.length,
     missingFieldRatio,
     compRents: rents,
+    searchWasGeographicallyBroadened,
   });
 
   return { ok: true, status: "success", result: synthesized, statistics };

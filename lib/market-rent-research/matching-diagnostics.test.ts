@@ -38,7 +38,7 @@ describe("buildRejectionReasonSummary", () => {
       listing("Bedrooms 4 outside ±1 of 2"),
     ]);
     assert.deepEqual(summary, [
-      { reason: "Sqft outside ±25% tolerance", count: 2 },
+      { reason: "Sqft outside tolerance", count: 2 },
       { reason: "Bedroom count outside ±1", count: 1 },
     ]);
   });
@@ -58,6 +58,40 @@ describe("buildMatchingDiagnostics", () => {
     assert.equal(diagnostics.matchedCount, 1);
     assert.equal(diagnostics.rejectedCount, 1);
     assert.equal(diagnostics.keptCount, 1);
+  });
+
+  it("includes search attempts when provided", () => {
+    const diagnostics = buildMatchingDiagnostics({
+      rawListingCount: 8,
+      matched: [listing()],
+      excluded: [],
+      outlierExcluded: [],
+      kept: [listing()],
+      craigslistSearchQuery: "Port Moody 2br Condo",
+      searchAttempts: [
+        {
+          attempt: 1,
+          label: "Original search",
+          craigslistSearchQuery: "Port Moody 2br Condo",
+          rawListingCount: 3,
+          matchedCount: 2,
+          keptCount: 2,
+        },
+        {
+          attempt: 2,
+          label: "Tri-Cities Craigslist area",
+          craigslistSearchQuery: "Port Moody Coquitlam Port Coquitlam 2br Condo",
+          rawListingCount: 8,
+          matchedCount: 5,
+          keptCount: 5,
+        },
+      ],
+      searchWasGeographicallyBroadened: true,
+      finalCompsUsed: 5,
+    });
+    assert.equal(diagnostics.searchAttempts?.length, 2);
+    assert.equal(diagnostics.finalCompsUsed, 5);
+    assert.equal(diagnostics.searchWasGeographicallyBroadened, true);
   });
 });
 

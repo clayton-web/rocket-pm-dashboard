@@ -84,9 +84,12 @@ function scorePropertyType(
 function evaluateListing(
   listing: NormalizedComparable,
   inputs: MarketRentResearchInputs,
+  options?: MatchComparableOptions,
 ): { included: boolean; score: number; reasons: string[]; exclusionReason?: string } {
   const reasons: string[] = [];
   let score = 0;
+  const skipNeighbourhood = options?.skipNeighbourhoodFilter === true;
+  const sqftTolerance = options?.sqftToleranceRatio ?? 0.25;
 
   if (normalizeCity(listing.city) !== normalizeCity(inputs.city)) {
     return { included: false, score: 0, reasons, exclusionReason: "Different city" };
@@ -99,7 +102,7 @@ function evaluateListing(
     score += 50;
   }
 
-  if (!includesNeighbourhood(listing, inputs.neighbourhood)) {
+  if (!skipNeighbourhood && !includesNeighbourhood(listing, inputs.neighbourhood)) {
     return {
       included: false,
       score,
@@ -107,7 +110,7 @@ function evaluateListing(
       exclusionReason: "Neighbourhood keyword not found",
     };
   }
-  if (inputs.neighbourhood?.trim()) {
+  if (!skipNeighbourhood && inputs.neighbourhood?.trim()) {
     reasons.push("neighbourhood match");
     score += 30;
   }
@@ -149,14 +152,15 @@ function evaluateListing(
   }
 
   if (listing.sqft != null && inputs.sqft != null) {
-    const min = inputs.sqft * 0.75;
-    const max = inputs.sqft * 1.25;
+    const min = inputs.sqft * (1 - sqftTolerance);
+    const max = inputs.sqft * (1 + sqftTolerance);
+    const pctLabel = Math.round(sqftTolerance * 100);
     if (listing.sqft < min || listing.sqft > max) {
       return {
         included: false,
         score,
         reasons,
-        exclusionReason: `Sqft ${listing.sqft} outside ±25% of ${inputs.sqft}`,
+        exclusionReason: `Sqft ${listing.sqft} outside ±${pctLabel}% of ${inputs.sqft}`,
       };
     }
     reasons.push(`sqft ${listing.sqft}`);
@@ -170,15 +174,23 @@ function evaluateListing(
   return { included: true, score, reasons };
 }
 
+export type MatchComparableOptions = {
+  /** Fractional tolerance for sqft matching (0.25 = ±25%). Default 0.25. */
+  sqftToleranceRatio?: number;
+  /** When true, neighbourhood keyword is not required for inclusion. */
+  skipNeighbourhoodFilter?: boolean;
+};
+
 export function matchComparableListings(
   inputs: MarketRentResearchInputs,
   listings: NormalizedComparable[],
+  options?: MatchComparableOptions,
 ): { matched: NormalizedComparable[]; excluded: NormalizedComparable[] } {
   const matched: NormalizedComparable[] = [];
   const excluded: NormalizedComparable[] = [];
 
   for (const listing of listings) {
-    const evaluation = evaluateListing(listing, inputs);
+    const evaluation = evaluateListing(listing, inputs, options);
     const next: NormalizedComparable = {
       ...listing,
       matchScore: evaluation.score,

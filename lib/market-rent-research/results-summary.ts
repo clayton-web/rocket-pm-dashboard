@@ -1,4 +1,5 @@
 import type { MarketRentResearchInputs } from "@/lib/validation/market-rent-research";
+import { MARKET_RENT_LIMITED_SAMPLE_NOTE } from "./constants";
 import {
   MARKET_RENT_OPENAI_FALLBACK_NOTE,
   MARKET_RENT_OPENAI_TIERS_FALLBACK_NOTE,
@@ -21,8 +22,16 @@ export function buildWhyThisRentBullets(
   const bullets: string[] = [];
   const count = result.statistics.count;
 
+  if (result.confidence === "low") {
+    bullets.push("Low confidence — limited comparable data");
+  }
+
   if (count > 0) {
     bullets.push(`${count} comparable listing${count === 1 ? "" : "s"} found`);
+  }
+
+  if (count > 0 && count < 3) {
+    bullets.push(MARKET_RENT_LIMITED_SAMPLE_NOTE);
   }
 
   if (inputs.propertyType.trim()) {

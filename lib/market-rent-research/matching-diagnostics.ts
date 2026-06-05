@@ -5,6 +5,15 @@ export type MarketRentRejectionReasonSummary = {
   count: number;
 };
 
+export type MarketRentSearchAttemptDiagnostics = {
+  attempt: number;
+  label: string;
+  craigslistSearchQuery: string;
+  rawListingCount: number;
+  matchedCount: number;
+  keptCount: number;
+};
+
 export type MarketRentMatchingDiagnostics = {
   rawListingCount: number;
   matchedCount: number;
@@ -14,12 +23,16 @@ export type MarketRentMatchingDiagnostics = {
   craigslistSearchQuery?: string;
   craigslistHostname?: string;
   craigslistAreaId?: number | null;
+  searchAttempts?: MarketRentSearchAttemptDiagnostics[];
+  searchWasBroadened?: boolean;
+  searchWasGeographicallyBroadened?: boolean;
+  finalCompsUsed?: number;
 };
 
 function summarizeExclusionReason(reason: string): string {
   if (reason.startsWith("Bedrooms ")) return "Bedroom count outside ±1";
   if (reason.startsWith("Bathrooms ")) return "Bathroom count outside ±1";
-  if (reason.startsWith("Sqft ")) return "Sqft outside ±25% tolerance";
+  if (reason.startsWith("Sqft ")) return "Sqft outside tolerance";
   if (reason === "Different city") return "Different city";
   if (reason === "Neighbourhood keyword not found") return "Neighbourhood mismatch";
   if (reason === "Rent outside IQR outlier bounds") return "Rent outlier (IQR)";
@@ -48,6 +61,10 @@ export function buildMatchingDiagnostics(args: {
   craigslistSearchQuery?: string;
   craigslistHostname?: string;
   craigslistAreaId?: number | null;
+  searchAttempts?: MarketRentSearchAttemptDiagnostics[];
+  searchWasBroadened?: boolean;
+  searchWasGeographicallyBroadened?: boolean;
+  finalCompsUsed?: number;
 }): MarketRentMatchingDiagnostics {
   const allRejected = [...args.excluded, ...args.outlierExcluded];
   return {
@@ -59,6 +76,10 @@ export function buildMatchingDiagnostics(args: {
     craigslistSearchQuery: args.craigslistSearchQuery,
     craigslistHostname: args.craigslistHostname,
     craigslistAreaId: args.craigslistAreaId,
+    searchAttempts: args.searchAttempts,
+    searchWasBroadened: args.searchWasBroadened ?? args.searchWasGeographicallyBroadened,
+    searchWasGeographicallyBroadened: args.searchWasGeographicallyBroadened,
+    finalCompsUsed: args.finalCompsUsed,
   };
 }
 

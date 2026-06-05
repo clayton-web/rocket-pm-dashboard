@@ -16,3 +16,6 @@ export const MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE =
 
 export const MARKET_RENT_FIXTURE_SAMPLE_NOTE =
   "Sample fixture data used for smoke testing — not live Craigslist listings.";
+
+export const MARKET_RENT_LIMITED_SAMPLE_NOTE =
+  "Limited sample size. Use as directional guidance only.";

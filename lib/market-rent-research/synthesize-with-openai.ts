@@ -20,6 +20,7 @@ export type SynthesizeMarketRentOptions = {
   compCount: number;
   missingFieldRatio: number;
   compRents: number[];
+  searchWasGeographicallyBroadened?: boolean;
 };
 
 export async function synthesizeMarketRentWithOpenAi(
@@ -27,7 +28,9 @@ export async function synthesizeMarketRentWithOpenAi(
   options: SynthesizeMarketRentOptions,
 ): Promise<MarketRentResearchResult> {
   const createCompletion = options.createCompletion ?? createMarketRentChatJsonCompletion;
-  const maxConfidence = getMaxAllowedConfidence(options.compCount, options.missingFieldRatio);
+  const maxConfidence = getMaxAllowedConfidence(options.compCount, options.missingFieldRatio, {
+    searchWasGeographicallyBroadened: options.searchWasGeographicallyBroadened,
+  });
 
   try {
     const messages = buildMarketRentOpenAiMessages({

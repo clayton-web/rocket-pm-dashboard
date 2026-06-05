@@ -51,26 +51,45 @@ describe("computeDeterministicSuggestedRent", () => {
 });
 
 describe("computeConfidenceFromCompCount", () => {
-  it("returns low confidence for fewer than 3 comps", () => {
-    const result = computeConfidenceFromCompCount(2, 0);
-    assert.equal(result.confidence, "low");
-    assert.match(result.reason, /Insufficient sample size/i);
+  it("returns low confidence for 1–2 comps", () => {
+    const one = computeConfidenceFromCompCount(1, 0);
+    assert.equal(one.confidence, "low");
+    assert.match(one.reason, /1 comparable listing/i);
+
+    const two = computeConfidenceFromCompCount(2, 0);
+    assert.equal(two.confidence, "low");
+    assert.match(two.reason, /2 comparable listings/i);
   });
 
-  it("returns medium confidence for 3–7 comps", () => {
-    const result = computeConfidenceFromCompCount(5, 0);
+  it("returns medium confidence for 3–5 comps", () => {
+    const three = computeConfidenceFromCompCount(3, 0);
+    assert.equal(three.confidence, "medium");
+
+    const five = computeConfidenceFromCompCount(5, 0);
+    assert.equal(five.confidence, "medium");
+  });
+
+  it("returns high confidence for 6+ comps with complete fields", () => {
+    const result = computeConfidenceFromCompCount(6, 0.1);
+    assert.equal(result.confidence, "high");
+  });
+
+  it("caps confidence at medium when search was geographically broadened", () => {
+    const result = computeConfidenceFromCompCount(8, 0.1, {
+      searchWasGeographicallyBroadened: true,
+    });
     assert.equal(result.confidence, "medium");
+    assert.match(result.reason, /broadening/i);
   });
 
   it("downgrades max confidence by sample size", () => {
     assert.equal(getMaxAllowedConfidence(2, 0), "low");
     assert.equal(getMaxAllowedConfidence(5, 0), "medium");
     assert.equal(getMaxAllowedConfidence(10, 0), "high");
+    assert.equal(
+      getMaxAllowedConfidence(10, 0, { searchWasGeographicallyBroadened: true }),
+      "medium",
+    );
     assert.equal(downgradeConfidence("high", "medium"), "medium");
-  });
-
-  it("returns high confidence for 8+ comps with complete fields", () => {
-    const result = computeConfidenceFromCompCount(10, 0.1);
-    assert.equal(result.confidence, "high");
   });
 });

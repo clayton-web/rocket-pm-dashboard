@@ -116,23 +116,34 @@ export function computeDeterministicSuggestedRent(
 export function computeConfidenceFromCompCount(
   count: number,
   missingFieldRatio: number,
+  options?: { searchWasGeographicallyBroadened?: boolean },
 ): { confidence: MarketRentConfidence; reason: string } {
-  if (count < 3) {
+  if (count <= 2) {
     return {
       confidence: "low",
-      reason: "Insufficient sample size (fewer than 3 comparable listings).",
+      reason:
+        count === 1
+          ? "Based on 1 comparable listing only."
+          : `Based on ${count} comparable listings only.`,
     };
   }
-  if (count <= 7) {
-    return {
-      confidence: "medium",
-      reason: `Based on ${count} comparable Craigslist listings.`,
-    };
+  if (count <= 5) {
+    let reason = `Based on ${count} comparable Craigslist listings.`;
+    if (options?.searchWasGeographicallyBroadened) {
+      reason += " Search was broadened beyond the original area.";
+    }
+    return { confidence: "medium", reason };
   }
   if (missingFieldRatio > 0.5) {
     return {
       confidence: "medium",
       reason: `Based on ${count} listings, but many are missing beds, baths, or sqft.`,
+    };
+  }
+  if (options?.searchWasGeographicallyBroadened) {
+    return {
+      confidence: "medium",
+      reason: `Based on ${count} comparable listings after broadening the search area.`,
     };
   }
   return {
@@ -164,10 +175,11 @@ const CONFIDENCE_RANK: Record<MarketRentConfidence, number> = {
 export function getMaxAllowedConfidence(
   count: number,
   missingFieldRatio: number,
+  options?: { searchWasGeographicallyBroadened?: boolean },
 ): MarketRentConfidence {
-  if (count < 3) return "low";
-  if (count <= 7) return "medium";
-  if (missingFieldRatio > 0.5) return "medium";
+  if (count <= 2) return "low";
+  if (count <= 5) return "medium";
+  if (missingFieldRatio > 0.5 || options?.searchWasGeographicallyBroadened) return "medium";
   return "high";
 }
 

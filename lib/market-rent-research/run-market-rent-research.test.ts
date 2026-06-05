@@ -4,12 +4,14 @@ import { readFile } from "node:fs/promises";
 import { ScraperFetchError } from "@/lib/scrapers/errors";
 import {
   MARKET_RENT_FIXTURE_SAMPLE_NOTE,
+  MARKET_RENT_LIMITED_SAMPLE_NOTE,
   MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
   MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE,
   MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE,
 } from "./constants";
 import { runMarketRentResearch } from "./run-market-rent-research";
 import { MARKET_RENT_OPENAI_FALLBACK_NOTE } from "./synthesize-with-openai";
+import { buildCraigslistSearchText } from "@/lib/scrapers/search/build-search-query";
 
 const validInputs = {
   city: "Vancouver",
@@ -318,6 +320,161 @@ describe("runMarketRentResearch", () => {
     assert.equal(result.matchingDiagnostics?.matchedCount, 0);
     assert.equal(result.matchingDiagnostics?.craigslistSearchQuery, "Port Moody 2br Condo");
     assert.doesNotMatch(result.matchingDiagnostics?.craigslistSearchQuery ?? "", /V3H/);
+  });
+
+  it("widens search and returns low confidence when only 1–2 comps match", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
+    delete process.env.OPENAI_API_KEY;
+
+    const portMoodyInputs = {
+      city: "Port Moody",
+      propertyType: "Condo",
+      bedrooms: 2,
+      bathrooms: 2,
+      sqft: 850,
+    };
+
+    const result = await runMarketRentResearch(portMoodyInputs, {
+      fetchCraigslist: async (url: string) => {
+        if (url.includes(".craigslist.org/search/apa")) {
+          return new Response('"areaId":16', { status: 200 });
+        }
+        return new Response(
+          JSON.stringify({
+            data: {
+              items: [
+                {
+                  postingId: "1",
+                  url: "https://vancouver.craigslist.org/van/apa/d/1.html",
+                  title: "2BR 2BA condo 850 sqft",
+                  price: 2400,
+                  bedrooms: 2,
+                  bathrooms: 2,
+                  sqft: 850,
+                },
+                {
+                  postingId: "2",
+                  url: "https://vancouver.craigslist.org/van/apa/d/2.html",
+                  title: "2BR 2BA condo 840 sqft",
+                  price: 2450,
+                  bedrooms: 2,
+                  bathrooms: 2,
+                  sqft: 840,
+                },
+              ],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      },
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok || result.status !== "success") return;
+    assert.equal(result.result.confidence, "low");
+    assert.ok(result.result.dataQualityNotes.includes(MARKET_RENT_LIMITED_SAMPLE_NOTE));
+    assert.ok(result.result.comparableListingsUsed.length >= 1);
+  });
+
+  it("includes search attempts in preview matching diagnostics after widening", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    process.env.VERCEL_ENV = "preview";
+    delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
+
+    const portMoodyInputs = {
+      city: "Port Moody",
+      propertyType: "Condo",
+      bedrooms: 2,
+      bathrooms: 2,
+      sqft: 850,
+    };
+    const originalQuery = buildCraigslistSearchText(portMoodyInputs);
+
+    const result = await runMarketRentResearch(portMoodyInputs, {
+      fetchCraigslist: async (url: string) => {
+        if (url.includes(".craigslist.org/search/apa")) {
+          return new Response('"areaId":16', { status: 200 });
+        }
+        const queryMatch = /query=([^&]+)/.exec(url);
+        const query = queryMatch ? decodeURIComponent(queryMatch[1].replace(/\+/g, " ")) : "";
+        const items =
+          query === originalQuery
+            ? [
+                {
+                  postingId: "1",
+                  url: "https://vancouver.craigslist.org/van/apa/d/1.html",
+                  title: "2BR 2BA condo 850 sqft",
+                  price: 2400,
+                  bedrooms: 2,
+                  bathrooms: 2,
+                  sqft: 850,
+                },
+                {
+                  postingId: "2",
+                  url: "https://vancouver.craigslist.org/van/apa/d/2.html",
+                  title: "2BR 2BA condo 840 sqft",
+                  price: 2450,
+                  bedrooms: 2,
+                  bathrooms: 2,
+                  sqft: 840,
+                },
+              ]
+            : [
+                {
+                  postingId: "3",
+                  url: "https://vancouver.craigslist.org/van/apa/d/3.html",
+                  title: "2BR 2BA condo 860 sqft",
+                  price: 2500,
+                  bedrooms: 2,
+                  bathrooms: 2,
+                  sqft: 860,
+                },
+                {
+                  postingId: "4",
+                  url: "https://vancouver.craigslist.org/van/apa/d/4.html",
+                  title: "2BR 2BA condo 855 sqft",
+                  price: 2550,
+                  bedrooms: 2,
+                  bathrooms: 2,
+                  sqft: 855,
+                },
+                {
+                  postingId: "5",
+                  url: "https://vancouver.craigslist.org/van/apa/d/5.html",
+                  title: "2BR 2BA condo 845 sqft",
+                  price: 2600,
+                  bedrooms: 2,
+                  bathrooms: 2,
+                  sqft: 845,
+                },
+              ];
+        return new Response(JSON.stringify({ data: { items } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok || result.status !== "success") return;
+    assert.ok((result.result.matchingDiagnostics?.searchAttempts?.length ?? 0) >= 2);
+    assert.ok(result.result.matchingDiagnostics?.searchWasGeographicallyBroadened);
+    assert.equal(result.result.confidence, "medium");
+  });
+
+  it("returns no recommendation when zero comps match", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
+
+    const result = await runMarketRentResearch(
+      { city: "Victoria", propertyType: "condo", bedrooms: 5, bathrooms: 3, sqft: 2000 },
+      { fetchCraigslist: fixtureFetch() },
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error, MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE);
   });
 });
 

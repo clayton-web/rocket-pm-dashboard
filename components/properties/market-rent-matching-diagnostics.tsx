@@ -29,6 +29,25 @@ export function MarketRentMatchingDiagnosticsSection({
           Craigslist query: {diagnostics.craigslistSearchQuery}
         </p>
       ) : null}
+      {diagnostics.searchAttempts && diagnostics.searchAttempts.length > 0 ? (
+        <>
+          <p className="mt-3 font-medium text-neutral-700">Search attempts</p>
+          <ol className="mt-1 list-decimal space-y-1 pl-5">
+            {diagnostics.searchAttempts.map((attempt) => (
+              <li key={attempt.attempt}>
+                {attempt.craigslistSearchQuery} — {attempt.rawListingCount} raw,{" "}
+                {attempt.matchedCount} matched
+                {attempt.keptCount !== attempt.matchedCount
+                  ? ` (${attempt.keptCount} after outlier filter)`
+                  : ""}
+              </li>
+            ))}
+          </ol>
+          {diagnostics.finalCompsUsed != null ? (
+            <p className="mt-2">Final comps used: {diagnostics.finalCompsUsed}</p>
+          ) : null}
+        </>
+      ) : null}
       {diagnostics.rejectionReasons.length > 0 ? (
         <>
           <p className="mt-2 font-medium text-neutral-700">Rejection reasons</p>
