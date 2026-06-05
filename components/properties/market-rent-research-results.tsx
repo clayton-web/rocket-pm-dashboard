@@ -12,6 +12,7 @@ import {
 import { providerStatusUiMessage } from "@/lib/market-rent-research/provider-status-ui";
 import type { MarketRentResearchResult } from "@/lib/market-rent-research/types";
 import type { MarketRentResearchInputs } from "@/lib/validation/market-rent-research";
+import { MarketRentMatchingDiagnosticsSection } from "./market-rent-matching-diagnostics";
 
 type MarketRentResearchResultsProps = {
   result: MarketRentResearchResult;
@@ -180,6 +181,10 @@ export function MarketRentResearchResults({ result, inputs }: MarketRentResearch
                 ))}
               </ul>
             </section>
+          ) : null}
+
+          {result.matchingDiagnostics ? (
+            <MarketRentMatchingDiagnosticsSection diagnostics={result.matchingDiagnostics} />
           ) : null}
 
           {result.providerDiagnostics && result.providerDiagnostics.length > 0 ? (

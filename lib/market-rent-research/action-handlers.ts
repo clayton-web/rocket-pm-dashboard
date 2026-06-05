@@ -74,6 +74,8 @@ export async function handleRunMarketRentResearch(
       ok: false,
       error: runResult.error,
       providerStatuses: runResult.providerStatuses,
+      providerDiagnostics: runResult.providerDiagnostics,
+      matchingDiagnostics: runResult.matchingDiagnostics,
     };
   }
 

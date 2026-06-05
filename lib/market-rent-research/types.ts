@@ -5,7 +5,10 @@ import type {
   MarketRentSourceId,
 } from "@/lib/validation/market-rent-research";
 import type { ProviderFetchStatus, ProviderRequestDiagnostics } from "@/lib/scrapers/types";
+import type { MarketRentMatchingDiagnostics } from "./matching-diagnostics";
 import type { RentStatistics } from "./stats";
+
+export type { MarketRentMatchingDiagnostics };
 
 export type { MarketRentConfidence, MarketRentFurnished, MarketRentResearchInputs, MarketRentSourceId };
 
@@ -49,12 +52,19 @@ export type MarketRentResearchResult = {
   statistics: RentStatistics;
   excludedCount: number;
   rawListingCount: number;
+  matchingDiagnostics?: MarketRentMatchingDiagnostics;
 };
 
 export type MarketRentResearchActionResult =
   | { ok: true; status: "success"; result: MarketRentResearchResult }
   | { ok: true; status: "no_providers"; message: string }
-  | { ok: false; error: string; providerStatuses?: ProviderFetchStatus[] };
+  | {
+      ok: false;
+      error: string;
+      providerStatuses?: ProviderFetchStatus[];
+      providerDiagnostics?: ProviderRequestDiagnostics[];
+      matchingDiagnostics?: MarketRentMatchingDiagnostics;
+    };
 
 export type MarketRentResearchActionState = MarketRentResearchActionResult & {
   completedAt: number;
