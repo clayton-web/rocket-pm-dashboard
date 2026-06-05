@@ -12,7 +12,8 @@ export type PropertyListRow = {
   city: string;
   province: string;
   postalCode: string;
-  unitCount: number;
+  /** Additional rentable spaces only — excludes the default Entire Property unit. */
+  additionalUnitCount: number | null;
 };
 
 function formatStreetLine(row: Pick<PropertyListRow, "streetLine1" | "streetLine2">) {
@@ -77,10 +78,12 @@ export function PropertyList({
             >
               <h2 className="text-sm font-semibold text-neutral-900">{formatStreetLine(property)}</h2>
               <p className="mt-1 text-sm text-neutral-600">{formatCityLine(property)}</p>
-              <p className="mt-2 text-sm text-neutral-600">
-                <span className="text-neutral-500">Units · </span>
-                {property.unitCount}
-              </p>
+              {property.additionalUnitCount != null ? (
+                <p className="mt-2 text-sm text-neutral-600">
+                  <span className="text-neutral-500">Units · </span>
+                  {property.additionalUnitCount}
+                </p>
+              ) : null}
             </Link>
           ))
         )}

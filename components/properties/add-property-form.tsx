@@ -54,7 +54,8 @@ export function AddPropertyForm() {
     <FormSection legend="Add property">
       <p className="text-sm text-neutral-600">
         Enter the street address — that becomes the property label on public viewing and application
-        forms when this organization matches the public portal org.
+        forms when this organization matches the public portal org. Rentable spaces such as basement
+        suites or numbered units are optional and can be added later.
       </p>
       {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
       <form className={`mt-4 flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onSubmit}>

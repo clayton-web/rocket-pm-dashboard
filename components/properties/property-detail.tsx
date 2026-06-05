@@ -1,6 +1,6 @@
 "use client";
 
-import { createUnitAction } from "@/app/(dashboard)/properties/actions";
+import { createUnitAction, hardDeletePropertyAction } from "@/app/(dashboard)/properties/actions";
 import {
   FormField,
   FormSection,
@@ -9,6 +9,10 @@ import {
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import {
+  getAdditionalUnits,
+  hasOnlyEntirePropertyUnit,
+} from "@/lib/property/entire-property-unit";
 import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -57,11 +61,13 @@ function formatCityLine(
 export function PropertyDetail({
   detail,
   canAddUnit,
+  canDeleteProperty,
   loadError,
   marketRentResearch,
 }: {
   detail: PropertyDetailData | null;
   canAddUnit: boolean;
+  canDeleteProperty: boolean;
   loadError: string | null;
   marketRentResearch?: PropertyDetailMarketRentResearch;
 }) {
@@ -82,19 +88,18 @@ export function PropertyDetail({
     <PropertyDetailBody
       detail={detail}
       canAddUnit={canAddUnit}
+      canDeleteProperty={canDeleteProperty}
       marketRentResearch={marketRentResearch}
     />
   );
 }
 
-function PropertyDetailBody({
-  detail,
-  canAddUnit,
-  marketRentResearch,
+function AddUnitForm({
+  propertyId,
+  onSuccess,
 }: {
-  detail: PropertyDetailData;
-  canAddUnit: boolean;
-  marketRentResearch?: PropertyDetailMarketRentResearch;
+  propertyId: string;
+  onSuccess: () => void;
 }) {
   const router = useRouter();
   const unitNumberId = useId();
@@ -110,7 +115,7 @@ function PropertyDetailBody({
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createUnitAction(detail.id, {
+      const result = await createUnitAction(propertyId, {
         unitNumber,
         floor: floor || null,
         bedrooms: bedrooms === "" ? null : Number(bedrooms),
@@ -122,9 +127,157 @@ function PropertyDetailBody({
       setUnitNumber("");
       setFloor("");
       setBedrooms("");
+      onSuccess();
       router.refresh();
     });
   }
+
+  return (
+    <>
+      {error ? <InlineNotice className="mb-4">{error}</InlineNotice> : null}
+      <form className={`flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onAddUnit}>
+        <FormField
+          label="Unit label (required)"
+          htmlFor={unitNumberId}
+          helper="e.g. Basement, Upper, Suite A, 101"
+        >
+          <input
+            id={unitNumberId}
+            type="text"
+            value={unitNumber}
+            onChange={(e) => setUnitNumber(e.target.value)}
+            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            placeholder="Basement"
+            required
+          />
+        </FormField>
+        <FormField label="Floor (optional)" htmlFor={floorId}>
+          <input
+            id={floorId}
+            type="text"
+            value={floor}
+            onChange={(e) => setFloor(e.target.value)}
+            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+          />
+        </FormField>
+        <FormField label="Bedrooms (optional)" htmlFor={bedroomsId}>
+          <input
+            id={bedroomsId}
+            type="number"
+            min={0}
+            max={50}
+            step={1}
+            value={bedrooms}
+            onChange={(e) => setBedrooms(e.target.value)}
+            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+          />
+        </FormField>
+        <PrimaryButton type="submit" disabled={pending} className="!w-auto px-6">
+          {pending ? "Adding…" : "Add unit"}
+        </PrimaryButton>
+      </form>
+    </>
+  );
+}
+
+function DeletePropertySection({ propertyId }: { propertyId: string }) {
+  const confirmationId = useId();
+  const [showDialog, setShowDialog] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function onDelete(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await hardDeletePropertyAction(propertyId, confirmation);
+      if (result && !result.ok) {
+        setError(result.error);
+      }
+    });
+  }
+
+  return (
+    <div className="mt-12 border-t border-neutral-200 pt-8">
+      {!showDialog ? (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setConfirmation("");
+            setShowDialog(true);
+          }}
+          className="rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-800 hover:bg-red-100"
+        >
+          Delete Property
+        </button>
+      ) : (
+        <div className={`${SURFACE_PANEL} border border-red-200 px-4 py-4`}>
+          <p className="text-sm font-medium text-red-900">Delete property permanently?</p>
+          <p className="mt-2 text-sm text-red-800">
+            This permanently deletes this property and its units. This should only be used for
+            dummy/test properties. This cannot be undone.
+          </p>
+          {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
+          <form className="mt-4 flex flex-col gap-4" onSubmit={onDelete}>
+            <FormField
+              label='Type DELETE to confirm'
+              htmlFor={confirmationId}
+              helper="Required for permanent deletion."
+            >
+              <input
+                id={confirmationId}
+                type="text"
+                value={confirmation}
+                onChange={(e) => setConfirmation(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                autoComplete="off"
+                required
+              />
+            </FormField>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="submit"
+                disabled={pending || confirmation.trim() !== "DELETE"}
+                className="rounded-xl border border-red-600 bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pending ? "Deleting…" : "Delete permanently"}
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => {
+                  setShowDialog(false);
+                  setConfirmation("");
+                  setError(null);
+                }}
+                className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PropertyDetailBody({
+  detail,
+  canAddUnit,
+  canDeleteProperty,
+  marketRentResearch,
+}: {
+  detail: PropertyDetailData;
+  canAddUnit: boolean;
+  canDeleteProperty: boolean;
+  marketRentResearch?: PropertyDetailMarketRentResearch;
+}) {
+  const additionalUnits = getAdditionalUnits(detail.units);
+  const onlyDefaultUnit = hasOnlyEntirePropertyUnit(detail.units);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -144,24 +297,14 @@ function PropertyDetailBody({
           <span className="text-neutral-500">Status · </span>
           {detail.isActive ? "Active" : "Inactive"}
         </p>
-        <p className="mt-2 text-sm text-neutral-600">
-          Whole-property rentals include an active{" "}
-          <span className="font-medium text-neutral-800">Entire Property</span> unit automatically.
-          Add more unit labels below for basement, upper, suite, or numbered units.
-        </p>
       </div>
 
-      <FormSection legend="Units">
-        {detail.units.length === 0 ? (
-          <p className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-600`}>
-            No units listed yet. New properties should include Entire Property automatically — refresh
-            if you expected it.
-          </p>
-        ) : (
+      {additionalUnits.length > 0 ? (
+        <FormSection legend="Units">
           <ul className="flex list-none flex-col gap-2 p-0">
-            {detail.units.map((unit) => (
+            {additionalUnits.map((unit) => (
               <li key={unit.id} className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-700`}>
-                <span className="font-semibold text-neutral-900">Unit {unit.unitNumber}</span>
+                <span className="font-semibold text-neutral-900">{unit.unitNumber}</span>
                 {unit.floor ? (
                   <span className="text-neutral-600">
                     {" "}
@@ -189,64 +332,37 @@ function PropertyDetailBody({
               </li>
             ))}
           </ul>
-        )}
-      </FormSection>
+        </FormSection>
+      ) : null}
 
       {canAddUnit ? (
-        <div className="mt-8">
-          <FormSection
-            legend="Add unit"
-            helper="For duplexes and multi-suite buildings, add labels like Basement, Upper, Suite A, or 101."
-          >
-            {error ? <InlineNotice className="mb-4">{error}</InlineNotice> : null}
-            <form className={`flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onAddUnit}>
-              <FormField
-                label="Unit label (required)"
-                htmlFor={unitNumberId}
-                helper="e.g. Basement, Upper, Suite A, 101"
+        <div className={additionalUnits.length > 0 ? "mt-6" : ""}>
+          {showAddForm ? (
+            <div className="mt-2">
+              <AddUnitForm propertyId={detail.id} onSuccess={() => setShowAddForm(false)} />
+            </div>
+          ) : (
+            <div className={onlyDefaultUnit ? "" : "mt-2"}>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(true)}
+                className="text-sm font-medium text-neutral-800 underline"
               >
-                <input
-                  id={unitNumberId}
-                  type="text"
-                  value={unitNumber}
-                  onChange={(e) => setUnitNumber(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                  placeholder="Basement"
-                  required
-                />
-              </FormField>
-              <FormField label="Floor (optional)" htmlFor={floorId}>
-                <input
-                  id={floorId}
-                  type="text"
-                  value={floor}
-                  onChange={(e) => setFloor(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <FormField label="Bedrooms (optional)" htmlFor={bedroomsId}>
-                <input
-                  id={bedroomsId}
-                  type="number"
-                  min={0}
-                  max={50}
-                  step={1}
-                  value={bedrooms}
-                  onChange={(e) => setBedrooms(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <PrimaryButton type="submit" disabled={pending} className="!w-auto px-6">
-                {pending ? "Adding…" : "Add unit"}
-              </PrimaryButton>
-            </form>
-          </FormSection>
+                + Add Unit
+              </button>
+              <p className="mt-1 text-sm text-neutral-600">
+                Add a basement suite, upper floor, numbered unit, or other rentable space.
+              </p>
+            </div>
+          )}
         </div>
-      ) : (
-        <InlineNotice className="mt-8">
+      ) : onlyDefaultUnit ? null : (
+        <InlineNotice className="mt-6">
           Property manager or organization admin access is required to add units.
         </InlineNotice>
       )}
+
+      {canDeleteProperty ? <DeletePropertySection propertyId={detail.id} /> : null}
     </div>
   );
 }
