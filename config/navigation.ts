@@ -8,6 +8,7 @@ export type NavModuleId =
   | "aiResponder"
   | "inspections"
   | "maintenance"
+  | "properties"
   | "leasing"
   | "tenantApps"
   | "documents"
@@ -75,6 +76,15 @@ export const navigationItems: NavItem[] = [
     enabled: true,
     section: "operations",
     minimumRole: "MEMBER",
+  },
+  {
+    id: "nav-properties",
+    moduleId: "properties",
+    label: "Properties",
+    href: "/properties",
+    enabled: true,
+    section: "operations",
+    minimumRole: "ADMIN",
   },
   {
     id: "nav-leasing-dashboard",

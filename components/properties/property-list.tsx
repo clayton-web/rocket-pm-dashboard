@@ -1,0 +1,87 @@
+"use client";
+
+import { SURFACE_CARD, SURFACE_PANEL } from "@/components/portal/ui";
+import { AddPropertyForm } from "@/components/properties/add-property-form";
+import Link from "next/link";
+
+export type PropertyListRow = {
+  id: string;
+  name: string;
+  streetLine1: string;
+  streetLine2: string | null;
+  city: string;
+  province: string;
+  postalCode: string;
+  unitCount: number;
+};
+
+function formatAddress(row: PropertyListRow) {
+  const line2 = row.streetLine2 ? `, ${row.streetLine2}` : "";
+  return `${row.streetLine1}${line2}, ${row.city}, ${row.province} ${row.postalCode}`;
+}
+
+export function PropertyList({
+  properties,
+  canCreate,
+  loadError,
+}: {
+  properties: PropertyListRow[];
+  canCreate: boolean;
+  loadError: string | null;
+}) {
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-neutral-900">Properties</h1>
+        <p className="mt-1 text-sm text-neutral-600">
+          Rental properties in your organization. Active properties with units appear on{" "}
+          <Link href="/portal/viewing" className="font-medium underline">
+            /portal/viewing
+          </Link>{" "}
+          and{" "}
+          <Link href="/portal/application" className="font-medium underline">
+            /portal/application
+          </Link>
+          .
+        </p>
+      </div>
+
+      {loadError ? (
+        <p className={`mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-3.5 py-3 text-sm text-neutral-700`}>
+          {loadError}
+        </p>
+      ) : null}
+
+      {canCreate ? (
+        <div className="mb-8">
+          <AddPropertyForm />
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3">
+        {properties.length === 0 ? (
+          <p className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-600`}>
+            {canCreate
+              ? "No properties yet. Add one above to get started."
+              : "No properties assigned to your account."}
+          </p>
+        ) : (
+          properties.map((property) => (
+            <Link
+              key={property.id}
+              href={`/properties/${property.id}`}
+              className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+            >
+              <h2 className="text-sm font-semibold text-neutral-900">{property.name}</h2>
+              <p className="mt-1 text-sm text-neutral-600">{formatAddress(property)}</p>
+              <p className="mt-2 text-sm text-neutral-600">
+                <span className="text-neutral-500">Units · </span>
+                {property.unitCount}
+              </p>
+            </Link>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
