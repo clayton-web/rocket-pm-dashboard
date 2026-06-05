@@ -2,7 +2,12 @@ import { auth } from "@/auth";
 import { PropertyDetail, type PropertyDetailData } from "@/components/properties/property-detail";
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
+import {
+  isGeminiConfiguredForRentalAdAssistant,
+  rentalAdAssistantDraftToDto,
+} from "@/lib/rental-ad-assistant/draft-dto";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
+import { getRentalAdAssistantDraftForUnit } from "@/lib/services/rental-ad-assistant-draft.service";
 import { getPropertyById } from "@/lib/services/property.service";
 import { listUnitsForProperty } from "@/lib/services/unit.service";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
@@ -12,7 +17,7 @@ type PageProps = {
   params: Promise<{ propertyId: string }>;
 };
 
-function canAddUnitToProperty(
+function canManagePropertyUnits(
   ctx: NonNullable<Awaited<ReturnType<typeof getStaffContextFromSession>>>,
   propertyId: string,
 ): boolean {
@@ -64,11 +69,33 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       })),
     };
 
+    const canEditRentalAdAssistant = canManagePropertyUnits(ctx, propertyId);
+    const draftsByUnitId: Record<string, ReturnType<typeof rentalAdAssistantDraftToDto> | null> =
+      {};
+
+    if (canEditRentalAdAssistant) {
+      await Promise.all(
+        units.map(async (unit) => {
+          const draft = await getRentalAdAssistantDraftForUnit(prisma, ctx, unit.id);
+          draftsByUnitId[unit.id] = draft ? rentalAdAssistantDraftToDto(draft) : null;
+        }),
+      );
+    }
+
     return (
       <PropertyDetail
         detail={detail}
-        canAddUnit={canAddUnitToProperty(ctx, propertyId)}
+        canAddUnit={canEditRentalAdAssistant}
         loadError={null}
+        rentalAdAssistant={
+          canEditRentalAdAssistant
+            ? {
+                geminiConfigured: isGeminiConfiguredForRentalAdAssistant(),
+                canEdit: true,
+                draftsByUnitId,
+              }
+            : undefined
+        }
       />
     );
   } catch (e) {

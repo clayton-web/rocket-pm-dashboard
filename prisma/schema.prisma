@@ -105,6 +105,7 @@ model Organization {
   backgroundJobs         BackgroundJob[]
   agentRuns                AgentRun[]
   aiPolicy                 OrganizationAiPolicy?
+  rentalAdAssistantDrafts  RentalAdAssistantDraft[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -166,8 +167,9 @@ model Property {
   generalDocuments     Document[]               @relation("DocumentProperty")
   signatureRequests    SignatureRequest[]
   checklists           Checklist[]
-  activityLogs         ActivityLog[]
-  maintenanceRequests  MaintenanceRequest[]
+  activityLogs              ActivityLog[]
+  maintenanceRequests       MaintenanceRequest[]
+  rentalAdAssistantDrafts   RentalAdAssistantDraft[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -190,14 +192,49 @@ model Unit {
   applications        Application[]
   tenancies           Tenancy[]
   notices             Notice[]
-  generalDocuments    Document[]           @relation("DocumentUnit")
-  maintenanceRequests MaintenanceRequest[]
+  generalDocuments          Document[]                @relation("DocumentUnit")
+  maintenanceRequests       MaintenanceRequest[]
+  rentalAdAssistantDraft    RentalAdAssistantDraft?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([propertyId, unitNumber])
   @@index([propertyId])
+}
+
+/// Draft-only workspace for the Rental Ad Assistant (not official property or rent data).
+model RentalAdAssistantDraft {
+  id             String @id @default(cuid())
+  organizationId String
+  propertyId     String
+  unitId         String @unique
+
+  createdByUserId String?
+  updatedByUserId String?
+
+  /// PM-entered temporary ad details — NOT official property/unit fields.
+  inputsJson Json
+
+  /// AI-generated + PM-edited advertising content — NOT official rent.
+  outputJson Json?
+
+  /// Snapshot of internal historical lease comps used at last generation.
+  compsSnapshotJson Json?
+
+  model           String?
+  promptVersion   String?
+  lastGeneratedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, propertyId])
+  @@index([organizationId, updatedAt])
 }
 
 /// Scopes property_manager and field_agent staff to specific properties within an org.

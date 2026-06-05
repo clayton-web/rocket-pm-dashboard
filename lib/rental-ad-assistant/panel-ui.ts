@@ -1,0 +1,84 @@
+import {
+  formatListingReviewFlag,
+  scanListingCopyForReview,
+} from "@/lib/ai/rental-ad-assistant/scan-listing-copy";
+import { INTERNAL_RENT_COMPS_LABEL } from "@/lib/leasing/internal-rent-comps";
+import {
+  RENTAL_AD_ASSISTANT_DISCLAIMER,
+  RENTAL_AD_ASSISTANT_DRAFT_HELPER_LABEL,
+  type RentalAdAssistantDraftDto,
+} from "./draft-dto";
+
+export const SUGGESTED_ADVERTISING_RENT_LABEL = "Suggested advertising rent";
+export const CONSERVATIVE_RENT_LABEL = "Conservative";
+export const RECOMMENDED_RENT_LABEL = "Recommended";
+export const AGGRESSIVE_RENT_LABEL = "Aggressive";
+
+export function shouldDisableRentalAdGenerate(geminiConfigured: boolean): boolean {
+  return !geminiConfigured;
+}
+
+export function rentalAdGenerateUnavailableMessage(geminiConfigured: boolean): string | null {
+  if (geminiConfigured) return null;
+  return "Set GEMINI_API_KEY (optional: GEMINI_MODEL) to generate advertising drafts.";
+}
+
+export function rentalAdPanelShowsDisclaimer(): string {
+  return RENTAL_AD_ASSISTANT_DISCLAIMER;
+}
+
+export function rentalAdPanelShowsHistoricalCompsLabel(draft: RentalAdAssistantDraftDto | null): boolean {
+  return Boolean(draft?.compsSnapshot && draft.compsSnapshot.count > 0);
+}
+
+export function rentalAdHistoricalCompsLabel(): string {
+  return INTERNAL_RENT_COMPS_LABEL;
+}
+
+export function rentalAdDraftHelperLegend(): string {
+  return RENTAL_AD_ASSISTANT_DRAFT_HELPER_LABEL;
+}
+
+export function formatUtilitiesForInput(utilities: string[]): string {
+  return utilities.join(", ");
+}
+
+export function parseUtilitiesFromInput(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export const RENTAL_AD_REVIEW_BANNER_MESSAGE =
+  "Review suggested wording before posting. Some phrases may create fair housing / human-rights concerns.";
+
+export const SUGGESTED_RENT_HELPER_TEXT =
+  "Draft advertising guidance only — not official lease rent.";
+
+export const HISTORICAL_COMPS_HELPER_TEXT =
+  "Signed lease amounts in your portfolio — not current asking rents or guarantees.";
+
+export const CONFIDENCE_HELPER_TEXT =
+  "Confidence reflects portfolio comps and inputs — not a market guarantee.";
+
+export function shouldShowRentalAdReviewBanner(reviewFlags: string[] | undefined): boolean {
+  return Boolean(reviewFlags && reviewFlags.length > 0);
+}
+
+/** Copy/save remain available even when review flags exist. */
+export function rentalAdActionsAllowedWithReviewFlags(): boolean {
+  return true;
+}
+
+export function formatRentalAdReviewFlagsForDisplay(reviewFlags: string[]): string[] {
+  return reviewFlags.map(formatListingReviewFlag);
+}
+
+export function rentalAdReviewFlagsFromCopy(input: {
+  headline?: string;
+  fullDescription?: string;
+  shortDescription?: string;
+}): string[] {
+  return scanListingCopyForReview(input);
+}
