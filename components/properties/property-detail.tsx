@@ -1,6 +1,7 @@
 "use client";
 
 import { createUnitAction } from "@/app/(dashboard)/properties/actions";
+import { MarketRentResearchPanel } from "@/components/properties/market-rent-research-panel";
 import {
   FormField,
   FormSection,
@@ -9,6 +10,7 @@ import {
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
@@ -48,10 +50,12 @@ export function PropertyDetail({
   detail,
   canAddUnit,
   loadError,
+  marketRentResearch,
 }: {
   detail: PropertyDetailData | null;
   canAddUnit: boolean;
   loadError: string | null;
+  marketRentResearch?: PropertyDetailMarketRentResearch;
 }) {
   if (loadError || !detail) {
     return (
@@ -66,15 +70,23 @@ export function PropertyDetail({
     );
   }
 
-  return <PropertyDetailBody detail={detail} canAddUnit={canAddUnit} />;
+  return (
+    <PropertyDetailBody
+      detail={detail}
+      canAddUnit={canAddUnit}
+      marketRentResearch={marketRentResearch}
+    />
+  );
 }
 
 function PropertyDetailBody({
   detail,
   canAddUnit,
+  marketRentResearch,
 }: {
   detail: PropertyDetailData;
   canAddUnit: boolean;
+  marketRentResearch?: PropertyDetailMarketRentResearch;
 }) {
   const router = useRouter();
   const unitNumberId = useId();
@@ -153,6 +165,18 @@ function PropertyDetailBody({
                 ) : null}
                 {!unit.isActive ? (
                   <span className="text-neutral-500"> · Inactive</span>
+                ) : null}
+                {marketRentResearch ? (
+                  <MarketRentResearchPanel
+                    unitId={unit.id}
+                    unitLabel={unit.unitNumber}
+                    unitFloor={unit.floor}
+                    unitBedrooms={unit.bedrooms}
+                    addressDisplay={formatStreetLine(detail)}
+                    cityLine={formatCityLine(detail)}
+                    defaultCity={detail.city}
+                    canEdit={marketRentResearch.enabled}
+                  />
                 ) : null}
               </li>
             ))}

@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { PropertyDetail, type PropertyDetailData } from "@/components/properties/property-detail";
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
+import { resolvePropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
+import { isMarketRentResearchEnabled } from "@/lib/market-rent-research/feature-flag";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
 import { getPropertyById } from "@/lib/services/property.service";
 import { listUnitsForProperty } from "@/lib/services/unit.service";
@@ -65,9 +67,18 @@ export default async function PropertyDetailPage({ params }: PageProps) {
     };
 
     const canAddUnit = canManagePropertyUnits(ctx, propertyId);
+    const marketRentResearch = resolvePropertyDetailMarketRentResearch({
+      featureEnabled: isMarketRentResearchEnabled(),
+      canManagePropertyUnits: canAddUnit,
+    });
 
     return (
-      <PropertyDetail detail={detail} canAddUnit={canAddUnit} loadError={null} />
+      <PropertyDetail
+        detail={detail}
+        canAddUnit={canAddUnit}
+        loadError={null}
+        marketRentResearch={marketRentResearch}
+      />
     );
   } catch (e) {
     if (e instanceof NotFoundError || e instanceof ForbiddenError) {
