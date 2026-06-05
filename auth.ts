@@ -2,6 +2,14 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { authorizeStaffCredentials } from "@/lib/auth/authorize-credentials";
+import {
+  logGoogleSignInDeniedInactive,
+  logGoogleSignInExistingUser,
+  logGoogleSignInStart,
+  logGoogleSignInUpsertError,
+  logGoogleSignInUpsertStart,
+  logGoogleSignInUpsertSuccess,
+} from "@/lib/auth/google-signin-diagnostic-log";
 import prisma from "@/lib/db/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -31,18 +39,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ account, profile }) {
       if (account?.provider === "google" && profile && "email" in profile && profile.email) {
         const email = profile.email as string;
-        const existing = await prisma.user.findUnique({ where: { email } });
-        if (existing && !existing.isActive) {
-          return false;
+        logGoogleSignInStart({ provider: account.provider, email });
+
+        try {
+          const existing = await prisma.user.findUnique({ where: { email } });
+          logGoogleSignInExistingUser({
+            email,
+            found: Boolean(existing),
+            userId: existing?.id,
+            isActive: existing?.isActive,
+          });
+
+          if (existing && !existing.isActive) {
+            logGoogleSignInDeniedInactive({ email, userId: existing.id });
+            return false;
+          }
+
+          const name = "name" in profile && typeof profile.name === "string" ? profile.name : null;
+          const image =
+            "picture" in profile && typeof profile.picture === "string" ? profile.picture : null;
+
+          logGoogleSignInUpsertStart({ email });
+          await prisma.user.upsert({
+            where: { email },
+            create: { email, name, image, isActive: true },
+            update: { name: name ?? undefined, image: image ?? undefined },
+          });
+          logGoogleSignInUpsertSuccess({ email });
+        } catch (error) {
+          logGoogleSignInUpsertError({ email, error });
+          throw error;
         }
-        const name = "name" in profile && typeof profile.name === "string" ? profile.name : null;
-        const image =
-          "picture" in profile && typeof profile.picture === "string" ? profile.picture : null;
-        await prisma.user.upsert({
-          where: { email },
-          create: { email, name, image, isActive: true },
-          update: { name: name ?? undefined, image: image ?? undefined },
-        });
       }
       return true;
     },
