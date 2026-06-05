@@ -4,6 +4,8 @@ import {
   computeConfidenceFromCompCount,
   computeDeterministicSuggestedRent,
   computeRentStatistics,
+  downgradeConfidence,
+  getMaxAllowedConfidence,
   removeIqrOutliers,
   roundToNearest25,
 } from "./stats";
@@ -58,6 +60,13 @@ describe("computeConfidenceFromCompCount", () => {
   it("returns medium confidence for 3–7 comps", () => {
     const result = computeConfidenceFromCompCount(5, 0);
     assert.equal(result.confidence, "medium");
+  });
+
+  it("downgrades max confidence by sample size", () => {
+    assert.equal(getMaxAllowedConfidence(2, 0), "low");
+    assert.equal(getMaxAllowedConfidence(5, 0), "medium");
+    assert.equal(getMaxAllowedConfidence(10, 0), "high");
+    assert.equal(downgradeConfidence("high", "medium"), "medium");
   });
 
   it("returns high confidence for 8+ comps with complete fields", () => {

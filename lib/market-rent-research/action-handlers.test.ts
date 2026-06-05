@@ -156,12 +156,12 @@ describe("handleRunMarketRentResearch", () => {
 });
 
 describe("market rent research PR2 boundaries", () => {
-  it("does not import OpenAI from action-handlers", async () => {
+  it("does not import Gemini or old rental ad assistant from action-handlers", async () => {
     const source = await import("node:fs/promises").then((fs) =>
       fs.readFile(new URL("./action-handlers.ts", import.meta.url), "utf8"),
     );
     assert.doesNotMatch(source, /from ["']@\/lib\/ai\//);
-    assert.doesNotMatch(source, /from ["'].*openai/i);
     assert.doesNotMatch(source, /from ["']@\/lib\/rental-ad-assistant\//);
+    assert.doesNotMatch(source, /gemini/i);
   });
 });

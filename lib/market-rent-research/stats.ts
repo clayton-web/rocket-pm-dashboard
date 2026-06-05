@@ -153,3 +153,27 @@ export function computeMissingFieldRatio(
   }
   return missing / (listings.length * 3);
 }
+
+const CONFIDENCE_RANK: Record<MarketRentConfidence, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+};
+
+/** Maximum confidence allowed from matched comp count and field completeness. */
+export function getMaxAllowedConfidence(
+  count: number,
+  missingFieldRatio: number,
+): MarketRentConfidence {
+  if (count < 3) return "low";
+  if (count <= 7) return "medium";
+  if (missingFieldRatio > 0.5) return "medium";
+  return "high";
+}
+
+export function downgradeConfidence(
+  confidence: MarketRentConfidence,
+  maxAllowed: MarketRentConfidence,
+): MarketRentConfidence {
+  return CONFIDENCE_RANK[confidence] > CONFIDENCE_RANK[maxAllowed] ? maxAllowed : confidence;
+}

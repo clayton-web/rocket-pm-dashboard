@@ -16,6 +16,7 @@ import {
   MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE,
 } from "./constants";
 import { applyOutlierExclusions, matchComparableListings } from "./matching";
+import { isOpenAiApiKeyConfigured, type CreateMarketRentChatJsonCompletion } from "./openai-client";
 import {
   computeConfidenceFromCompCount,
   computeDeterministicSuggestedRent,
@@ -23,6 +24,7 @@ import {
   computeRentStatistics,
   type RentStatistics,
 } from "./stats";
+import { synthesizeMarketRentWithOpenAi } from "./synthesize-with-openai";
 import type { MarketRentComparableListing, MarketRentResearchResult } from "./types";
 
 export type MarketRentResearchRunResult =
@@ -33,6 +35,7 @@ export type MarketRentResearchRunResult =
 export type RunMarketRentResearchOptions = {
   fetchCraigslist?: CraigslistFetchFn;
   craigslistTimeoutMs?: number;
+  createOpenAiCompletion?: CreateMarketRentChatJsonCompletion;
 };
 
 function toComparableListing(listing: NormalizedComparable): MarketRentComparableListing {
@@ -140,6 +143,7 @@ export async function runMarketRentResearch(
     confidence,
     confidenceReason,
     explanation: buildExplanation(statistics, confidenceReason, providerStatuses),
+    explanationSource: "deterministic",
     comparableListingsUsed: kept.slice(0, 15).map(toComparableListing),
     dataQualityNotes,
     sourceBreakdown: {
@@ -151,5 +155,17 @@ export async function runMarketRentResearch(
     rawListingCount: rawListings.length,
   };
 
-  return { ok: true, status: "success", result, statistics };
+  if (!isOpenAiApiKeyConfigured()) {
+    return { ok: true, status: "success", result, statistics };
+  }
+
+  const synthesized = await synthesizeMarketRentWithOpenAi(result, {
+    createCompletion: options?.createOpenAiCompletion,
+    inputs,
+    compCount: kept.length,
+    missingFieldRatio,
+    compRents: rents,
+  });
+
+  return { ok: true, status: "success", result: synthesized, statistics };
 }

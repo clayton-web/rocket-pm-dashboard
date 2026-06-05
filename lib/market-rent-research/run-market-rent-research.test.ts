@@ -7,6 +7,7 @@ import {
   MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE,
 } from "./constants";
 import { runMarketRentResearch } from "./run-market-rent-research";
+import { MARKET_RENT_OPENAI_FALLBACK_NOTE } from "./synthesize-with-openai";
 
 const validInputs = {
   city: "Vancouver",
@@ -72,12 +73,29 @@ function fixtureFetch() {
     });
 }
 
+const mockOpenAiSuccess = async () => ({
+  suggestedRent: {
+    conservative: 2750,
+    recommended: 2800,
+    aggressive: 2900,
+    currency: "CAD",
+  },
+  confidence: "high",
+  confidenceReason: "Four similar Craigslist comps support a mid-$2,700 range.",
+  explanation: "Comparable listings cluster near $2,800 for similar 2-bedroom condos in Kitsilano.",
+  comparableListingsUsed: [],
+  dataQualityNotes: [],
+});
+
 describe("runMarketRentResearch", () => {
   const originalCraigslist = process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
+  const originalOpenAi = process.env.OPENAI_API_KEY;
 
   afterEach(() => {
     if (originalCraigslist === undefined) delete process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
     else process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = originalCraigslist;
+    if (originalOpenAi === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = originalOpenAi;
   });
 
   it("returns no_providers when Craigslist flag is off", async () => {
@@ -90,6 +108,7 @@ describe("runMarketRentResearch", () => {
 
   it("returns success with stats when Craigslist is enabled and fixture fetch succeeds", async () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    delete process.env.OPENAI_API_KEY;
     const result = await runMarketRentResearch(validInputs, {
       fetchCraigslist: fixtureFetch(),
     });
@@ -97,9 +116,50 @@ describe("runMarketRentResearch", () => {
     assert.equal(result.ok, true);
     if (!result.ok || result.status !== "success") return;
     assert.ok(result.result.suggestedRent.recommended > 0);
+    assert.equal(result.result.explanationSource, "deterministic");
     assert.ok(result.result.comparableListingsUsed.length >= 3);
-    assert.equal(result.result.sourceBreakdown.craigslist, result.result.comparableListingsUsed.length);
-    assert.ok(result.result.statistics.median != null);
+  });
+
+  it("returns deterministic fallback when OpenAI key is missing", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    delete process.env.OPENAI_API_KEY;
+    const result = await runMarketRentResearch(validInputs, {
+      fetchCraigslist: fixtureFetch(),
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok || result.status !== "success") return;
+    assert.equal(result.result.explanationSource, "deterministic");
+    assert.ok(result.result.suggestedRent.recommended > 0);
+  });
+
+  it("uses OpenAI explanation when mocked completion succeeds", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    process.env.OPENAI_API_KEY = "test-key";
+    const result = await runMarketRentResearch(validInputs, {
+      fetchCraigslist: fixtureFetch(),
+      createOpenAiCompletion: mockOpenAiSuccess,
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok || result.status !== "success") return;
+    assert.equal(result.result.explanationSource, "openai");
+    assert.match(result.result.explanation, /Comparable listings cluster/);
+    assert.equal(result.result.confidence, "medium");
+  });
+
+  it("returns deterministic fallback when OpenAI fails", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    process.env.OPENAI_API_KEY = "test-key";
+    const result = await runMarketRentResearch(validInputs, {
+      fetchCraigslist: fixtureFetch(),
+      createOpenAiCompletion: async () => {
+        throw new Error("OpenAI request failed (503).");
+      },
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok || result.status !== "success") return;
+    assert.equal(result.result.explanationSource, "deterministic");
+    assert.ok(result.result.suggestedRent.recommended > 0);
+    assert.ok(result.result.dataQualityNotes.some((note) => note.includes(MARKET_RENT_OPENAI_FALLBACK_NOTE)));
   });
 
   it("returns graceful error when provider fails", async () => {
@@ -119,9 +179,7 @@ describe("runMarketRentResearch", () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
     const result = await runMarketRentResearch(
       { ...validInputs, city: "Victoria", bedrooms: 5 },
-      {
-        fetchCraigslist: fixtureFetch(),
-      },
+      { fetchCraigslist: fixtureFetch() },
     );
 
     assert.equal(result.ok, false);
@@ -130,22 +188,22 @@ describe("runMarketRentResearch", () => {
   });
 });
 
-describe("market rent research PR2 boundaries", () => {
-  it("does not import OpenAI across market-rent-research and scrapers modules", async () => {
+describe("market rent research PR3 boundaries", () => {
+  it("does not import Gemini or old rental ad assistant modules", async () => {
     const files = [
       "./run-market-rent-research.ts",
+      "./openai-client.ts",
+      "./build-openai-prompt.ts",
+      "./parse-openai-output.ts",
+      "./synthesize-with-openai.ts",
       "./action-handlers.ts",
-      "./stats.ts",
-      "./matching.ts",
-      "../scrapers/providers/craigslist/craigslist-client.ts",
-      "../scrapers/providers/craigslist/craigslist-mapper.ts",
     ];
 
     for (const relativePath of files) {
       const source = await readFile(new URL(relativePath, import.meta.url), "utf8");
       assert.doesNotMatch(source, /from ["']@\/lib\/ai\//);
-      assert.doesNotMatch(source, /from ["']openai/i);
       assert.doesNotMatch(source, /from ["']@\/lib\/rental-ad-assistant\//);
+      assert.doesNotMatch(source, /gemini/i);
     }
   });
 

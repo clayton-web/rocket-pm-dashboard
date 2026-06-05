@@ -97,6 +97,13 @@ function ResearchResults({ result }: { result: MarketRentResearchResult }) {
         <p className="mt-2 text-sm text-neutral-600">
           Confidence · {result.confidence} — {result.confidenceReason}
         </p>
+      </section>
+
+      <section>
+        <h3 className="text-sm font-semibold text-neutral-900">Explanation</h3>
+        {result.explanationSource === "deterministic" ? (
+          <p className="mt-1 text-xs text-neutral-500">Deterministic summary</p>
+        ) : null}
         <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-700">{result.explanation}</p>
       </section>
 

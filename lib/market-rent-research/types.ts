@@ -38,6 +38,7 @@ export type MarketRentResearchResult = {
   confidence: MarketRentConfidence;
   confidenceReason: string;
   explanation: string;
+  explanationSource: "deterministic" | "openai";
   comparableListingsUsed: MarketRentComparableListing[];
   dataQualityNotes: string[];
   sourceBreakdown: MarketRentSourceBreakdown;
