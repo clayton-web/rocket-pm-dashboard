@@ -13,12 +13,16 @@ export type MarketRentResearchInputs = {
   propertyType: string;
   bedrooms: number;
   bathrooms: number;
-  /** Sub-area / neighbourhood keyword for Craigslist search and matching. */
+  /** Sub-area / neighbourhood keyword for post-fetch matching (not Craigslist query text). */
   neighbourhood?: string;
-  /** Canadian postal code (e.g. V3H 0C3) — boosts matching when present in listing text. */
+  /** Canadian postal code — match scoring only; not sent in Craigslist query. */
   postalCode?: string;
-  /** Comma-separated nearby cities/areas to include in search (e.g. "Coquitlam, Burnaby"). */
+  /** Comma-separated nearby cities/areas — match scoring only; not sent in Craigslist query. */
   nearbyAreas?: string;
+  /** Craigslist SAPI query area text; omitted → property city name. */
+  craigslistSearchArea?: string;
+  /** Craigslist site hostname override (e.g. vancouver, abbotsford). */
+  craigslistHostname?: string;
   sqft?: number;
   parking?: string;
   furnished?: MarketRentFurnished;
@@ -123,6 +127,12 @@ export function parseMarketRentResearchInputs(
   const notes = parseOptionalString(raw.notes, "Notes", 2000);
   if (typeof notes === "object") return notes;
 
+  const craigslistSearchArea = parseOptionalString(raw.craigslistSearchArea, "Craigslist search area", 120);
+  if (typeof craigslistSearchArea === "object") return craigslistSearchArea;
+
+  const craigslistHostname = parseOptionalString(raw.craigslistHostname, "Craigslist hostname", 40);
+  if (typeof craigslistHostname === "object") return craigslistHostname;
+
   const inputs: MarketRentResearchInputs = {
     city,
     propertyType,
@@ -138,6 +148,8 @@ export function parseMarketRentResearchInputs(
   if (furnished !== undefined) inputs.furnished = furnished;
   if (petPolicy !== undefined) inputs.petPolicy = petPolicy;
   if (notes !== undefined) inputs.notes = notes;
+  if (craigslistSearchArea !== undefined) inputs.craigslistSearchArea = craigslistSearchArea;
+  if (craigslistHostname !== undefined) inputs.craigslistHostname = craigslistHostname;
 
   return inputs;
 }

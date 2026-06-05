@@ -11,7 +11,17 @@ import {
   getLastCraigslistProviderDiagnostics,
   type CraigslistFetchFn,
 } from "@/lib/scrapers/providers/craigslist/craigslist-client";
-import { buildCraigslistSearchParams } from "@/lib/scrapers/search/build-search-query";
+import {
+  buildCraigslistSearchParams,
+  buildCraigslistSearchText,
+} from "@/lib/scrapers/search/build-search-query";
+import {
+  buildMatchingDiagnostics,
+  isMarketRentPreviewMatchingDiagnosticsEnabled,
+  parseCraigslistAreaIdFromRequestUrl,
+  type MarketRentMatchingDiagnostics,
+} from "./matching-diagnostics";
+import { cityToCraigslistHostname } from "@/lib/scrapers/providers/craigslist/craigslist-hostname";
 import { buildSubAreaDataQualityNote } from "./sub-areas";
 import type { NormalizedComparable, ProviderFetchStatus, ProviderRequestDiagnostics, RawScraperListing } from "@/lib/scrapers/types";
 import {
@@ -45,6 +55,8 @@ export type MarketRentResearchRunResult =
       ok: false;
       error: string;
       providerStatuses: ProviderFetchStatus[];
+      providerDiagnostics?: ProviderRequestDiagnostics[];
+      matchingDiagnostics?: MarketRentMatchingDiagnostics;
     };
 
 export type RunMarketRentResearchOptions = {
@@ -181,18 +193,41 @@ export async function runMarketRentResearch(
   const { kept, outlierExcluded } = applyOutlierExclusions(matched);
   const allExcluded = [...excluded, ...outlierExcluded];
 
+  const previewDiagnostics = isMarketRentPreviewMatchingDiagnosticsEnabled();
+  const craigslistHostname =
+    inputs.craigslistHostname?.trim() || cityToCraigslistHostname(inputs.city);
+  const craigslistAreaId = parseCraigslistAreaIdFromRequestUrl(
+    providerDiagnostics[0]?.requestUrl,
+  );
+  const matchingDiagnostics = previewDiagnostics
+    ? buildMatchingDiagnostics({
+        rawListingCount: rawListings.length,
+        matched,
+        excluded,
+        outlierExcluded,
+        kept,
+        craigslistSearchQuery: buildCraigslistSearchText(inputs),
+        craigslistHostname,
+        craigslistAreaId,
+      })
+    : undefined;
+
   if (kept.length === 0) {
     if (providerStatus.status !== "success") {
       return {
         ok: false,
         error: MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE,
         providerStatuses,
+        providerDiagnostics: previewDiagnostics ? providerDiagnostics : undefined,
+        matchingDiagnostics,
       };
     }
     return {
       ok: false,
       error: MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
       providerStatuses,
+      providerDiagnostics: previewDiagnostics ? providerDiagnostics : undefined,
+      matchingDiagnostics,
     };
   }
 
@@ -238,6 +273,7 @@ export async function runMarketRentResearch(
     statistics,
     excludedCount: allExcluded.length,
     rawListingCount: rawListings.length,
+    matchingDiagnostics,
   };
 
   if (!isOpenAiApiKeyConfigured()) {

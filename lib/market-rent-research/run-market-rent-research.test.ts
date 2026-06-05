@@ -108,6 +108,7 @@ describe("runMarketRentResearch", () => {
   const originalOpenAiOverride = process.env.OPENAI_MARKET_RENT_API_KEY;
   const originalFixture = process.env.MARKET_RENT_USE_FIXTURE_COMPS;
   const originalNodeEnv = process.env.NODE_ENV;
+  const originalVercelEnv = process.env.VERCEL_ENV;
 
   afterEach(() => {
     if (originalCraigslist === undefined) delete process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
@@ -119,6 +120,8 @@ describe("runMarketRentResearch", () => {
     if (originalFixture === undefined) delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
     else process.env.MARKET_RENT_USE_FIXTURE_COMPS = originalFixture;
     process.env.NODE_ENV = originalNodeEnv;
+    if (originalVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = originalVercelEnv;
   });
 
   it("returns no_providers when Craigslist flag is off", async () => {
@@ -280,6 +283,41 @@ describe("runMarketRentResearch", () => {
     if (result.ok) return;
     assert.equal(result.error, MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE);
     assert.equal(result.providerStatuses?.[0]?.status, "http_error");
+  });
+
+  it("includes preview matching diagnostics when Craigslist returns no raw listings", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    process.env.VERCEL_ENV = "preview";
+    delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
+
+    const result = await runMarketRentResearch(
+      {
+        city: "Port Moody",
+        postalCode: "V3H 1Y8",
+        propertyType: "Condo",
+        bedrooms: 2,
+        bathrooms: 2,
+        sqft: 850,
+      },
+      {
+        fetchCraigslist: async (url: string) => {
+          if (url.includes(".craigslist.org/search/apa")) {
+            return new Response('"areaId":16', { status: 200 });
+          }
+          return new Response(JSON.stringify({ data: { items: [] } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        },
+      },
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.matchingDiagnostics?.rawListingCount, 0);
+    assert.equal(result.matchingDiagnostics?.matchedCount, 0);
+    assert.equal(result.matchingDiagnostics?.craigslistSearchQuery, "Port Moody 2br Condo");
+    assert.doesNotMatch(result.matchingDiagnostics?.craigslistSearchQuery ?? "", /V3H/);
   });
 });
 

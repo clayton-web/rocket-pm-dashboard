@@ -2,6 +2,7 @@
 
 import { runMarketRentResearchAction } from "@/app/(dashboard)/properties/market-rent-research-actions";
 import { MarketRentResearchResults } from "@/components/properties/market-rent-research-results";
+import { MarketRentMatchingDiagnosticsSection } from "@/components/properties/market-rent-matching-diagnostics";
 import {
   FormField,
   InlineNotice,
@@ -22,6 +23,7 @@ import {
   MARKET_RENT_SUB_AREA_OTHER_ID,
   getMarketRentSubAreasGroupedByCity,
   resolveNeighbourhoodFromSubAreaSelection,
+  resolveSubAreaForResearch,
   suggestSubAreaSelectionForCity,
 } from "@/lib/market-rent-research/sub-areas";
 import type { PropertyProfileFields } from "@/lib/property/profile";
@@ -102,6 +104,9 @@ function criteriaToInputs(
     form.subAreaCustom,
   );
   if (neighbourhood) inputs.neighbourhood = neighbourhood;
+  const subArea = resolveSubAreaForResearch(form.subAreaSelection, form.subAreaCustom);
+  if (subArea.craigslistSearchArea) inputs.craigslistSearchArea = subArea.craigslistSearchArea;
+  if (subArea.craigslistHostname) inputs.craigslistHostname = subArea.craigslistHostname;
   if (form.postalCode.trim()) inputs.postalCode = form.postalCode.trim();
   if (form.nearbyAreas.trim()) inputs.nearbyAreas = form.nearbyAreas.trim();
   if (form.sqft.trim()) inputs.sqft = Number(form.sqft);
@@ -231,7 +236,7 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
             property.
           </p>
           <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <FormField label="Sub-area / neighbourhood" htmlFor={subAreaId}>
+            <FormField label="Craigslist search area" htmlFor={subAreaId}>
               <select
                 id={subAreaId}
                 className={inputClassName}
@@ -245,7 +250,7 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
                   }))
                 }
               >
-                <option value={MARKET_RENT_SUB_AREA_NOT_SPECIFIED_ID}>Not specified</option>
+                <option value={MARKET_RENT_SUB_AREA_NOT_SPECIFIED_ID}>Not specified (city-wide)</option>
                 {subAreaGroups.map((group) => (
                   <optgroup key={group.city} label={group.city}>
                     {group.options.map((option) => (
@@ -255,17 +260,17 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
                     ))}
                   </optgroup>
                 ))}
-                <option value={MARKET_RENT_SUB_AREA_OTHER_ID}>Other / custom…</option>
+                <option value={MARKET_RENT_SUB_AREA_OTHER_ID}>Other / custom keyword (matching only)…</option>
               </select>
             </FormField>
             {criteria.subAreaSelection === MARKET_RENT_SUB_AREA_OTHER_ID ? (
-              <FormField label="Custom sub-area" htmlFor={subAreaCustomId}>
+              <FormField label="Custom matching keyword" htmlFor={subAreaCustomId}>
                 <input
                   id={subAreaCustomId}
                   className={inputClassName}
                   value={criteria.subAreaCustom}
                   onChange={(e) => setCriteria((f) => ({ ...f, subAreaCustom: e.target.value }))}
-                  placeholder="e.g. Sunnyside, Maillardville"
+                  placeholder="e.g. Moody Centre — filters comps after fetch, not Craigslist query"
                 />
               </FormField>
             ) : null}
@@ -397,6 +402,21 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
         </form>
 
         {actionMessage ? <InlineNotice>{actionMessage}</InlineNotice> : null}
+        {!successResult &&
+        researchState.completedAt > 0 &&
+        !researchState.ok &&
+        researchState.matchingDiagnostics ? (
+          <details className="rounded-xl border border-neutral-200 bg-neutral-50/80">
+            <summary className="cursor-pointer list-none px-3.5 py-3 text-sm font-semibold text-neutral-900 [&::-webkit-details-marker]:hidden">
+              Research Details
+            </summary>
+            <div className="flex flex-col gap-4 border-t border-neutral-200 px-3.5 pb-4 pt-3 text-xs text-neutral-600">
+              <MarketRentMatchingDiagnosticsSection
+                diagnostics={researchState.matchingDiagnostics}
+              />
+            </div>
+          </details>
+        ) : null}
         {successResult ? (
           <MarketRentResearchResults
             result={successResult}

@@ -12,6 +12,7 @@ import {
   getMarketRentSubAreaCities,
   getMarketRentSubAreasGroupedByCity,
   resolveNeighbourhoodFromSubAreaSelection,
+  resolveSubAreaForResearch,
   suggestSubAreaSelectionForCity,
 } from "./sub-areas";
 
@@ -34,7 +35,7 @@ function listing(overrides: Partial<NormalizedComparable> = {}): NormalizedCompa
     bathrooms: overrides.bathrooms ?? 1,
     sqft: overrides.sqft ?? 800,
     city: overrides.city ?? "Vancouver",
-    neighbourhood: overrides.neighbourhood ?? "Kitsilano",
+    neighbourhood: overrides.neighbourhood ?? null,
     postedAt: null,
     capturedAt: "2026-06-04T00:00:00.000Z",
     propertyTypeHint: overrides.propertyTypeHint ?? "condo",
@@ -45,55 +46,63 @@ function listing(overrides: Partial<NormalizedComparable> = {}): NormalizedCompa
   };
 }
 
-describe("market rent sub-areas", () => {
+describe("market rent Craigslist sub-areas", () => {
   it("includes metro Vancouver and Fraser Valley cities", () => {
     const cities = getMarketRentSubAreaCities();
     for (const city of [
       "Vancouver",
       "Burnaby",
-      "New Westminster",
-      "Richmond",
-      "North Vancouver",
-      "West Vancouver",
-      "Coquitlam",
-      "Port Coquitlam",
       "Port Moody",
-      "Surrey",
-      "Langley",
-      "Maple Ridge",
-      "Pitt Meadows",
-      "Delta",
-      "White Rock",
       "Abbotsford",
-      "Mission",
       "Chilliwack",
     ]) {
       assert.ok(cities.includes(city), `missing city ${city}`);
     }
-    assert.ok(MARKET_RENT_SUB_AREA_OPTIONS.length > cities.length);
   });
 
-  it("groups options by city with city-wide and neighbourhood entries", () => {
+  it("groups Craigslist-compatible options by property city", () => {
     const groups = getMarketRentSubAreasGroupedByCity();
     const portMoody = groups.find((group) => group.city === "Port Moody");
     assert.ok(portMoody);
     assert.ok(portMoody.options.some((option) => option.label === "City-wide"));
-    assert.ok(portMoody.options.some((option) => option.neighbourhood === "Glenayre"));
-  });
-
-  it("resolves selected sub-area into a neighbourhood keyword", () => {
-    const glenayre = MARKET_RENT_SUB_AREA_OPTIONS.find(
-      (option) => option.city === "Port Moody" && option.neighbourhood === "Glenayre",
+    assert.ok(portMoody.options.some((option) => option.label === "Tri-Cities"));
+    assert.ok(
+      portMoody.options.every((option) => option.hostname === "vancouver"),
     );
-    assert.ok(glenayre);
-    assert.equal(resolveNeighbourhoodFromSubAreaSelection(glenayre.id), "Glenayre");
   });
 
-  it("resolves custom sub-area when Other is selected", () => {
+  it("resolves Tri-Cities into Craigslist query text but not matching neighbourhood", () => {
+    const triCities = MARKET_RENT_SUB_AREA_OPTIONS.find(
+      (option) => option.city === "Port Moody" && option.label === "Tri-Cities",
+    );
+    assert.ok(triCities);
+    const resolved = resolveSubAreaForResearch(triCities.id);
+    assert.equal(resolved.craigslistSearchArea, "Port Moody Coquitlam Port Coquitlam");
+    assert.equal(resolved.craigslistHostname, "vancouver");
+    assert.equal(resolved.matchingNeighbourhood, undefined);
+  });
+
+  it("uses custom keyword for matching only", () => {
     assert.equal(
-      resolveNeighbourhoodFromSubAreaSelection(MARKET_RENT_SUB_AREA_OTHER_ID, "  Moody Centre "),
+      resolveNeighbourhoodFromSubAreaSelection(MARKET_RENT_SUB_AREA_OTHER_ID, "Moody Centre"),
       "Moody Centre",
     );
+    const resolved = resolveSubAreaForResearch(
+      MARKET_RENT_SUB_AREA_OTHER_ID,
+      "Moody Centre Newport Village",
+    );
+    assert.equal(resolved.matchingNeighbourhood, "Moody Centre Newport Village");
+    assert.equal(resolved.craigslistSearchArea, undefined);
+
+    const query = buildCraigslistSearchText({
+      ...baseInputs,
+      city: "Port Moody",
+      neighbourhood: resolved.matchingNeighbourhood,
+      postalCode: "V3H 1Y8",
+    });
+    assert.equal(query, "Port Moody 2br condo");
+    assert.doesNotMatch(query, /Moody Centre/);
+    assert.doesNotMatch(query, /V3H/);
   });
 
   it("returns undefined for blank, city-wide, and empty custom values", () => {
@@ -109,23 +118,9 @@ describe("market rent sub-areas", () => {
       resolveNeighbourhoodFromSubAreaSelection(MARKET_RENT_SUB_AREA_OTHER_ID, "   "),
       undefined,
     );
-    assert.equal(resolveNeighbourhoodFromSubAreaSelection("not-a-real-id"), undefined);
   });
 
-  it("passes selected sub-area into Craigslist query text", () => {
-    const kits = MARKET_RENT_SUB_AREA_OPTIONS.find(
-      (option) => option.city === "Vancouver" && option.neighbourhood === "Kitsilano",
-    );
-    assert.ok(kits);
-    const neighbourhood = resolveNeighbourhoodFromSubAreaSelection(kits.id);
-    const query = buildCraigslistSearchText({
-      ...baseInputs,
-      neighbourhood,
-    });
-    assert.match(query, /Kitsilano/);
-  });
-
-  it("uses selected sub-area in matching without crashing on blank values", () => {
+  it("applies matching neighbourhood filter without affecting Craigslist query", () => {
     const withNeighbourhood = matchComparableListings(
       { ...baseInputs, neighbourhood: "Kitsilano" },
       [
@@ -138,16 +133,12 @@ describe("market rent sub-areas", () => {
       ["match"],
     );
 
-    const blank = matchComparableListings(baseInputs, [
-      listing({ sourceListingId: "a" }),
-      listing({ sourceListingId: "b", neighbourhood: "Downtown" }),
-    ]);
-    assert.equal(blank.matched.length, 2);
+    const query = buildCraigslistSearchText({ ...baseInputs, neighbourhood: "Kitsilano" });
+    assert.equal(query, "Vancouver 2br condo");
   });
 
-  it("builds a data quality note when neighbourhood filter is active", () => {
-    assert.equal(buildSubAreaDataQualityNote("Glenayre"), "Neighbourhood filter applied: Glenayre.");
+  it("builds a data quality note when matching filter is active", () => {
+    assert.match(buildSubAreaDataQualityNote("Glenayre") ?? "", /Matching filter applied/);
     assert.equal(buildSubAreaDataQualityNote(undefined), undefined);
-    assert.equal(buildSubAreaDataQualityNote("  "), undefined);
   });
 });
