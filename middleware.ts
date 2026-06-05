@@ -16,6 +16,7 @@ function isPublicMaintenanceApi(req: NextRequest): boolean {
 function isPublicLeasingApi(req: NextRequest): boolean {
   const pathname = req.nextUrl.pathname;
   if (pathname === "/api/leasing/submit-options") return true;
+  if (pathname === "/api/leasing/prospect-prefill" && req.method === "GET") return true;
   if (pathname === "/api/leasing/viewing-request" && req.method === "POST") return true;
   if (pathname === "/api/leasing/application" && req.method === "POST") return true;
   if (pathname.startsWith("/api/leasing/application/")) {
