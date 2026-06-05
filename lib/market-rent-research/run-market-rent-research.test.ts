@@ -89,9 +89,12 @@ const mockOpenAiSuccess = async () => ({
   dataQualityNotes: [],
 });
 
+const TEST_OPENAI_API_KEY = "sk-" + "t".repeat(48);
+
 describe("runMarketRentResearch", () => {
   const originalCraigslist = process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED;
   const originalOpenAi = process.env.OPENAI_API_KEY;
+  const originalOpenAiOverride = process.env.OPENAI_MARKET_RENT_API_KEY;
   const originalFixture = process.env.MARKET_RENT_USE_FIXTURE_COMPS;
   const originalNodeEnv = process.env.NODE_ENV;
 
@@ -100,6 +103,8 @@ describe("runMarketRentResearch", () => {
     else process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = originalCraigslist;
     if (originalOpenAi === undefined) delete process.env.OPENAI_API_KEY;
     else process.env.OPENAI_API_KEY = originalOpenAi;
+    if (originalOpenAiOverride === undefined) delete process.env.OPENAI_MARKET_RENT_API_KEY;
+    else process.env.OPENAI_MARKET_RENT_API_KEY = originalOpenAiOverride;
     if (originalFixture === undefined) delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
     else process.env.MARKET_RENT_USE_FIXTURE_COMPS = originalFixture;
     process.env.NODE_ENV = originalNodeEnv;
@@ -116,6 +121,7 @@ describe("runMarketRentResearch", () => {
   it("returns success with stats when Craigslist is enabled and fixture fetch succeeds", async () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
     delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_MARKET_RENT_API_KEY;
     const result = await runMarketRentResearch(validInputs, {
       fetchCraigslist: fixtureFetch(),
     });
@@ -164,7 +170,7 @@ describe("runMarketRentResearch", () => {
 
   it("does not call OpenAI when no valid comps", async () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
-    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = TEST_OPENAI_API_KEY;
     let openAiCalls = 0;
     const result = await runMarketRentResearch(validInputs, {
       fetchCraigslist: async () => {
@@ -197,6 +203,7 @@ describe("runMarketRentResearch", () => {
     process.env.MARKET_RENT_USE_FIXTURE_COMPS = "true";
     process.env.NODE_ENV = "development";
     delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_MARKET_RENT_API_KEY;
 
     const result = await runMarketRentResearch({
       city: "Port Moody",
@@ -215,7 +222,7 @@ describe("runMarketRentResearch", () => {
 
   it("uses OpenAI explanation when mocked completion succeeds", async () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
-    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = TEST_OPENAI_API_KEY;
     const result = await runMarketRentResearch(validInputs, {
       fetchCraigslist: fixtureFetch(),
       createOpenAiCompletion: mockOpenAiSuccess,
@@ -229,7 +236,7 @@ describe("runMarketRentResearch", () => {
 
   it("returns deterministic fallback when OpenAI fails", async () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
-    process.env.OPENAI_API_KEY = "test-key";
+    process.env.OPENAI_API_KEY = TEST_OPENAI_API_KEY;
     const result = await runMarketRentResearch(validInputs, {
       fetchCraigslist: fixtureFetch(),
       createOpenAiCompletion: async () => {

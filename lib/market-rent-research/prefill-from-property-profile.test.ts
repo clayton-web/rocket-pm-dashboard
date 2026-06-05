@@ -6,6 +6,7 @@ describe("buildMarketRentResearchFormPrefill", () => {
   it("pre-fills research form from property profile", () => {
     const prefill = buildMarketRentResearchFormPrefill({
       city: "Vancouver",
+      postalCode: "V6K 1A1",
       profile: {
         propertyType: "condo",
         bedrooms: 2,
@@ -14,6 +15,7 @@ describe("buildMarketRentResearchFormPrefill", () => {
       },
     });
     assert.equal(prefill.city, "Vancouver");
+    assert.equal(prefill.postalCode, "V6K 1A1");
     assert.equal(prefill.propertyType, "condo");
     assert.equal(prefill.bedrooms, "2");
     assert.equal(prefill.bathrooms, "1.5");
@@ -61,6 +63,9 @@ describe("market rent research panel prefill wiring", () => {
     );
     assert.match(source, /buildMarketRentResearchFormPrefill/);
     assert.match(source, /propertyProfile/);
+    assert.match(source, /Property profile/);
+    assert.match(source, /Research criteria/);
+    assert.match(source, /formatPropertyProfileSummary/);
   });
 });
 

@@ -1,3 +1,5 @@
+import { resolveOpenAiApiKeyForMarketRent } from "@/lib/openai/resolve-api-key";
+
 type ChatRole = "system" | "user";
 export type MarketRentChatMessage = { role: ChatRole; content: string };
 
@@ -8,13 +10,13 @@ export function getOpenAiMarketRentModel(): string {
 }
 
 export function isOpenAiApiKeyConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
+  return Boolean(resolveOpenAiApiKeyForMarketRent());
 }
 
 export function assertOpenAiApiKeyConfigured(): void {
   if (!isOpenAiApiKeyConfigured()) {
     throw new Error(
-      "OPENAI_API_KEY is not configured. Add OPENAI_API_KEY to your environment to enable OpenAI synthesis for market rent research.",
+      "OPENAI_API_KEY is not configured. Add OPENAI_API_KEY or OPENAI_MARKET_RENT_API_KEY (Preview-only override) to enable OpenAI synthesis for market rent research.",
     );
   }
 }
@@ -32,7 +34,12 @@ export async function createMarketRentChatJsonCompletion(args: {
 }): Promise<unknown> {
   assertOpenAiApiKeyConfigured();
 
-  const apiKey = process.env.OPENAI_API_KEY!.trim();
+  const apiKey = resolveOpenAiApiKeyForMarketRent();
+  if (!apiKey) {
+    throw new Error(
+      "OPENAI_API_KEY is not configured or is not a valid OpenAI key (expected sk-…).",
+    );
+  }
   const model = getOpenAiMarketRentModel();
 
   const systemMessages = args.messages.filter((m) => m.role === "system").map((m) => m.content);

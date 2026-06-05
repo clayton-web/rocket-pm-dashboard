@@ -13,7 +13,12 @@ export type MarketRentResearchInputs = {
   propertyType: string;
   bedrooms: number;
   bathrooms: number;
+  /** Sub-area / neighbourhood keyword for Craigslist search and matching. */
   neighbourhood?: string;
+  /** Canadian postal code (e.g. V3H 0C3) — boosts matching when present in listing text. */
+  postalCode?: string;
+  /** Comma-separated nearby cities/areas to include in search (e.g. "Coquitlam, Burnaby"). */
+  nearbyAreas?: string;
   sqft?: number;
   parking?: string;
   furnished?: MarketRentFurnished;
@@ -85,6 +90,12 @@ export function parseMarketRentResearchInputs(
   const neighbourhood = parseOptionalString(raw.neighbourhood, "Neighbourhood", 80);
   if (typeof neighbourhood === "object") return neighbourhood;
 
+  const postalCode = parseOptionalString(raw.postalCode, "Postal code", 20);
+  if (typeof postalCode === "object") return postalCode;
+
+  const nearbyAreas = parseOptionalString(raw.nearbyAreas, "Nearby areas", 200);
+  if (typeof nearbyAreas === "object") return nearbyAreas;
+
   let sqft: number | undefined;
   if (raw.sqft !== undefined && raw.sqft !== null && raw.sqft !== "") {
     const parsedSqft = parsePositiveNumber(raw.sqft, "Square footage");
@@ -120,6 +131,8 @@ export function parseMarketRentResearchInputs(
   };
 
   if (neighbourhood !== undefined) inputs.neighbourhood = neighbourhood;
+  if (postalCode !== undefined) inputs.postalCode = postalCode;
+  if (nearbyAreas !== undefined) inputs.nearbyAreas = nearbyAreas;
   if (sqft !== undefined) inputs.sqft = sqft;
   if (parking !== undefined) inputs.parking = parking;
   if (furnished !== undefined) inputs.furnished = furnished;

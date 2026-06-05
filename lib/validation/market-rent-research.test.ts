@@ -5,6 +5,8 @@ import { parseMarketRentResearchInputs } from "./market-rent-research";
 const validInputs = {
   city: "Vancouver",
   neighbourhood: "Kitsilano",
+  postalCode: "V6K 1A1",
+  nearbyAreas: "Burnaby, Richmond",
   propertyType: "condo",
   bedrooms: 2,
   bathrooms: 1,
@@ -22,6 +24,8 @@ describe("parseMarketRentResearchInputs", () => {
     if ("error" in parsed) return;
     assert.equal(parsed.city, "Vancouver");
     assert.equal(parsed.neighbourhood, "Kitsilano");
+    assert.equal(parsed.postalCode, "V6K 1A1");
+    assert.equal(parsed.nearbyAreas, "Burnaby, Richmond");
     assert.equal(parsed.bedrooms, 2);
     assert.equal(parsed.sqft, 850);
     assert.equal(parsed.furnished, "unfurnished");

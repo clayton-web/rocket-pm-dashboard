@@ -13,7 +13,10 @@ import {
   MARKET_RENT_RESEARCH_PANEL_TITLE,
 } from "@/lib/market-rent-research/constants";
 import { marketRentResearchIdleState } from "@/lib/market-rent-research/idle-action-state";
-import { buildMarketRentResearchFormPrefill } from "@/lib/market-rent-research/prefill-from-property-profile";
+import {
+  buildMarketRentResearchFormPrefill,
+  formatPropertyProfileSummary,
+} from "@/lib/market-rent-research/prefill-from-property-profile";
 import { providerStatusUiMessage } from "@/lib/market-rent-research/provider-status-ui";
 import type { MarketRentResearchResult } from "@/lib/market-rent-research/types";
 import type { PropertyProfileFields } from "@/lib/property/profile";
@@ -21,7 +24,7 @@ import {
   MARKET_RENT_FURNISHED_VALUES,
   type MarketRentResearchInputs,
 } from "@/lib/validation/market-rent-research";
-import { useActionState, useId, useState } from "react";
+import { useActionState, useId, useMemo, useState } from "react";
 
 export type MarketRentResearchPanelProps = {
   unitId: string;
@@ -30,14 +33,16 @@ export type MarketRentResearchPanelProps = {
   unitBedrooms: number | null;
   addressDisplay: string;
   cityLine: string;
-  defaultCity: string;
+  propertyCity: string;
+  propertyPostalCode: string;
   propertyProfile: PropertyProfileFields;
   canEdit: boolean;
 };
 
-type FormState = {
-  city: string;
+type ResearchCriteriaForm = {
   neighbourhood: string;
+  postalCode: string;
+  nearbyAreas: string;
   propertyType: string;
   bedrooms: string;
   bathrooms: string;
@@ -48,19 +53,22 @@ type FormState = {
   notes: string;
 };
 
-function buildInitialFormState(
-  defaultCity: string,
+function buildInitialCriteria(
+  propertyCity: string,
+  propertyPostalCode: string,
   propertyProfile: PropertyProfileFields,
   unitBedrooms: number | null,
-): FormState {
+): ResearchCriteriaForm {
   const prefill = buildMarketRentResearchFormPrefill({
-    city: defaultCity,
+    city: propertyCity,
+    postalCode: propertyPostalCode,
     profile: propertyProfile,
     unitBedrooms,
   });
   return {
-    city: prefill.city,
     neighbourhood: "",
+    postalCode: prefill.postalCode,
+    nearbyAreas: "",
     propertyType: prefill.propertyType,
     bedrooms: prefill.bedrooms,
     bathrooms: prefill.bathrooms,
@@ -72,14 +80,19 @@ function buildInitialFormState(
   };
 }
 
-function formToInputs(form: FormState): MarketRentResearchInputs {
+function criteriaToInputs(
+  propertyCity: string,
+  form: ResearchCriteriaForm,
+): MarketRentResearchInputs {
   const inputs: MarketRentResearchInputs = {
-    city: form.city,
+    city: propertyCity,
     propertyType: form.propertyType,
     bedrooms: Number(form.bedrooms),
     bathrooms: Number(form.bathrooms),
   };
   if (form.neighbourhood.trim()) inputs.neighbourhood = form.neighbourhood.trim();
+  if (form.postalCode.trim()) inputs.postalCode = form.postalCode.trim();
+  if (form.nearbyAreas.trim()) inputs.nearbyAreas = form.nearbyAreas.trim();
   if (form.sqft.trim()) inputs.sqft = Number(form.sqft);
   if (form.parking.trim()) inputs.parking = form.parking.trim();
   if (form.furnished) inputs.furnished = form.furnished;
@@ -90,6 +103,15 @@ function formToInputs(form: FormState): MarketRentResearchInputs {
 
 function formatCurrency(amount: number): string {
   return `$${amount.toLocaleString("en-CA")} CAD`;
+}
+
+function ProfileFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2">
+      <dt className="text-xs font-medium text-neutral-500">{label}</dt>
+      <dd className="mt-0.5 text-sm text-neutral-900">{value}</dd>
+    </div>
+  );
 }
 
 function ResearchResults({ result }: { result: MarketRentResearchResult }) {
@@ -198,14 +220,25 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
     unitFloor,
     addressDisplay,
     cityLine,
-    defaultCity,
+    propertyCity,
+    propertyPostalCode,
     unitBedrooms,
     propertyProfile,
     canEdit,
   } = props;
 
-  const [form, setForm] = useState(() =>
-    buildInitialFormState(defaultCity, propertyProfile, unitBedrooms),
+  const profileSummary = useMemo(
+    () =>
+      formatPropertyProfileSummary({
+        city: propertyCity,
+        postalCode: propertyPostalCode,
+        profile: propertyProfile,
+      }),
+    [propertyCity, propertyPostalCode, propertyProfile],
+  );
+
+  const [criteria, setCriteria] = useState(() =>
+    buildInitialCriteria(propertyCity, propertyPostalCode, propertyProfile, unitBedrooms),
   );
 
   const [researchState, researchAction, researchPending] = useActionState(
@@ -213,8 +246,9 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
     marketRentResearchIdleState,
   );
 
-  const cityId = useId();
   const neighbourhoodId = useId();
+  const postalCodeId = useId();
+  const nearbyAreasId = useId();
   const propertyTypeId = useId();
   const bedroomsId = useId();
   const bathroomsId = useId();
@@ -262,119 +296,159 @@ export function MarketRentResearchPanel(props: MarketRentResearchPanelProps) {
           <span className="block text-neutral-500">{cityLine}</span>
         </p>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="City" htmlFor={cityId}>
-            <input
-              id={cityId}
-              className={inputClassName}
-              value={form.city}
-              onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-              required
-            />
-          </FormField>
-          <FormField label="Neighbourhood (optional)" htmlFor={neighbourhoodId}>
-            <input
-              id={neighbourhoodId}
-              className={inputClassName}
-              value={form.neighbourhood}
-              onChange={(e) => setForm((f) => ({ ...f, neighbourhood: e.target.value }))}
-            />
-          </FormField>
-          <FormField label="Property type" htmlFor={propertyTypeId}>
-            <input
-              id={propertyTypeId}
-              className={inputClassName}
-              value={form.propertyType}
-              onChange={(e) => setForm((f) => ({ ...f, propertyType: e.target.value }))}
-              placeholder="e.g. condo, house, basement suite"
-              required
-            />
-          </FormField>
-          <FormField label="Bedrooms" htmlFor={bedroomsId}>
-            <input
-              id={bedroomsId}
-              type="number"
-              min={0}
-              max={50}
-              className={inputClassName}
-              value={form.bedrooms}
-              onChange={(e) => setForm((f) => ({ ...f, bedrooms: e.target.value }))}
-              required
-            />
-          </FormField>
-          <FormField label="Bathrooms" htmlFor={bathroomsId}>
-            <input
-              id={bathroomsId}
-              type="number"
-              min={0}
-              step={0.5}
-              className={inputClassName}
-              value={form.bathrooms}
-              onChange={(e) => setForm((f) => ({ ...f, bathrooms: e.target.value }))}
-              required
-            />
-          </FormField>
-          <FormField label="Approximate sqft (optional)" htmlFor={sqftId}>
-            <input
-              id={sqftId}
-              type="number"
-              min={1}
-              className={inputClassName}
-              value={form.sqft}
-              onChange={(e) => setForm((f) => ({ ...f, sqft: e.target.value }))}
-            />
-          </FormField>
-          <FormField label="Parking (optional)" htmlFor={parkingId}>
-            <input
-              id={parkingId}
-              className={inputClassName}
-              value={form.parking}
-              onChange={(e) => setForm((f) => ({ ...f, parking: e.target.value }))}
-            />
-          </FormField>
-          <FormField label="Furnished (optional)" htmlFor={furnishedId}>
-            <select
-              id={furnishedId}
-              className={inputClassName}
-              value={form.furnished}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  furnished: e.target.value as FormState["furnished"],
-                }))
-              }
-            >
-              <option value="">Not specified</option>
-              {MARKET_RENT_FURNISHED_VALUES.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Pet policy (optional)" htmlFor={petPolicyId}>
-            <input
-              id={petPolicyId}
-              className={inputClassName}
-              value={form.petPolicy}
-              onChange={(e) => setForm((f) => ({ ...f, petPolicy: e.target.value }))}
-            />
-          </FormField>
-        </div>
+        <section>
+          <h3 className="text-sm font-semibold text-neutral-900">Property profile</h3>
+          <p className="mt-1 text-xs text-neutral-500">
+            Saved property facts — not changed by research runs.
+          </p>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ProfileFact label="City" value={profileSummary.city} />
+            <ProfileFact label="Postal code" value={profileSummary.postalCode} />
+            <ProfileFact label="Property type" value={profileSummary.propertyType} />
+            <ProfileFact label="Bedrooms" value={profileSummary.bedrooms} />
+            <ProfileFact label="Bathrooms" value={profileSummary.bathrooms} />
+            <ProfileFact label="Approx sqft" value={profileSummary.sqft} />
+          </dl>
+        </section>
 
-        <FormField label="Notes (optional)" htmlFor={notesId}>
-          <textarea
-            id={notesId}
-            rows={3}
-            className={inputClassName}
-            value={form.notes}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-          />
-        </FormField>
+        <section>
+          <h3 className="text-sm font-semibold text-neutral-900">Research criteria</h3>
+          <p className="mt-1 text-xs text-neutral-500">
+            Adjust before each run — prefilled from the property profile, not saved back to the
+            property.
+          </p>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <FormField label="Sub-area / neighbourhood" htmlFor={neighbourhoodId}>
+              <input
+                id={neighbourhoodId}
+                className={inputClassName}
+                value={criteria.neighbourhood}
+                onChange={(e) => setCriteria((f) => ({ ...f, neighbourhood: e.target.value }))}
+                placeholder="e.g. Glenayre, Moody Centre"
+              />
+            </FormField>
+            <FormField label="Postal code" htmlFor={postalCodeId}>
+              <input
+                id={postalCodeId}
+                className={inputClassName}
+                value={criteria.postalCode}
+                onChange={(e) => setCriteria((f) => ({ ...f, postalCode: e.target.value }))}
+                placeholder="e.g. V3H 0C3"
+              />
+            </FormField>
+            <div className="sm:col-span-2">
+              <FormField label="Nearby areas (optional)" htmlFor={nearbyAreasId}>
+                <input
+                  id={nearbyAreasId}
+                  className={inputClassName}
+                  value={criteria.nearbyAreas}
+                  onChange={(e) => setCriteria((f) => ({ ...f, nearbyAreas: e.target.value }))}
+                  placeholder="Comma-separated, e.g. Coquitlam, Burnaby"
+                />
+              </FormField>
+            </div>
+            <FormField label="Property type filter" htmlFor={propertyTypeId}>
+              <input
+                id={propertyTypeId}
+                className={inputClassName}
+                value={criteria.propertyType}
+                onChange={(e) => setCriteria((f) => ({ ...f, propertyType: e.target.value }))}
+                placeholder="e.g. condo, townhouse, detached"
+                required
+              />
+            </FormField>
+            <FormField label="Bedrooms filter" htmlFor={bedroomsId}>
+              <input
+                id={bedroomsId}
+                type="number"
+                min={0}
+                max={50}
+                className={inputClassName}
+                value={criteria.bedrooms}
+                onChange={(e) => setCriteria((f) => ({ ...f, bedrooms: e.target.value }))}
+                required
+              />
+            </FormField>
+            <FormField label="Bathrooms filter" htmlFor={bathroomsId}>
+              <input
+                id={bathroomsId}
+                type="number"
+                min={0}
+                step={0.5}
+                className={inputClassName}
+                value={criteria.bathrooms}
+                onChange={(e) => setCriteria((f) => ({ ...f, bathrooms: e.target.value }))}
+                required
+              />
+            </FormField>
+            <FormField label="Sqft filter (optional)" htmlFor={sqftId}>
+              <input
+                id={sqftId}
+                type="number"
+                min={1}
+                className={inputClassName}
+                value={criteria.sqft}
+                onChange={(e) => setCriteria((f) => ({ ...f, sqft: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Parking (optional)" htmlFor={parkingId}>
+              <input
+                id={parkingId}
+                className={inputClassName}
+                value={criteria.parking}
+                onChange={(e) => setCriteria((f) => ({ ...f, parking: e.target.value }))}
+              />
+            </FormField>
+            <FormField label="Furnished (optional)" htmlFor={furnishedId}>
+              <select
+                id={furnishedId}
+                className={inputClassName}
+                value={criteria.furnished}
+                onChange={(e) =>
+                  setCriteria((f) => ({
+                    ...f,
+                    furnished: e.target.value as ResearchCriteriaForm["furnished"],
+                  }))
+                }
+              >
+                <option value="">Not specified</option>
+                {MARKET_RENT_FURNISHED_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Pet policy (optional)" htmlFor={petPolicyId}>
+              <input
+                id={petPolicyId}
+                className={inputClassName}
+                value={criteria.petPolicy}
+                onChange={(e) => setCriteria((f) => ({ ...f, petPolicy: e.target.value }))}
+              />
+            </FormField>
+          </div>
+
+          <div className="mt-4">
+            <FormField label="Notes (optional)" htmlFor={notesId}>
+              <textarea
+                id={notesId}
+                rows={3}
+                className={inputClassName}
+                value={criteria.notes}
+                onChange={(e) => setCriteria((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </FormField>
+          </div>
+        </section>
 
         <form action={researchAction}>
           <input type="hidden" name="unitId" value={unitId} />
-          <input type="hidden" name="inputs" value={JSON.stringify(formToInputs(form))} />
+          <input
+            type="hidden"
+            name="inputs"
+            value={JSON.stringify(criteriaToInputs(propertyCity, criteria))}
+          />
           <PrimaryButton type="submit" disabled={researchPending} className="!w-auto px-5">
             {researchPending ? "Running…" : "Run research"}
           </PrimaryButton>

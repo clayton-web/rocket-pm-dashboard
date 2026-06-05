@@ -1,20 +1,61 @@
 import type { MarketRentResearchInputs } from "@/lib/validation/market-rent-research";
 import type { NormalizedComparable } from "@/lib/scrapers/types";
 
-function normalizeCity(city: string): string {
+export function normalizeCity(city: string): string {
   return city.trim().toLowerCase();
 }
 
-function includesNeighbourhood(
+export function normalizePostalCode(postalCode: string): string {
+  return postalCode.replace(/\s+/g, "").toUpperCase();
+}
+
+export function postalCodeFsa(postalCode: string): string {
+  return normalizePostalCode(postalCode).slice(0, 3);
+}
+
+/** Parse comma-separated nearby area names for search and matching. */
+export function parseNearbyAreas(raw: string | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+export function listingSearchText(listing: NormalizedComparable): string {
+  return [listing.title, listing.neighbourhood, listing.city]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+export function includesNeighbourhood(
   listing: NormalizedComparable,
   neighbourhood: string | undefined,
 ): boolean {
   if (!neighbourhood?.trim()) return true;
   const needle = neighbourhood.trim().toLowerCase();
-  const haystacks = [listing.neighbourhood, listing.title, listing.city]
-    .filter(Boolean)
-    .map((value) => String(value).toLowerCase());
-  return haystacks.some((value) => value.includes(needle));
+  return listingSearchText(listing).includes(needle);
+}
+
+export function matchesPostalCode(
+  listing: NormalizedComparable,
+  postalCode: string | undefined,
+): boolean {
+  if (!postalCode?.trim()) return false;
+  const normalized = normalizePostalCode(postalCode);
+  const fsa = postalCodeFsa(postalCode);
+  const haystack = listingSearchText(listing).toUpperCase();
+  return haystack.includes(normalized) || haystack.includes(fsa);
+}
+
+export function matchesNearbyArea(
+  listing: NormalizedComparable,
+  nearbyAreas: string[] | undefined,
+): boolean {
+  if (!nearbyAreas?.length) return false;
+  const haystack = listingSearchText(listing);
+  return nearbyAreas.some((area) => haystack.includes(area.trim().toLowerCase()));
 }
 
 function scorePropertyType(
@@ -26,10 +67,16 @@ function scorePropertyType(
   const hint = listing.propertyTypeHint?.toLowerCase() ?? "";
   const title = listing.title.toLowerCase();
   if (hint.includes(target) || title.includes(target)) {
-    return { score: 10, reason: "property type match" };
+    return { score: 15, reason: "property type match" };
   }
   if (target.includes("condo") && (hint === "condo" || /\bapartment\b/.test(title))) {
-    return { score: 5, reason: "similar property type" };
+    return { score: 10, reason: "similar property type" };
+  }
+  if (target.includes("townhouse") && /\btownhouse\b|\btownhome\b/.test(title)) {
+    return { score: 10, reason: "similar property type" };
+  }
+  if (target.includes("detached") && /\bdetached\b|\bhouse\b/.test(title)) {
+    return { score: 10, reason: "similar property type" };
   }
   return { score: -5 };
 }
@@ -47,6 +94,11 @@ function evaluateListing(
   reasons.push("same city");
   score += 20;
 
+  if (inputs.postalCode?.trim() && matchesPostalCode(listing, inputs.postalCode)) {
+    reasons.push("postal code match");
+    score += 50;
+  }
+
   if (!includesNeighbourhood(listing, inputs.neighbourhood)) {
     return {
       included: false,
@@ -57,7 +109,13 @@ function evaluateListing(
   }
   if (inputs.neighbourhood?.trim()) {
     reasons.push("neighbourhood match");
-    score += 10;
+    score += 30;
+  }
+
+  const nearby = parseNearbyAreas(inputs.nearbyAreas);
+  if (nearby.length > 0 && matchesNearbyArea(listing, nearby)) {
+    reasons.push("nearby area match");
+    score += 25;
   }
 
   if (listing.bedrooms != null) {

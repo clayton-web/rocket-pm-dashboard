@@ -223,7 +223,8 @@ function renderMarketRentPanel(
       unitBedrooms={unit.bedrooms}
       addressDisplay={formatStreetLine(detail)}
       cityLine={formatCityLine(detail)}
-      defaultCity={detail.city}
+      propertyCity={detail.city}
+      propertyPostalCode={detail.postalCode}
       propertyProfile={detail.profile}
       canEdit={marketRentResearch.enabled}
     />

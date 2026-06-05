@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { NormalizedComparable } from "@/lib/scrapers/types";
 import type { MarketRentResearchInputs } from "@/lib/validation/market-rent-research";
-import { applyOutlierExclusions, matchComparableListings } from "./matching";
+import { applyOutlierExclusions, matchComparableListings, matchesPostalCode } from "./matching";
 
 const baseInputs: MarketRentResearchInputs = {
   city: "Vancouver",
@@ -82,6 +82,44 @@ describe("matchComparableListings", () => {
     );
     assert.equal(excluded.length, 1);
     assert.match(excluded[0].exclusionReason ?? "", /Sqft 500/);
+  });
+
+  it("ranks postal code matches above neighbourhood-only matches", () => {
+    const inputs: MarketRentResearchInputs = {
+      ...baseInputs,
+      postalCode: "V6K1A1",
+      neighbourhood: "Kitsilano",
+    };
+    const { matched } = matchComparableListings(inputs, [
+      listing({
+        sourceListingId: "neighbourhood-only",
+        title: "2BR condo Kitsilano Vancouver",
+        neighbourhood: "Kitsilano",
+      }),
+      listing({
+        sourceListingId: "postal-match",
+        title: "2BR condo Kitsilano near V6K 1A1 Vancouver",
+        neighbourhood: "Kitsilano",
+      }),
+    ]);
+
+    assert.equal(matched[0]?.sourceListingId, "postal-match");
+    assert.ok((matched[0]?.matchScore ?? 0) > (matched[1]?.matchScore ?? 0));
+  });
+});
+
+describe("matchesPostalCode", () => {
+  it("matches full postal code or FSA in listing text", () => {
+    const base = listing({ title: "2BR condo Vancouver" });
+    assert.equal(matchesPostalCode(base, "V6K 1A1"), false);
+    assert.equal(
+      matchesPostalCode({ ...base, title: "2BR condo V6K1A1 Vancouver" }, "V6K 1A1"),
+      true,
+    );
+    assert.equal(
+      matchesPostalCode({ ...base, title: "2BR condo V6K area Vancouver" }, "V6K 1A1"),
+      true,
+    );
   });
 });
 
