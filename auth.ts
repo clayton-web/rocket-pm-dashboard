@@ -10,6 +10,7 @@ import {
   logGoogleSignInUpsertStart,
   logGoogleSignInUpsertSuccess,
 } from "@/lib/auth/google-signin-diagnostic-log";
+import { withPrismaConnectionRetry } from "@/lib/db/prisma-retry";
 import prisma from "@/lib/db/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -42,7 +43,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         logGoogleSignInStart({ provider: account.provider, email });
 
         try {
-          const existing = await prisma.user.findUnique({ where: { email } });
+          const existing = await withPrismaConnectionRetry(() =>
+            prisma.user.findUnique({ where: { email } }),
+          );
           logGoogleSignInExistingUser({
             email,
             found: Boolean(existing),
@@ -60,11 +63,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             "picture" in profile && typeof profile.picture === "string" ? profile.picture : null;
 
           logGoogleSignInUpsertStart({ email });
-          await prisma.user.upsert({
-            where: { email },
-            create: { email, name, image, isActive: true },
-            update: { name: name ?? undefined, image: image ?? undefined },
-          });
+          await withPrismaConnectionRetry(() =>
+            prisma.user.upsert({
+              where: { email },
+              create: { email, name, image, isActive: true },
+              update: { name: name ?? undefined, image: image ?? undefined },
+            }),
+          );
           logGoogleSignInUpsertSuccess({ email });
         } catch (error) {
           logGoogleSignInUpsertError({ email, error });
@@ -76,7 +81,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, account, profile }) {
       if (account?.provider === "google" && profile && "email" in profile && profile.email) {
         const email = (profile.email as string).trim().toLowerCase();
-        const dbUser = await prisma.user.findUnique({ where: { email } });
+        const dbUser = await withPrismaConnectionRetry(() =>
+          prisma.user.findUnique({ where: { email } }),
+        );
         if (dbUser?.isActive) {
           token.sub = dbUser.id;
         }
