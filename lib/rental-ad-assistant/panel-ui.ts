@@ -14,13 +14,13 @@ export const CONSERVATIVE_RENT_LABEL = "Conservative";
 export const RECOMMENDED_RENT_LABEL = "Recommended";
 export const AGGRESSIVE_RENT_LABEL = "Aggressive";
 
-export function shouldDisableRentalAdGenerate(geminiConfigured: boolean): boolean {
-  return !geminiConfigured;
+export function shouldDisableRentalAdGenerate(aiGenerationConfigured: boolean): boolean {
+  return !aiGenerationConfigured;
 }
 
-export function rentalAdGenerateUnavailableMessage(geminiConfigured: boolean): string | null {
-  if (geminiConfigured) return null;
-  return "Set GEMINI_API_KEY (optional: GEMINI_MODEL) to generate advertising drafts.";
+export function rentalAdGenerateUnavailableMessage(aiGenerationConfigured: boolean): string | null {
+  if (aiGenerationConfigured) return null;
+  return "Set OPENAI_API_KEY (optional: OPENAI_RENTAL_AD_MODEL) to generate advertising drafts.";
 }
 
 export function rentalAdPanelShowsDisclaimer(): string {

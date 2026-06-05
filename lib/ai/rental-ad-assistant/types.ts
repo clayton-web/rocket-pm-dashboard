@@ -34,8 +34,8 @@ export type GenerateRentalAdAssistantDraftResult = {
   promptVersion: typeof RENTAL_AD_ASSISTANT_PROMPT_VERSION;
 };
 
-/** Shape expected from Gemini JSON mode (before normalization). */
-export type GeminiRentalAdDraftRaw = {
+/** Shape expected from AI JSON mode (before normalization). */
+export type RentalAdGeneratedDraftRaw = {
   suggestedAdvertisingRent?: {
     conservative?: number;
     recommended?: number;

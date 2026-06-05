@@ -3,7 +3,7 @@ import { PropertyDetail, type PropertyDetailData } from "@/components/properties
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
 import {
-  isGeminiConfiguredForRentalAdAssistant,
+  isOpenAiConfiguredForRentalAdAssistant,
   rentalAdAssistantDraftToDto,
 } from "@/lib/rental-ad-assistant/draft-dto";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
@@ -90,7 +90,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
         rentalAdAssistant={
           canEditRentalAdAssistant
             ? {
-                geminiConfigured: isGeminiConfiguredForRentalAdAssistant(),
+                aiGenerationConfigured: isOpenAiConfiguredForRentalAdAssistant(),
                 canEdit: true,
                 draftsByUnitId,
               }

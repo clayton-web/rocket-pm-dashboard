@@ -4,7 +4,7 @@ import {
   type RentalAdAssistantOutput,
 } from "@/lib/validation/rental-ad-assistant";
 import { finalizeRentalAdAssistantOutput } from "./finalize-output";
-import type { GeminiRentalAdDraftRaw } from "./types";
+import type { RentalAdGeneratedDraftRaw } from "./types";
 
 const CONFIDENCE_RANK: Record<RentalAdConfidence, number> = {
   low: 0,
@@ -32,27 +32,27 @@ export function appendConfidenceNote(reason: string, note: string): string {
   return `${trimmed} ${note}`;
 }
 
-export function normalizeGeminiRentalAdRaw(raw: unknown): Record<string, unknown> {
+export function normalizeRentalAdGeneratedRaw(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error("Gemini rental ad output was not an object.");
+    throw new Error("Rental ad AI output was not an object.");
   }
 
-  const o = raw as GeminiRentalAdDraftRaw & Record<string, unknown>;
+  const o = raw as RentalAdGeneratedDraftRaw & Record<string, unknown>;
 
   if ("monthlyRent" in o || "askingRent" in o) {
     throw new Error(
-      'Gemini output must use suggestedAdvertisingRent, not monthlyRent or askingRent.',
+      'AI output must use suggestedAdvertisingRent, not monthlyRent or askingRent.',
     );
   }
 
   if (!o.suggestedAdvertisingRent || typeof o.suggestedAdvertisingRent !== "object") {
-    throw new Error("Gemini output is missing suggestedAdvertisingRent.");
+    throw new Error("AI output is missing suggestedAdvertisingRent.");
   }
 
   const rent = o.suggestedAdvertisingRent as Record<string, unknown>;
   if (rent.conservative === undefined || rent.recommended === undefined || rent.aggressive === undefined) {
     throw new Error(
-      "Gemini output must include conservative, recommended, and aggressive suggested advertising rent tiers.",
+      "AI output must include conservative, recommended, and aggressive suggested advertising rent tiers.",
     );
   }
 
@@ -99,11 +99,11 @@ export function enforceConfidenceByCompCount(
   };
 }
 
-export function parseGeminiRentalAdOutput(
+export function parseRentalAdGeneratedOutput(
   raw: unknown,
   compCount: number,
 ): RentalAdAssistantOutput {
-  const normalized = normalizeGeminiRentalAdRaw(raw);
+  const normalized = normalizeRentalAdGeneratedRaw(raw);
   const parsed = parseRentalAdAssistantOutput(normalized);
   if ("error" in parsed) {
     throw new Error(parsed.error);

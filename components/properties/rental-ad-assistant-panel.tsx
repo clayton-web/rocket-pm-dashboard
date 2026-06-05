@@ -50,7 +50,7 @@ export type RentalAdAssistantPanelProps = {
   addressDisplay: string;
   cityLine: string;
   initialDraft: RentalAdAssistantDraftDto | null;
-  geminiConfigured: boolean;
+  aiGenerationConfigured: boolean;
   canEdit: boolean;
 };
 
@@ -169,7 +169,7 @@ export function RentalAdAssistantPanel(props: RentalAdAssistantPanelProps) {
     addressDisplay,
     cityLine,
     initialDraft,
-    geminiConfigured,
+    aiGenerationConfigured,
     canEdit,
   } = props;
 
@@ -236,8 +236,8 @@ export function RentalAdAssistantPanel(props: RentalAdAssistantPanelProps) {
 
   const output = draft?.output ?? null;
   const comps = draft?.compsSnapshot ?? null;
-  const generateDisabled = shouldDisableRentalAdGenerate(geminiConfigured);
-  const generateUnavailable = rentalAdGenerateUnavailableMessage(geminiConfigured);
+  const generateDisabled = shouldDisableRentalAdGenerate(aiGenerationConfigured);
+  const generateUnavailable = rentalAdGenerateUnavailableMessage(aiGenerationConfigured);
   const actionError =
     (saveState.ok ? null : saveState.error) ??
     (generateState.ok ? null : generateState.error) ??
@@ -395,9 +395,9 @@ export function RentalAdAssistantPanel(props: RentalAdAssistantPanelProps) {
 
         {generateUnavailable ? (
           <p className="text-xs text-amber-900">
-            Set <code className="rounded bg-amber-50 px-1">GEMINI_API_KEY</code>{" "}
-            (optional: <code className="rounded bg-amber-50 px-1">GEMINI_MODEL</code>) to generate
-            advertising drafts.
+            Set <code className="rounded bg-amber-50 px-1">OPENAI_API_KEY</code>{" "}
+            (optional: <code className="rounded bg-amber-50 px-1">OPENAI_RENTAL_AD_MODEL</code>) to
+            generate advertising drafts with AI.
           </p>
         ) : null}
 

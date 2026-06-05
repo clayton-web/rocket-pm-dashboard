@@ -286,14 +286,14 @@ describe("rental-ad-assistant-draft.service", () => {
       UNIT_ID,
       {
         output: sampleOutput,
-        model: "gemini-2.5-flash",
+        model: "gpt-4o-mini",
         promptVersion: "rental-ad-assistant-v1",
         lastGeneratedAt: new Date("2026-06-04T12:00:00.000Z"),
       },
     );
 
     assert.deepEqual(updated.outputJson, sampleOutput);
-    assert.equal(updated.model, "gemini-2.5-flash");
+    assert.equal(updated.model, "gpt-4o-mini");
     assert.equal(state.propertyUpdates.length, 0);
     assert.equal(state.unitUpdates.length, 0);
     assert.equal(state.tenancyUpdates.length, 0);
@@ -320,7 +320,7 @@ describe("rental-ad-assistant-draft.service", () => {
         draftRow({
           outputJson: sampleOutput,
           compsSnapshotJson: { label: "Historical lease rents", count: 0 },
-          model: "gemini-2.5-flash",
+          model: "gpt-4o-mini",
           promptVersion: "rental-ad-assistant-v1",
           lastGeneratedAt: new Date("2026-06-04T12:00:00.000Z"),
         }),

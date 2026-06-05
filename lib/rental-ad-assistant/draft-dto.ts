@@ -61,6 +61,6 @@ export function rentalAdAssistantDraftToDto(
   };
 }
 
-export function isGeminiConfiguredForRentalAdAssistant(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY?.trim());
+export function isOpenAiConfiguredForRentalAdAssistant(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY?.trim());
 }

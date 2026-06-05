@@ -6,13 +6,13 @@
  */
 import type { PrismaClient } from "@prisma/client";
 import {
-  assertGeminiApiKeyConfigured,
-  createChatJsonCompletion,
-  getGeminiResponderModel,
-} from "@/lib/ai/gemini-client";
+  assertOpenAiApiKeyConfigured,
+  createRentalAdChatJsonCompletion,
+  getOpenAiRentalAdModel,
+} from "./openai-client";
 import { getInternalRentCompsForRentalAdAssistant } from "@/lib/leasing/internal-rent-comps";
 import { buildRentalAdAssistantMessages } from "./build-prompt";
-import { parseGeminiRentalAdOutput } from "./parse-output";
+import { parseRentalAdGeneratedOutput } from "./parse-output";
 import {
   RENTAL_AD_ASSISTANT_PROMPT_VERSION,
   type GenerateRentalAdAssistantDraftInput,
@@ -31,7 +31,7 @@ export async function generateRentalAdAssistantDraft(
   },
 ): Promise<GenerateRentalAdAssistantDraftResult> {
   const usingDefaultCompletion = !options?.createCompletion;
-  const createCompletion = options?.createCompletion ?? createChatJsonCompletion;
+  const createCompletion = options?.createCompletion ?? createRentalAdChatJsonCompletion;
 
   const compsSnapshot = await getInternalRentCompsForRentalAdAssistant(prisma, {
     organizationId: input.organizationId,
@@ -47,7 +47,7 @@ export async function generateRentalAdAssistantDraft(
   });
 
   if (usingDefaultCompletion) {
-    assertGeminiApiKeyConfigured();
+    assertOpenAiApiKeyConfigured();
   }
 
   const raw = await createCompletion({
@@ -57,12 +57,12 @@ export async function generateRentalAdAssistantDraft(
     ],
   });
 
-  const output = parseGeminiRentalAdOutput(raw, compsSnapshot.count);
+  const output = parseRentalAdGeneratedOutput(raw, compsSnapshot.count);
 
   return {
     output,
     compsSnapshot,
-    model: getGeminiResponderModel(),
+    model: getOpenAiRentalAdModel(),
     promptVersion: RENTAL_AD_ASSISTANT_PROMPT_VERSION,
   };
 }

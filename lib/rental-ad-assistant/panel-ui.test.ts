@@ -63,10 +63,10 @@ describe("rental ad assistant panel UI copy", () => {
     assert.equal(rentalAdPanelShowsHistoricalCompsLabel(null), false);
   });
 
-  it("disables generate when Gemini is missing", () => {
+  it("disables generate when OpenAI is missing", () => {
     assert.equal(shouldDisableRentalAdGenerate(false), true);
     assert.equal(shouldDisableRentalAdGenerate(true), false);
-    assert.match(rentalAdGenerateUnavailableMessage(false) ?? "", /GEMINI_API_KEY/);
+    assert.match(rentalAdGenerateUnavailableMessage(false) ?? "", /OPENAI_API_KEY/);
     assert.equal(rentalAdGenerateUnavailableMessage(true), null);
   });
 

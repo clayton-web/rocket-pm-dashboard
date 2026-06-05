@@ -47,7 +47,7 @@ function formatCityLine(
 }
 
 export type PropertyDetailRentalAdAssistant = {
-  geminiConfigured: boolean;
+  aiGenerationConfigured: boolean;
   canEdit: boolean;
   draftsByUnitId: Record<string, RentalAdAssistantDraftDto | null>;
 };
@@ -181,7 +181,7 @@ function PropertyDetailBody({
                     addressDisplay={formatStreetLine(detail)}
                     cityLine={formatCityLine(detail)}
                     initialDraft={rentalAdAssistant.draftsByUnitId[unit.id] ?? null}
-                    geminiConfigured={rentalAdAssistant.geminiConfigured}
+                    aiGenerationConfigured={rentalAdAssistant.aiGenerationConfigured}
                     canEdit={rentalAdAssistant.canEdit}
                   />
                 ) : null}

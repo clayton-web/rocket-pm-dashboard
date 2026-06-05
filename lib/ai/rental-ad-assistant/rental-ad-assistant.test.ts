@@ -12,8 +12,8 @@ import { generateRentalAdAssistantDraft } from "./generate-rental-ad-draft";
 import {
   enforceConfidenceByCompCount,
   maxConfidenceForCompCount,
-  normalizeGeminiRentalAdRaw,
-  parseGeminiRentalAdOutput,
+  normalizeRentalAdGeneratedRaw,
+  parseRentalAdGeneratedOutput,
 } from "./parse-output";
 import type { GenerateRentalAdAssistantDraftInput } from "./types";
 
@@ -63,7 +63,7 @@ const baseContext = {
   },
 };
 
-const validGeminiOutput = {
+const validGeneratedOutput = {
   suggestedAdvertisingRent: {
     conservative: 2200,
     recommended: 2400,
@@ -165,9 +165,9 @@ describe("buildRentalAdAssistantMessages", () => {
   });
 });
 
-describe("parseGeminiRentalAdOutput", () => {
-  it("accepts valid Gemini JSON with suggestedAdvertisingRent tiers", () => {
-    const parsed = parseGeminiRentalAdOutput(validGeminiOutput, 2);
+describe("parseRentalAdGeneratedOutput", () => {
+  it("accepts valid AI JSON with suggestedAdvertisingRent tiers", () => {
+    const parsed = parseRentalAdGeneratedOutput(validGeneratedOutput, 2);
     assert.equal(parsed.suggestedAdvertisingRent.recommended, 2400);
     assert.equal(parsed.suggestedAdvertisingRent.currency, "CAD");
     assert.equal("monthlyRent" in parsed, false);
@@ -175,9 +175,9 @@ describe("parseGeminiRentalAdOutput", () => {
   });
 
   it("applies review flags from generated ad copy", () => {
-    const parsed = parseGeminiRentalAdOutput(
+    const parsed = parseRentalAdGeneratedOutput(
       {
-        ...validGeminiOutput,
+        ...validGeneratedOutput,
         fullDescription: "Ideal for working professionals. Must be employed.",
       },
       2,
@@ -189,9 +189,9 @@ describe("parseGeminiRentalAdOutput", () => {
   it("rejects missing conservative/recommended/aggressive tiers", () => {
     assert.throws(
       () =>
-        parseGeminiRentalAdOutput(
+        parseRentalAdGeneratedOutput(
           {
-            ...validGeminiOutput,
+            ...validGeneratedOutput,
             suggestedAdvertisingRent: {
               conservative: 2200,
               recommended: 2400,
@@ -204,31 +204,31 @@ describe("parseGeminiRentalAdOutput", () => {
     );
   });
 
-  it("rejects monthlyRent in Gemini output", () => {
+  it("rejects monthlyRent in AI output", () => {
     assert.throws(
       () =>
-        normalizeGeminiRentalAdRaw({
+        normalizeRentalAdGeneratedRaw({
           monthlyRent: 2400,
-          suggestedAdvertisingRent: validGeminiOutput.suggestedAdvertisingRent,
+          suggestedAdvertisingRent: validGeneratedOutput.suggestedAdvertisingRent,
         }),
       /suggestedAdvertisingRent/i,
     );
   });
 
   it("downgrades confidence to low when zero comps cannot be high", () => {
-    const parsed = parseGeminiRentalAdOutput(validGeminiOutput, 0);
+    const parsed = parseRentalAdGeneratedOutput(validGeneratedOutput, 0);
     assert.equal(parsed.confidence, "low");
     assert.match(parsed.confidenceReason, /capped at low/i);
   });
 
   it("downgrades confidence to medium when fewer than four comps cannot be high", () => {
-    const parsed = parseGeminiRentalAdOutput(validGeminiOutput, 3);
+    const parsed = parseRentalAdGeneratedOutput(validGeneratedOutput, 3);
     assert.equal(parsed.confidence, "medium");
     assert.match(parsed.confidenceReason, /capped at medium/i);
   });
 
   it("allows high confidence with four or more comps", () => {
-    const parsed = parseGeminiRentalAdOutput(validGeminiOutput, 4);
+    const parsed = parseRentalAdGeneratedOutput(validGeneratedOutput, 4);
     assert.equal(parsed.confidence, "high");
   });
 });
@@ -241,8 +241,8 @@ describe("confidence helpers", () => {
   });
 
   it("enforceConfidenceByCompCount leaves valid confidence unchanged", () => {
-    const output = parseGeminiRentalAdOutput(
-      { ...validGeminiOutput, confidence: "medium" },
+    const output = parseRentalAdGeneratedOutput(
+      { ...validGeneratedOutput, confidence: "medium" },
       2,
     );
     const enforced = enforceConfidenceByCompCount(output, 2);
@@ -251,7 +251,7 @@ describe("confidence helpers", () => {
 });
 
 describe("generateRentalAdAssistantDraft", () => {
-  it("returns output and comps snapshot with mocked Gemini and no Prisma writes", async () => {
+  it("returns output and comps snapshot with mocked OpenAI and no Prisma writes", async () => {
     const state: MockState = {
       tenancyRows: [
         {
@@ -275,7 +275,7 @@ describe("generateRentalAdAssistantDraft", () => {
       prisma as unknown as PrismaClient,
       buildGenerateInput(),
       {
-        createCompletion: async () => validGeminiOutput,
+        createCompletion: async () => validGeneratedOutput,
       },
     );
 
