@@ -49,6 +49,21 @@ export type CraigslistSearchParams = {
   citySlug: string;
   query: string;
   bedrooms: number;
+  /** Pre-resolved area_id — skips HTML lookup when set (tests). */
+  areaId?: number;
+  minBedrooms?: number;
+  maxBedrooms?: number;
+  minPrice?: number;
+  maxPrice?: number;
+};
+
+export type ProviderRequestDiagnostics = {
+  source: ScraperSourceId;
+  requestUrl: string;
+  httpStatus?: number;
+  responseBodySnippet?: string;
+  elapsedMs: number;
+  success: boolean;
 };
 
 export type ProviderSourceStatus =

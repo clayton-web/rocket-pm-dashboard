@@ -68,11 +68,22 @@ const FIXTURE_PAYLOAD = {
 };
 
 function fixtureFetch() {
-  return async () =>
-    new Response(JSON.stringify(FIXTURE_PAYLOAD), {
+  return mockCraigslistFetch(FIXTURE_PAYLOAD);
+}
+
+function mockCraigslistFetch(payload: unknown, areaId = 16) {
+  return async (url: string) => {
+    if (url.includes(".craigslist.org/search/apa")) {
+      return new Response(`"areaId":${areaId}`, {
+        status: 200,
+        headers: { "Content-Type": "text/html" },
+      });
+    }
+    return new Response(JSON.stringify(payload), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
+  };
 }
 
 const mockOpenAiSuccess = async () => ({
@@ -248,6 +259,27 @@ describe("runMarketRentResearch", () => {
     assert.equal(result.result.explanationSource, "deterministic");
     assert.ok(result.result.suggestedRent.recommended > 0);
     assert.ok(result.result.dataQualityNotes.some((note) => note.includes(MARKET_RENT_OPENAI_FALLBACK_NOTE)));
+  });
+
+  it("returns provider unavailable when Craigslist HTTP fails", async () => {
+    process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
+    delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_MARKET_RENT_API_KEY;
+
+    const result = await runMarketRentResearch(validInputs, {
+      fetchCraigslist: async (url: string) => {
+        if (url.includes(".craigslist.org/search/apa")) {
+          return new Response('"areaId":16', { status: 200 });
+        }
+        return new Response('{"errors":[{"message":"Internal error"}]}', { status: 500 });
+      },
+    });
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error, MARKET_RENT_RESEARCH_PROVIDER_UNAVAILABLE_MESSAGE);
+    assert.equal(result.providerStatuses?.[0]?.status, "http_error");
   });
 });
 

@@ -4,7 +4,7 @@ import type {
   MarketRentResearchInputs,
   MarketRentSourceId,
 } from "@/lib/validation/market-rent-research";
-import type { ProviderFetchStatus } from "@/lib/scrapers/types";
+import type { ProviderFetchStatus, ProviderRequestDiagnostics } from "@/lib/scrapers/types";
 import type { RentStatistics } from "./stats";
 
 export type { MarketRentConfidence, MarketRentFurnished, MarketRentResearchInputs, MarketRentSourceId };
@@ -44,6 +44,7 @@ export type MarketRentResearchResult = {
   dataQualityNotes: string[];
   sourceBreakdown: MarketRentSourceBreakdown;
   providerStatuses: ProviderFetchStatus[];
+  providerDiagnostics?: ProviderRequestDiagnostics[];
   usedFixtureComps: boolean;
   statistics: RentStatistics;
   excludedCount: number;

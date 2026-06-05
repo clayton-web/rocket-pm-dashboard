@@ -1,0 +1,42 @@
+{
+  "apiVersion": 8,
+  "data": {
+    "totalResultCount": 393,
+    "items": [
+      {
+        "bedrooms": 2,
+        "categoryAbbr": "apa",
+        "location": {
+          "areaId": 16,
+          "description": "kitsilano",
+          "hostname": "vancouver",
+          "subareaAbbr": "kst"
+        },
+        "postedDate": 1780687842,
+        "postingId": 7939025820,
+        "price": 2800,
+        "priceString": "$2,800",
+        "seo": "vancouver-bright-2br-condo-kitsilano",
+        "sqft": 850,
+        "title": "Bright 2BR 1BA condo 850 sqft Kitsilano"
+      },
+      {
+        "bedrooms": 2,
+        "categoryAbbr": "apa",
+        "location": {
+          "areaId": 16,
+          "description": "burnaby",
+          "hostname": "vancouver",
+          "subareaAbbr": "bnc"
+        },
+        "postedDate": 1780687000,
+        "postingId": 7939025821,
+        "price": 2500,
+        "priceString": "$2,500",
+        "seo": "burnaby-spacious-2br-den",
+        "sqft": 1050,
+        "title": "$2,500 – Spacious 2BR + Den, 1050 sqft"
+      }
+    ]
+  }
+}

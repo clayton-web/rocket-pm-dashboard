@@ -181,6 +181,31 @@ export function MarketRentResearchResults({ result, inputs }: MarketRentResearch
               </ul>
             </section>
           ) : null}
+
+          {result.providerDiagnostics && result.providerDiagnostics.length > 0 ? (
+            <section>
+              <h4 className="font-semibold text-neutral-800">Provider diagnostics</h4>
+              <ul className="mt-2 space-y-3">
+                {result.providerDiagnostics.map((diag) => (
+                  <li
+                    key={`${diag.requestUrl}-${diag.elapsedMs}`}
+                    className="rounded-lg border border-neutral-200 bg-white px-3 py-2 font-mono text-[11px] leading-relaxed text-neutral-700"
+                  >
+                    <p>
+                      {diag.success ? "Success" : "Failure"} · {diag.elapsedMs}ms
+                      {diag.httpStatus != null ? ` · HTTP ${diag.httpStatus}` : ""}
+                    </p>
+                    <p className="mt-1 break-all">{diag.requestUrl}</p>
+                    {diag.responseBodySnippet ? (
+                      <p className="mt-1 whitespace-pre-wrap break-all text-neutral-500">
+                        {diag.responseBodySnippet}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       </details>
     </div>

@@ -8,11 +8,12 @@ import { dedupeListings } from "@/lib/scrapers/normalize/dedupe-listings";
 import { normalizeScraperListings } from "@/lib/scrapers/normalize/normalize-listing";
 import {
   fetchCraigslistRentalsWithRetry,
+  getLastCraigslistProviderDiagnostics,
   type CraigslistFetchFn,
 } from "@/lib/scrapers/providers/craigslist/craigslist-client";
 import { buildCraigslistSearchParams } from "@/lib/scrapers/search/build-search-query";
 import { buildSubAreaDataQualityNote } from "./sub-areas";
-import type { NormalizedComparable, ProviderFetchStatus, RawScraperListing } from "@/lib/scrapers/types";
+import type { NormalizedComparable, ProviderFetchStatus, ProviderRequestDiagnostics, RawScraperListing } from "@/lib/scrapers/types";
 import {
   MARKET_RENT_FIXTURE_SAMPLE_NOTE,
   MARKET_RENT_RESEARCH_NO_COMPS_MESSAGE,
@@ -92,6 +93,7 @@ async function fetchRawListings(
 ): Promise<{
   rawListings: RawScraperListing[];
   providerStatus: ProviderFetchStatus;
+  providerDiagnostics: ProviderRequestDiagnostics[];
   usedFixtureComps: boolean;
   dataQualityNotes: string[];
 }> {
@@ -106,6 +108,7 @@ async function fetchRawListings(
         status: "success",
         listingCount: rawListings.length,
       }),
+      providerDiagnostics: [],
       usedFixtureComps: true,
       dataQualityNotes,
     };
@@ -119,6 +122,9 @@ async function fetchRawListings(
       cityDisplay: inputs.city,
     });
 
+    const diagnostics = getLastCraigslistProviderDiagnostics();
+    const providerDiagnostics = diagnostics ? [diagnostics] : [];
+
     const status =
       rawListings.length === 0
         ? buildCraigslistProviderStatus({ status: "no_results", listingCount: 0 })
@@ -131,13 +137,18 @@ async function fetchRawListings(
     return {
       rawListings,
       providerStatus: status,
+      providerDiagnostics,
       usedFixtureComps: false,
       dataQualityNotes,
     };
   } catch (error) {
     const { status, errorMessage } = classifyCraigslistFetchError(error);
-    logProviderFailure("craigslist", status, errorMessage, { city: inputs.city });
-    dataQualityNotes.push(`Craigslist: ${errorMessage}`);
+    const diagnostics = getLastCraigslistProviderDiagnostics();
+    logProviderFailure("craigslist", status, errorMessage, {
+      city: inputs.city,
+      diagnostics,
+    });
+    dataQualityNotes.push("Craigslist provider unavailable for this search.");
     return {
       rawListings: [],
       providerStatus: buildCraigslistProviderStatus({
@@ -145,6 +156,7 @@ async function fetchRawListings(
         listingCount: 0,
         errorMessage,
       }),
+      providerDiagnostics: diagnostics ? [diagnostics] : [],
       usedFixtureComps: false,
       dataQualityNotes,
     };
@@ -160,7 +172,7 @@ export async function runMarketRentResearch(
     return { ok: true, status: "no_providers", message: MARKET_RENT_RESEARCH_NO_PROVIDERS_MESSAGE };
   }
 
-  const { rawListings, providerStatus, usedFixtureComps, dataQualityNotes } =
+  const { rawListings, providerStatus, providerDiagnostics, usedFixtureComps, dataQualityNotes } =
     await fetchRawListings(inputs, options);
   const providerStatuses: ProviderFetchStatus[] = [providerStatus];
 
@@ -221,6 +233,7 @@ export async function runMarketRentResearch(
       rew: 0,
     },
     providerStatuses,
+    providerDiagnostics,
     usedFixtureComps,
     statistics,
     excludedCount: allExcluded.length,
