@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { formatPropertyAddress, propertyDisplaySelect } from "@/lib/property/display";
 
 export type LeaseSigningEmailRecipient = {
   email: string;
@@ -14,7 +15,7 @@ export async function loadLeaseSigningEmailRecipient(
   const tenancy = await prisma.tenancy.findUnique({
     where: { id: tenancyId },
     select: {
-      property: { select: { name: true } },
+      property: { select: propertyDisplaySelect },
       unit: { select: { unitNumber: true } },
       contacts: {
         where: { contactType: { in: ["tenant", "co_tenant"] } },
@@ -39,7 +40,7 @@ export async function loadLeaseSigningEmailRecipient(
   return {
     email: contact.email.trim(),
     tenantName,
-    propertyName: tenancy?.property.name ?? null,
+    propertyName: tenancy?.property ? formatPropertyAddress(tenancy.property) : null,
     unitLabel: tenancy?.unit?.unitNumber ?? null,
   };
 }

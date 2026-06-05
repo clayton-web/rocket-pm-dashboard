@@ -1,4 +1,9 @@
 import prisma from "@/lib/db/prisma";
+import {
+  formatPropertyAddress,
+  formatUnitLabelOrDash,
+  propertyDisplaySelect,
+} from "@/lib/property/display";
 import { getApplicationById } from "@/lib/services/application.service";
 import type { StaffContext } from "@/lib/services/staff-context";
 
@@ -75,7 +80,7 @@ export async function getApplicationDetailForStaff(
   const [property, unit, tenancy] = await Promise.all([
     prisma.property.findUnique({
       where: { id: app.propertyId },
-      select: { name: true },
+      select: propertyDisplaySelect,
     }),
     prisma.unit.findUnique({
       where: { id: app.unitId },
@@ -93,8 +98,8 @@ export async function getApplicationDetailForStaff(
     submittedAt: app.submittedAt?.toISOString() ?? null,
     decisionAt: app.decisionAt?.toISOString() ?? null,
     propertyId: app.propertyId,
-    propertyName: property?.name ?? "Property",
-    unitLabel: unit?.unitNumber ? `Unit ${unit.unitNumber}` : "Unit",
+    propertyName: property ? formatPropertyAddress(property) : "Property",
+    unitLabel: formatUnitLabelOrDash(unit?.unitNumber),
     prospectId: app.prospectId,
     firstName: app.firstName,
     lastName: app.lastName,

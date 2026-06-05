@@ -28,6 +28,11 @@ import {
 import { createExecutedRtb1Pdf } from "@/lib/leasing/rtb1/execute-rtb1-pdf";
 import { getOrganizationLandlordProfileForStaff } from "@/lib/org/organization-landlord-profile";
 import { NotFoundError } from "@/lib/services/errors";
+import {
+  formatPropertyAddress,
+  formatUnitLabelOrDash,
+  propertyDisplaySelect,
+} from "@/lib/property/display";
 import type { StaffContext } from "@/lib/services/staff-context";
 import { getTenancyById } from "@/lib/services/tenancy.service";
 import {
@@ -123,7 +128,7 @@ async function getLeaseSignatureRequestByToken(
       draftDocument: true,
       tenancy: {
         include: {
-          property: { select: { name: true } },
+          property: { select: propertyDisplaySelect },
           unit: { select: { unitNumber: true } },
           contacts: {
             where: { contactType: { in: ["tenant", "co_tenant"] } },
@@ -334,10 +339,8 @@ export async function getTenantSigningContextByToken(
   const tenantSig = request.signatures.find((s) => s.signerRole === "tenant");
 
   return {
-    propertyName: request.tenancy.property.name,
-    unitLabel: request.tenancy.unit?.unitNumber
-      ? `Unit ${request.tenancy.unit.unitNumber}`
-      : "Unit",
+    propertyName: formatPropertyAddress(request.tenancy.property),
+    unitLabel: formatUnitLabelOrDash(request.tenancy.unit?.unitNumber),
     tenantExpectedName,
     draftDocumentId: request.draftDocument?.id ?? "",
     draftFileName: request.draftDocument?.fileName ?? "rtb1-draft.pdf",

@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { formatPropertyAddress, formatUnitLabelOrDash } from "@/lib/property/display";
 import { ForbiddenError } from "@/lib/services/errors";
 import { listPropertiesForUser, listTenanciesForProperty } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
@@ -79,8 +80,8 @@ async function listTenanciesByStatusForStaff(
         id: t.id,
         status: t.status,
         propertyId: property.id,
-        propertyName: property.name,
-        unitLabel: unitNumber ? `Unit ${unitNumber}` : "Unit",
+        propertyName: formatPropertyAddress(property),
+        unitLabel: formatUnitLabelOrDash(unitNumber),
         tenantLabel: formatTenantLabel(contactsByTenancy.get(t.id) ?? []),
         moveOutDate: t.moveOutDate?.toISOString().slice(0, 10) ?? null,
         inspectionDate: t.inspectionDate?.toISOString().slice(0, 10) ?? null,

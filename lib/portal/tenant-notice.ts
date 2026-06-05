@@ -1,5 +1,10 @@
 import prisma from "@/lib/db/prisma";
 import {
+  formatPropertyAddress,
+  formatUnitLabelOrDash,
+  propertyDisplaySelect,
+} from "@/lib/property/display";
+import {
   computeEarliestValidMoveOutDate,
   getAllowedMoveOutDates,
 } from "@/lib/leasing/notice-rules";
@@ -34,7 +39,7 @@ export async function getTenantNoticeFormContext(
       status: true,
       rentDueDay: true,
       leaseEndDate: true,
-      property: { select: { name: true } },
+      property: { select: propertyDisplaySelect },
       unit: { select: { unitNumber: true } },
     },
   });
@@ -46,8 +51,8 @@ export async function getTenantNoticeFormContext(
   const allowed = getAllowedMoveOutDates(noticeGivenDate, rules, { limit: 36 });
 
   return {
-    propertyName: tenancy.property.name,
-    unitLabel: tenancy.unit.unitNumber ? `Unit ${tenancy.unit.unitNumber}` : "Unit",
+    propertyName: formatPropertyAddress(tenancy.property),
+    unitLabel: formatUnitLabelOrDash(tenancy.unit.unitNumber),
     rentDueDay: tenancy.rentDueDay,
     earliestMoveOutDate: formatMoveOutDateLabel(earliest),
     allowedMoveOutDates: allowed.map((d) => {

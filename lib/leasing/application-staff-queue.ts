@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { formatPropertyAddress, formatUnitLabelOrDash } from "@/lib/property/display";
 import { ForbiddenError } from "@/lib/services/errors";
 import { listApplicationsForProperty, listPropertiesForUser } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
@@ -59,8 +60,8 @@ export async function listApplicationQueueForStaff(
         status: app.status,
         submittedAt: app.submittedAt?.toISOString() ?? null,
         propertyId: property.id,
-        propertyName: property.name,
-        unitLabel: unitNumber ? `Unit ${unitNumber}` : "Unit",
+        propertyName: formatPropertyAddress(property),
+        unitLabel: formatUnitLabelOrDash(unitNumber),
         firstName: app.firstName,
         lastName: app.lastName,
         email: app.email,

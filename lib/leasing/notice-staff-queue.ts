@@ -1,5 +1,6 @@
 import prisma from "@/lib/db/prisma";
 import { formatMoveOutDateLabel, TENANT_NOTICE_TO_END_TYPE } from "@/lib/leasing/tenant-notice";
+import { formatPropertyAddress, formatUnitLabelOrDash } from "@/lib/property/display";
 import { ForbiddenError } from "@/lib/services/errors";
 import { listPropertiesForUser } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
@@ -93,8 +94,8 @@ export async function listNoticeQueueForStaff(ctx: StaffContext): Promise<Notice
         id: notice.id,
         tenancyId: notice.tenancyId,
         propertyId: notice.propertyId,
-        propertyName: property.name,
-        unitLabel: unitNumber ? `Unit ${unitNumber}` : "Unit",
+        propertyName: formatPropertyAddress(property),
+        unitLabel: formatUnitLabelOrDash(unitNumber),
         tenantLabel: formatTenantLabel(contactsByTenancy.get(notice.tenancyId) ?? []),
         tenantRequestedMoveOutDate: formatMoveOutDateLabel(notice.tenantRequestedMoveOutDate!),
         submittedAt: notice.createdAt.toISOString(),
@@ -182,8 +183,8 @@ export async function listNoticesAwaitingScheduleForStaff(
         id: notice.id,
         tenancyId: notice.tenancyId,
         propertyId: notice.propertyId,
-        propertyName: property.name,
-        unitLabel: unitNumber ? `Unit ${unitNumber}` : "Unit",
+        propertyName: formatPropertyAddress(property),
+        unitLabel: formatUnitLabelOrDash(unitNumber),
         tenantLabel: formatTenantLabel(contactsByTenancy.get(notice.tenancyId) ?? []),
         tenantRequestedMoveOutDate: formatMoveOutDateLabel(notice.tenantRequestedMoveOutDate!),
         submittedAt: (notice.servedAt ?? notice.createdAt).toISOString(),

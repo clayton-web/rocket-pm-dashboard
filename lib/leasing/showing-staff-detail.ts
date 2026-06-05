@@ -1,5 +1,10 @@
 import prisma from "@/lib/db/prisma";
 import { buildApplicationPortalHandoff } from "@/lib/leasing/application-portal-link";
+import {
+  formatPropertyAddress,
+  formatUnitLabel,
+  propertyDisplaySelect,
+} from "@/lib/property/display";
 import { formatApplicationDetailStatus } from "@/lib/leasing/application-staff-detail";
 import {
   isShowingOpenForCloseOut,
@@ -84,7 +89,7 @@ export async function getShowingDetailForStaff(
   const [property, unit, prospect, assignedTo, createdBy, linkedApplications] = await Promise.all([
     prisma.property.findUnique({
       where: { id: showing.propertyId },
-      select: { name: true },
+      select: propertyDisplaySelect,
     }),
     showing.unitId
       ? prisma.unit.findUnique({
@@ -119,7 +124,7 @@ export async function getShowingDetailForStaff(
     throw new Error("Showing context not found");
   }
 
-  const unitLabel = unit ? `Unit ${unit.unitNumber}` : null;
+  const unitLabel = formatUnitLabel(unit?.unitNumber);
 
   return {
     id: showing.id,
@@ -133,7 +138,7 @@ export async function getShowingDetailForStaff(
     scheduledStart: showing.scheduledStart.toISOString(),
     scheduledEnd: showing.scheduledEnd?.toISOString() ?? null,
     propertyId: showing.propertyId,
-    propertyName: property.name,
+    propertyName: formatPropertyAddress(property),
     unitId: showing.unitId,
     unitLabel,
     prospectId: prospect.id,
@@ -152,7 +157,7 @@ export async function getShowingDetailForStaff(
       "reschedule_requested",
     ],
     applicationHandoff: buildApplicationPortalHandoff({
-      propertyName: property.name,
+      propertyName: formatPropertyAddress(property),
       unitLabel,
       email: prospect.email,
     }),

@@ -1,4 +1,5 @@
 import { LEASE_SIGNING_TOKEN_TTL_MS } from "@/lib/leasing/lease-signing-token";
+import { formatPropertyUnitReference } from "@/lib/property/display";
 
 export type LeaseSigningRequestEmailInput = {
   tenantName: string;
@@ -13,18 +14,6 @@ export type LeaseSigningRequestEmailContent = {
   text: string;
   html: string;
 };
-
-function formatPropertyUnitReference(
-  propertyName?: string | null,
-  unitLabel?: string | null,
-): string | null {
-  const property = propertyName?.trim();
-  const unit = unitLabel?.trim();
-  if (property && unit) return `${property}, Unit ${unit}`;
-  if (property) return property;
-  if (unit) return `Unit ${unit}`;
-  return null;
-}
 
 function formatExpirationNote(expiresAt?: Date | null): string {
   if (expiresAt && !Number.isNaN(expiresAt.getTime())) {

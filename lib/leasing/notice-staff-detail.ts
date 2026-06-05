@@ -1,4 +1,9 @@
 import prisma from "@/lib/db/prisma";
+import {
+  formatPropertyAddress,
+  formatUnitLabelOrDash,
+  propertyDisplaySelect,
+} from "@/lib/property/display";
 import { getAllowedMoveOutDates } from "@/lib/leasing/notice-rules";
 import {
   formatMoveOutDateLabel,
@@ -72,7 +77,7 @@ export async function getNoticeDetailForStaff(
   const [property, unit, tenancy, contacts] = await Promise.all([
     prisma.property.findUnique({
       where: { id: notice.propertyId },
-      select: { name: true },
+      select: propertyDisplaySelect,
     }),
     notice.unitId
       ? prisma.unit.findUnique({
@@ -127,8 +132,8 @@ export async function getNoticeDetailForStaff(
     id: notice.id,
     tenancyId: notice.tenancyId,
     propertyId: notice.propertyId,
-    propertyName: property?.name ?? "Property",
-    unitLabel: unit?.unitNumber ? `Unit ${unit.unitNumber}` : "Unit",
+    propertyName: property ? formatPropertyAddress(property) : "Property",
+    unitLabel: formatUnitLabelOrDash(unit?.unitNumber),
     tenantLabel: tenantName,
     tenantEmail: primary?.email ?? null,
     noticeType: notice.noticeType,

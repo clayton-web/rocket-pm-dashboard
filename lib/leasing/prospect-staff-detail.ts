@@ -1,5 +1,10 @@
 import prisma from "@/lib/db/prisma";
 import { buildApplicationPortalHandoff } from "@/lib/leasing/application-portal-link";
+import {
+  formatPropertyAddress,
+  formatUnitLabel,
+  propertyDisplaySelect,
+} from "@/lib/property/display";
 import { formatApplicationDetailStatus } from "@/lib/leasing/application-staff-detail";
 import {
   formatHouseholdIncomeRange,
@@ -121,7 +126,7 @@ export async function getProspectDetailForStaff(
   const [property, unit, showings, linkedApplications, assignableStaff] = await Promise.all([
     prisma.property.findUnique({
       where: { id: prospect.propertyId },
-      select: { name: true },
+      select: propertyDisplaySelect,
     }),
     prospect.unitId
       ? prisma.unit.findUnique({
@@ -146,7 +151,7 @@ export async function getProspectDetailForStaff(
     throw new Error("Property not found");
   }
 
-  const unitLabel = unit ? `Unit ${unit.unitNumber}` : null;
+  const unitLabel = formatUnitLabel(unit?.unitNumber);
   const assigneeIds = [
     ...new Set(showings.map((s) => s.assignedToUserId).filter(Boolean)),
   ] as string[];
@@ -165,7 +170,7 @@ export async function getProspectDetailForStaff(
     statusLabel: formatProspectStatus(prospect.status),
     createdAt: prospect.createdAt.toISOString(),
     propertyId: prospect.propertyId,
-    propertyName: property.name,
+    propertyName: formatPropertyAddress(property),
     unitId: prospect.unitId,
     unitLabel,
     email: prospect.email,
@@ -206,7 +211,7 @@ export async function getProspectDetailForStaff(
     })),
     assignableStaff,
     applicationHandoff: buildApplicationPortalHandoff({
-      propertyName: property.name,
+      propertyName: formatPropertyAddress(property),
       unitLabel,
       email: prospect.email,
     }),

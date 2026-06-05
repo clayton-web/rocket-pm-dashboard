@@ -84,13 +84,13 @@ describe("buildApplicationPortalHandoff", () => {
   it("builds copy text with property, unit, and email context", () => {
     const handoff = buildApplicationPortalHandoff({
       propertyName: "Axford House",
-      unitLabel: "Unit 2",
+      unitLabel: "2",
       email: "prospect@example.com",
       origin: "https://pm.example.com",
     });
     assert.equal(handoff.portalPath, "/portal/application");
     assert.match(handoff.copyText, /Axford House/);
-    assert.match(handoff.copyText, /Unit 2/);
+    assert.match(handoff.copyText, /Unit: 2/);
     assert.match(handoff.copyText, /prospect@example.com/);
     assert.match(handoff.copyText, /https:\/\/pm\.example\.com\/portal\/application/);
   });

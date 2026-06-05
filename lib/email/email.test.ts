@@ -174,7 +174,7 @@ describe("lease signing request email template", () => {
 
     assert.match(content.subject, /Sign your Rocket PM lease agreement/i);
     assert.match(content.text, /Alex Tenant/);
-    assert.match(content.text, /Oak Apartments, Unit 2B/);
+    assert.match(content.text, /Oak Apartments – 2B/);
     assert.match(content.text, /https:\/\/app\.example\.com\/sign\/lease\/token123/);
     assert.match(content.text, /do not need to sign in to the tenant portal/i);
     assert.match(content.text, /expires on/i);

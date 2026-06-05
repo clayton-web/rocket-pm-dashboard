@@ -1,5 +1,10 @@
 import type { TenancyStatus } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
+import {
+  formatPropertyAddress,
+  formatUnitLabelOrDash,
+  propertyDisplaySelect,
+} from "@/lib/property/display";
 import { getTenancyById, listTenancyContacts } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
 import {
@@ -56,7 +61,7 @@ export async function getTenancyDetailForStaff(
   const [property, unit, contacts] = await Promise.all([
     prisma.property.findUnique({
       where: { id: tenancy.propertyId },
-      select: { name: true },
+      select: propertyDisplaySelect,
     }),
     prisma.unit.findUnique({
       where: { id: tenancy.unitId },
@@ -180,8 +185,8 @@ export async function getTenancyDetailForStaff(
     id: tenancy.id,
     status: tenancy.status,
     propertyId: tenancy.propertyId,
-    propertyName: property?.name ?? "Property",
-    unitLabel: unit?.unitNumber ? `Unit ${unit.unitNumber}` : "Unit",
+    propertyName: property ? formatPropertyAddress(property) : "Property",
+    unitLabel: formatUnitLabelOrDash(unit?.unitNumber),
     applicationId: tenancy.applicationId,
     leaseStartDate: tenancy.leaseStartDate.toISOString().slice(0, 10),
     leaseEndDate: tenancy.leaseEndDate?.toISOString().slice(0, 10) ?? null,

@@ -2,6 +2,7 @@ import prisma from "@/lib/db/prisma";
 import {
   formatHouseholdIncomeRange,
 } from "@/lib/leasing/prospect-intake";
+import { formatPropertyAddress, formatUnitLabel } from "@/lib/property/display";
 import { ForbiddenError } from "@/lib/services/errors";
 import { listPropertiesForUser, listProspectsForProperty } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
@@ -53,8 +54,8 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
         id: p.id,
         createdAt: p.createdAt.toISOString(),
         propertyId: property.id,
-        propertyName: property.name,
-        unitLabel: unitNumber ? `Unit ${unitNumber}` : null,
+        propertyName: formatPropertyAddress(property),
+        unitLabel: formatUnitLabel(unitNumber),
         firstName: p.firstName,
         lastName: p.lastName,
         email: p.email,
