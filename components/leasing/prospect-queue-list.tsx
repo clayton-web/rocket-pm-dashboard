@@ -79,7 +79,7 @@ export function ProspectQueueList({
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900">Viewing requests</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          New prospects from public intake. Public form:{" "}
+          Active viewing requests in the leasing pipeline. Public form:{" "}
           <Link href="/portal/viewing" className="font-medium underline">
             /portal/viewing
           </Link>
@@ -93,7 +93,7 @@ export function ProspectQueueList({
         <FormField label="Queue overview" htmlFor="prospect-queue-summary">
           <output id="prospect-queue-summary" className={`block ${SURFACE_PANEL} px-3.5 py-3 text-sm`}>
             <span className="font-medium text-neutral-900">
-              {prospects.length} new request{prospects.length === 1 ? "" : "s"}
+              {prospects.length} active request{prospects.length === 1 ? "" : "s"}
             </span>
             <span className="mt-1 block text-neutral-600">{visible.length} shown with current filter</span>
           </output>
@@ -140,7 +140,7 @@ export function ProspectQueueList({
                   <article className={`${SURFACE_CARD} px-4 py-4`}>
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
-                        New
+                        {prospect.pipelineStageLabel}
                       </span>
                       <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
                         {submitted.label}

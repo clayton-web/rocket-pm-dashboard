@@ -1,7 +1,6 @@
 import prisma from "@/lib/db/prisma";
-import {
-  formatHouseholdIncomeRange,
-} from "@/lib/leasing/prospect-intake";
+import { deriveProspectPipelineStage } from "@/lib/leasing/prospect-pipeline-stage";
+import { formatHouseholdIncomeRange } from "@/lib/leasing/prospect-intake";
 import { formatPropertyAddress, formatUnitLabel } from "@/lib/property/display";
 import { ForbiddenError } from "@/lib/services/errors";
 import { listPropertiesForUser, listProspectsForProperty } from "@/lib/services";
@@ -23,11 +22,14 @@ export type ProspectQueueRow = {
   householdIncomeRangeLabel: string | null;
   preferredViewingNotes: string | null;
   messagePreview: string | null;
+  pipelineStage: string;
+  pipelineStageLabel: string;
 };
 
 export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<ProspectQueueRow[]> {
   const properties = await listPropertiesForUser(prisma, ctx);
   const rows: ProspectQueueRow[] = [];
+  const allProspectIds: string[] = [];
 
   for (const property of properties) {
     let prospects;
@@ -49,6 +51,7 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
     const unitById = new Map(units.map((u) => [u.id, u.unitNumber]));
 
     for (const p of prospects) {
+      allProspectIds.push(p.id);
       const unitNumber = p.unitId ? unitById.get(p.unitId) : null;
       rows.push({
         id: p.id,
@@ -68,8 +71,81 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
           : null,
         preferredViewingNotes: p.preferredViewingNotes,
         messagePreview: p.message,
+        pipelineStage: "viewing_request",
+        pipelineStageLabel: "Viewing Request",
       });
     }
+  }
+
+  if (allProspectIds.length === 0) {
+    return rows;
+  }
+
+  const [showings, applications] = await Promise.all([
+    prisma.showing.findMany({
+      where: { prospectId: { in: allProspectIds } },
+      select: { prospectId: true, status: true },
+    }),
+    prisma.application.findMany({
+      where: { prospectId: { in: allProspectIds } },
+      select: {
+        prospectId: true,
+        id: true,
+        status: true,
+        submittedAt: true,
+        tenancy: { select: { id: true } },
+      },
+    }),
+  ]);
+
+  const showingsByProspect = new Map<string, { status: string }[]>();
+  for (const showing of showings) {
+    const list = showingsByProspect.get(showing.prospectId) ?? [];
+    list.push({ status: showing.status });
+    showingsByProspect.set(showing.prospectId, list);
+  }
+
+  const applicationsByProspect = new Map<
+    string,
+    { id: string; status: string; submittedAt: Date | null; hasTenancy: boolean; tenancyId: string | null }[]
+  >();
+  for (const application of applications) {
+    if (!application.prospectId) continue;
+    const list = applicationsByProspect.get(application.prospectId) ?? [];
+    list.push({
+      id: application.id,
+      status: application.status,
+      submittedAt: application.submittedAt,
+      hasTenancy: application.tenancy != null,
+      tenancyId: application.tenancy?.id ?? null,
+    });
+    applicationsByProspect.set(application.prospectId, list);
+  }
+
+  const prospectById = new Map(
+    (
+      await prisma.prospect.findMany({
+        where: { id: { in: allProspectIds } },
+        select: {
+          id: true,
+          status: true,
+          qualifiedAt: true,
+          applicationSentAt: true,
+        },
+      })
+    ).map((prospect) => [prospect.id, prospect]),
+  );
+
+  for (const row of rows) {
+    const prospect = prospectById.get(row.id);
+    if (!prospect) continue;
+    const pipeline = deriveProspectPipelineStage({
+      prospect,
+      showings: showingsByProspect.get(row.id) ?? [],
+      applications: applicationsByProspect.get(row.id) ?? [],
+    });
+    row.pipelineStage = pipeline.stage;
+    row.pipelineStageLabel = pipeline.stageLabel;
   }
 
   rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));

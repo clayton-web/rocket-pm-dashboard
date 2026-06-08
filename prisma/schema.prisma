@@ -347,6 +347,9 @@ model Prospect {
 
   status ProspectStatus @default(new)
 
+  qualifiedAt       DateTime?
+  applicationSentAt DateTime?
+
   property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   unit         Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
   showings     Showing[]

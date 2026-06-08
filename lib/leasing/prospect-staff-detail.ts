@@ -11,6 +11,12 @@ import {
   formatSmokerStatus,
 } from "@/lib/leasing/prospect-intake";
 import {
+  deriveProspectPipelineNextAction,
+  deriveProspectPipelineStage,
+  type ProspectPipelineNextAction,
+  type ProspectPipelineStage,
+} from "@/lib/leasing/prospect-pipeline-stage";
+import {
   formatShowingOutcome,
   formatShowingStatus,
 } from "@/lib/leasing/showing-staff-detail";
@@ -48,6 +54,15 @@ export type ProspectStaffDetail = {
   status: string;
   statusLabel: string;
   createdAt: string;
+  qualifiedAt: string | null;
+  applicationSentAt: string | null;
+  pipelineStage: ProspectPipelineStage;
+  pipelineStageLabel: string;
+  pipelineNextAction: ProspectPipelineNextAction;
+  primaryApplicationId: string | null;
+  tenancyId: string | null;
+  canMarkQualified: boolean;
+  canMarkApplicationSent: boolean;
   propertyId: string;
   propertyName: string;
   unitId: string | null;
@@ -142,6 +157,7 @@ export async function getProspectDetailForStaff(
         id: true,
         status: true,
         submittedAt: true,
+        tenancy: { select: { id: true } },
       },
     }),
     listAssignableStaffForProperty(prospect.propertyId),
@@ -164,11 +180,44 @@ export async function getProspectDetailForStaff(
       : [];
   const assigneeById = new Map(assignees.map((u) => [u.id, formatStaffUserLabel(u)]));
 
+  const pipelineApplications = linkedApplications.map((app) => ({
+    id: app.id,
+    status: app.status,
+    submittedAt: app.submittedAt,
+    hasTenancy: app.tenancy != null,
+    tenancyId: app.tenancy?.id ?? null,
+  }));
+
+  const pipeline = deriveProspectPipelineStage({
+    prospect: {
+      status: prospect.status,
+      qualifiedAt: prospect.qualifiedAt,
+      applicationSentAt: prospect.applicationSentAt,
+    },
+    showings: showings.map((showing) => ({ status: showing.status })),
+    applications: pipelineApplications,
+  });
+
+  const pipelineNextAction = deriveProspectPipelineNextAction(pipeline, {
+    status: prospect.status,
+    qualifiedAt: prospect.qualifiedAt,
+    applicationSentAt: prospect.applicationSentAt,
+  });
+
   return {
     id: prospect.id,
     status: prospect.status,
     statusLabel: formatProspectStatus(prospect.status),
     createdAt: prospect.createdAt.toISOString(),
+    qualifiedAt: prospect.qualifiedAt?.toISOString() ?? null,
+    applicationSentAt: prospect.applicationSentAt?.toISOString() ?? null,
+    pipelineStage: pipeline.stage,
+    pipelineStageLabel: pipeline.stageLabel,
+    pipelineNextAction,
+    primaryApplicationId: pipeline.primaryApplicationId,
+    tenancyId: pipeline.tenancyId,
+    canMarkQualified: prospect.status === "new" && prospect.qualifiedAt == null,
+    canMarkApplicationSent: prospect.status === "new" && prospect.applicationSentAt == null,
     propertyId: prospect.propertyId,
     propertyName: formatPropertyAddress(property),
     unitId: prospect.unitId,

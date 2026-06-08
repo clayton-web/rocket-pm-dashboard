@@ -11,10 +11,11 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { ApplicationPortalHandoffPanel } from "@/components/leasing/application-portal-handoff";
+import { ProspectPipelineStrip } from "@/components/leasing/prospect-pipeline-strip";
 import type { ProspectStaffDetail } from "@/lib/leasing/prospect-staff-detail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
@@ -69,6 +70,7 @@ export function ProspectDetail({
 
 function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
   const router = useRouter();
+  const scheduleSectionRef = useRef<HTMLDivElement>(null);
   const scheduledStartId = useId();
   const scheduledEndId = useId();
   const assignedToId = useId();
@@ -125,7 +127,7 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-semibold text-neutral-900">{formatName(detail)}</h1>
           <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
-            {detail.statusLabel}
+            {detail.pipelineStageLabel}
           </span>
         </div>
         <p className="mt-1 text-sm text-neutral-600">{detail.propertyName}</p>
@@ -133,6 +135,21 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
       </div>
 
       {actionError ? <InlineNotice className="mb-4">{actionError}</InlineNotice> : null}
+
+      <div className={`${SURFACE_PANEL} mb-8 px-3.5 py-3`}>
+        <ProspectPipelineStrip
+          stage={detail.pipelineStage}
+          stageLabel={detail.pipelineStageLabel}
+          nextAction={detail.pipelineNextAction}
+          prospectId={detail.id}
+          primaryApplicationId={detail.primaryApplicationId}
+          tenancyId={detail.tenancyId}
+          canMarkQualified={detail.canMarkQualified}
+          onScheduleViewing={() =>
+            scheduleSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+        />
+      </div>
 
       <div className="flex flex-col gap-8">
         <FormSection legend="Intake summary">
@@ -163,6 +180,7 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
         </FormSection>
 
         {detail.canSchedule ? (
+          <div ref={scheduleSectionRef}>
           <FormSection legend="Schedule showing">
             <form onSubmit={onSchedule} className="flex flex-col gap-4">
               <FormField label="Scheduled start" htmlFor={scheduledStartId}>
@@ -213,6 +231,7 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
               </PrimaryButton>
             </form>
           </FormSection>
+          </div>
         ) : (
           <InlineNotice>This prospect is archived. Schedule a new showing after restoring intake if needed.</InlineNotice>
         )}
@@ -281,7 +300,12 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
         </FormSection>
 
         <FormSection legend="Application handoff">
-          <ApplicationPortalHandoffPanel handoff={detail.applicationHandoff} />
+          <ApplicationPortalHandoffPanel
+            handoff={detail.applicationHandoff}
+            prospectId={detail.id}
+            canMarkApplicationSent={detail.canMarkApplicationSent}
+            applicationSentAt={detail.applicationSentAt}
+          />
         </FormSection>
 
         {detail.status === "new" ? (

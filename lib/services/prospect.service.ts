@@ -204,9 +204,71 @@ export async function updateProspect(
     data: data as Prisma.ProspectUpdateInput,
   });
   await logPropertyActivity(prisma, principal, existing.propertyId, "Prospect", prospectId, "prospect.updated", {
-    oldValues: pickForAudit(existing, ["status", "unitId"]),
-    newValues: pickForAudit(row, ["status", "unitId"]),
+    oldValues: pickForAudit(existing, ["status", "unitId", "qualifiedAt", "applicationSentAt"]),
+    newValues: pickForAudit(row, ["status", "unitId", "qualifiedAt", "applicationSentAt"]),
   });
+  return row;
+}
+
+export async function markProspectQualified(
+  prisma: PrismaClient,
+  principal: StaffContext,
+  prospectId: string,
+): Promise<Prospect> {
+  requireStaff(principal);
+  const existing = await getProspectRow(prisma, prospectId);
+  await requireLeasingAccess(prisma, principal, existing.propertyId);
+
+  if (existing.status === "archived") {
+    throw new Error("Archived prospects cannot be marked qualified");
+  }
+  if (existing.qualifiedAt) {
+    return existing;
+  }
+
+  const row = await prisma.prospect.update({
+    where: { id: prospectId },
+    data: { qualifiedAt: new Date() },
+  });
+  await logPropertyActivity(prisma, principal, existing.propertyId, "Prospect", prospectId, "prospect.qualified", {
+    oldValues: pickForAudit(existing, ["qualifiedAt"]),
+    newValues: pickForAudit(row, ["qualifiedAt"]),
+  });
+  return row;
+}
+
+export async function markApplicationSent(
+  prisma: PrismaClient,
+  principal: StaffContext,
+  prospectId: string,
+): Promise<Prospect> {
+  requireStaff(principal);
+  const existing = await getProspectRow(prisma, prospectId);
+  await requireLeasingAccess(prisma, principal, existing.propertyId);
+
+  if (existing.status === "archived") {
+    throw new Error("Archived prospects cannot be marked application sent");
+  }
+  if (existing.applicationSentAt) {
+    return existing;
+  }
+
+  const row = await prisma.prospect.update({
+    where: { id: prospectId },
+    data: { applicationSentAt: new Date() },
+  });
+  await logPropertyActivity(
+    prisma,
+    principal,
+    existing.propertyId,
+    "Prospect",
+    prospectId,
+    "prospect.application_sent",
+    {
+      oldValues: pickForAudit(existing, ["applicationSentAt"]),
+      newValues: pickForAudit(row, ["applicationSentAt"]),
+    },
+  );
   return row;
 }
 
