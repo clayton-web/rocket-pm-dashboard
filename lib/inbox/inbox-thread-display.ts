@@ -1,11 +1,12 @@
 import { isPmContextLink, parseEmailThreadContextLinks, type PmContextLink } from "@/lib/ai/email-context-links";
+import { isClassificationReviewThread } from "@/lib/inbox/classification-review";
 import type { EmailThreadCategory } from "@prisma/client";
 import type { LatestDraftSnapshot, LatestMessageSnapshot, InboxThreadRecord } from "@/lib/inbox/inbox-thread-data";
 import { getPmLinkDisplay, resolvePmLinkDisplay, type PmLinkDisplay } from "@/lib/inbox/pm-link-display";
 
 const LIST_CHIP_KINDS = new Set<PmContextLink["kind"]>(["property", "tenancy", "maintenance_request"]);
 
-export type InboxThreadBadge = "review_required" | "draft_ready";
+export type InboxThreadBadge = "review_required" | "classification_review" | "draft_ready";
 
 export type InboxThreadChip = {
   kind: PmContextLink["kind"];
@@ -20,6 +21,11 @@ export type InboxThreadDisplayRow = {
   isUnread: boolean;
   participantEmails: string[];
   category: EmailThreadCategory;
+  categorySource: string | null;
+  categoryConfidence: number | null;
+  categoryAiReason: string | null;
+  lastClassificationAttemptAt: string | null;
+  needsClassificationReview: boolean;
   needsReply: boolean;
   unreadInbound: boolean;
   unlinked: boolean;
@@ -51,8 +57,13 @@ function buildChips(pmLinks: PmContextLink[], displayMap: Map<string, PmLinkDisp
   return chips;
 }
 
-function buildBadges(reviewRequired: boolean, hasDraft: boolean): InboxThreadBadge[] {
+function buildBadges(
+  reviewRequired: boolean,
+  needsClassificationReview: boolean,
+  hasDraft: boolean,
+): InboxThreadBadge[] {
   if (reviewRequired) return ["review_required"];
+  if (needsClassificationReview) return ["classification_review"];
   if (hasDraft) return ["draft_ready"];
   return [];
 }
@@ -80,6 +91,11 @@ export async function buildInboxThreadDisplayRows(
     const unlinked = pmLinks.length === 0;
     const reviewRequired = draft?.reviewRequired ?? false;
     const hasDraftReady = draft != null && !reviewRequired;
+    const needsClassificationReview = isClassificationReviewThread({
+      category: thread.category,
+      categorySource: thread.categorySource,
+      lastClassificationAttemptAt: thread.lastClassificationAttemptAt,
+    });
 
     return {
       id: thread.id,
@@ -89,13 +105,18 @@ export async function buildInboxThreadDisplayRows(
       isUnread: thread.isUnread,
       participantEmails: thread.participantEmails,
       category: thread.category,
+      categorySource: thread.categorySource,
+      categoryConfidence: thread.categoryConfidence,
+      categoryAiReason: thread.categoryAiReason,
+      lastClassificationAttemptAt: thread.lastClassificationAttemptAt?.toISOString() ?? null,
+      needsClassificationReview,
       needsReply,
       unreadInbound,
       unlinked,
       reviewRequired,
       hasDraftReady,
       draftCreatedAt: draft?.createdAt.toISOString() ?? null,
-      badges: buildBadges(reviewRequired, draft != null),
+      badges: buildBadges(reviewRequired, needsClassificationReview, draft != null),
       chips: buildChips(pmLinks, displayMap),
     };
   });

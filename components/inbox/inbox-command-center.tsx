@@ -73,6 +73,7 @@ function SectionHeader({
 function PreviewSection({
   id,
   title,
+  description,
   total,
   viewAllHref,
   mailboxId,
@@ -81,6 +82,7 @@ function PreviewSection({
 }: {
   id: string;
   title: string;
+  description?: string;
   total: number;
   viewAllHref: string;
   mailboxId: string;
@@ -90,6 +92,7 @@ function PreviewSection({
   return (
     <FormSection legend="">
       <SectionHeader id={id} title={title} total={total} viewAllHref={viewAllHref} />
+      {description ? <p className="mt-1 text-sm text-neutral-600">{description}</p> : null}
       <div className="mt-4">
         {total === 0 ? (
           <InlineNotice>{emptyMessage}</InlineNotice>
@@ -108,13 +111,6 @@ function PreviewSection({
     </FormSection>
   );
 }
-
-const QUEUE_TITLES: Record<InboxQueueParam, string> = {
-  needs_reply: "Needs reply",
-  needs_review: "Needs review",
-  unlinked: "Unlinked",
-  recent: "Recent activity",
-};
 
 export function InboxCommandCenter(props: {
   data: InboxCommandCenterData;
@@ -177,8 +173,13 @@ export function InboxCommandCenter(props: {
               <SummaryPill href="#unlinked" label="Unlinked" count={summary.unlinked} />
               <SummaryPill
                 href="#needs-review"
-                label="Review required"
+                label="Draft review"
                 count={summary.reviewRequired}
+              />
+              <SummaryPill
+                href="#classification-review"
+                label="Classification Review"
+                count={summary.classificationReview}
               />
               {summary.connectionIssues > 0 ? (
                 <Link
@@ -217,11 +218,23 @@ export function InboxCommandCenter(props: {
           <PreviewSection
             id="needs-review"
             title="Needs review"
+            description="AI draft responses flagged for review."
             total={data.needsReview.total}
             viewAllHref={mailboxQuery(mailboxId, "needs_review")}
             mailboxId={mailboxId}
             rows={data.needsReview.preview}
             emptyMessage="No drafts flagged for review."
+          />
+
+          <PreviewSection
+            id="classification-review"
+            title="Classification Review"
+            description="Synced emails the classifier attempted but left uncategorized."
+            total={data.classificationReview.total}
+            viewAllHref={mailboxQuery(mailboxId, "classification_review")}
+            mailboxId={mailboxId}
+            rows={data.classificationReview.preview}
+            emptyMessage="No threads need classification review."
           />
 
           <PreviewSection

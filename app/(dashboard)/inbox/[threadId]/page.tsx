@@ -101,6 +101,9 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
             category={thread.category}
             categorySource={thread.categorySource}
             categoryUpdatedAt={thread.categoryUpdatedAt}
+            categoryConfidence={thread.categoryConfidence}
+            categoryAiReason={thread.categoryAiReason}
+            lastClassificationAttemptAt={thread.lastClassificationAttemptAt}
           />
           <ThreadContextLinksPanel
             threadId={thread.id}

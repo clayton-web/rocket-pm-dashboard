@@ -1,6 +1,5 @@
-import {
-  updateThreadCategoryAction,
-} from "@/app/(dashboard)/inbox/[threadId]/actions";
+import { updateThreadCategoryAction } from "@/app/(dashboard)/inbox/[threadId]/actions";
+import { isClassificationReviewThread } from "@/lib/inbox/classification-review";
 import {
   EMAIL_THREAD_CATEGORY_DESCRIPTIONS,
   EMAIL_THREAD_CATEGORY_LABELS,
@@ -8,13 +7,44 @@ import {
 } from "@/lib/inbox/email-thread-category";
 import type { EmailThreadCategory } from "@prisma/client";
 
+function formatCategorySource(source: string | null) {
+  if (!source) return "—";
+  if (source === "manual") return "Manual";
+  if (source === "ai") return "AI";
+  if (source === "rule") return "Rule";
+  return source;
+}
+
+function formatConfidence(confidence: number | null) {
+  if (confidence == null) return "—";
+  return `${Math.round(confidence * 100)}%`;
+}
+
+function formatDateTime(value: Date | null) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" }).format(value);
+}
+
 export function ThreadCategoryPanel(props: {
   threadId: string;
   category: EmailThreadCategory;
   categorySource: string | null;
   categoryUpdatedAt: Date | null;
+  categoryConfidence: number | null;
+  categoryAiReason: string | null;
+  lastClassificationAttemptAt: Date | null;
 }) {
   const description = EMAIL_THREAD_CATEGORY_DESCRIPTIONS[props.category];
+  const needsClassificationReview = isClassificationReviewThread({
+    category: props.category,
+    categorySource: props.categorySource,
+    lastClassificationAttemptAt: props.lastClassificationAttemptAt,
+  });
+  const showClassificationMetadata =
+    props.lastClassificationAttemptAt != null ||
+    props.categorySource != null ||
+    props.categoryConfidence != null ||
+    props.categoryAiReason != null;
 
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-4">
@@ -27,11 +57,39 @@ export function ThreadCategoryPanel(props: {
 
       {props.categorySource === "manual" && props.categoryUpdatedAt ? (
         <p className="mt-2 text-[11px] text-neutral-400">
-          Last updated manually{" "}
-          {new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" }).format(
-            props.categoryUpdatedAt,
-          )}
+          Last updated manually {formatDateTime(props.categoryUpdatedAt)}
         </p>
+      ) : null}
+
+      {showClassificationMetadata ? (
+        <div className="mt-4 space-y-2 rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2.5">
+          <h3 className="text-xs font-semibold text-neutral-800">Classification</h3>
+          {needsClassificationReview ? (
+            <p className="text-xs text-violet-900">
+              The classifier attempted this thread but left it uncategorized. Choose a crate below.
+            </p>
+          ) : null}
+          <dl className="space-y-1.5 text-xs">
+            <div>
+              <dt className="text-neutral-500">Source</dt>
+              <dd className="text-neutral-800">{formatCategorySource(props.categorySource)}</dd>
+            </div>
+            <div>
+              <dt className="text-neutral-500">Confidence</dt>
+              <dd className="text-neutral-800">{formatConfidence(props.categoryConfidence)}</dd>
+            </div>
+            <div>
+              <dt className="text-neutral-500">Last attempt</dt>
+              <dd className="text-neutral-800">{formatDateTime(props.lastClassificationAttemptAt)}</dd>
+            </div>
+            {props.categoryAiReason ? (
+              <div>
+                <dt className="text-neutral-500">Reason</dt>
+                <dd className="whitespace-pre-wrap text-neutral-800">{props.categoryAiReason}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
       ) : null}
 
       <form action={updateThreadCategoryAction} className="mt-4 space-y-1">

@@ -1,6 +1,26 @@
 import prisma from "@/lib/db/prisma";
-import type { EmailThreadCategory } from "@prisma/client";
+import { classificationReviewThreadWhere } from "@/lib/inbox/classification-review";
+import {
+  mapGroupByToCrateCounts,
+  type InboxCrateCounts,
+} from "@/lib/inbox/email-thread-category";
 import { parseDraftClassification } from "@/lib/inbox/draft-classification";
+import type { EmailThreadCategory } from "@prisma/client";
+
+const INBOX_THREAD_SELECT = {
+  id: true,
+  subject: true,
+  snippet: true,
+  lastMessageAt: true,
+  isUnread: true,
+  participantEmails: true,
+  contextLinks: true,
+  category: true,
+  categorySource: true,
+  categoryConfidence: true,
+  categoryAiReason: true,
+  lastClassificationAttemptAt: true,
+} as const;
 
 export type InboxThreadRecord = {
   id: string;
@@ -11,6 +31,10 @@ export type InboxThreadRecord = {
   participantEmails: string[];
   contextLinks: unknown;
   category: EmailThreadCategory;
+  categorySource: string | null;
+  categoryConfidence: number | null;
+  categoryAiReason: string | null;
+  lastClassificationAttemptAt: Date | null;
 };
 
 export type LatestMessageSnapshot = {
@@ -37,16 +61,45 @@ export async function loadInboxThreadsForMailbox(
     },
     orderBy: { lastMessageAt: "desc" },
     take: 100,
-    select: {
-      id: true,
-      subject: true,
-      snippet: true,
-      lastMessageAt: true,
-      isUnread: true,
-      participantEmails: true,
-      contextLinks: true,
-      category: true,
+    select: INBOX_THREAD_SELECT,
+  });
+}
+
+export async function loadCrateCountsForMailbox(
+  organizationId: string,
+  mailboxId: string,
+): Promise<InboxCrateCounts> {
+  const groups = await prisma.emailThread.groupBy({
+    by: ["category"],
+    where: {
+      organizationId,
+      connectedAccountId: mailboxId,
     },
+    _count: { _all: true },
+  });
+
+  return mapGroupByToCrateCounts(groups);
+}
+
+export async function countClassificationReviewThreads(
+  organizationId: string,
+  mailboxId: string,
+): Promise<number> {
+  return prisma.emailThread.count({
+    where: classificationReviewThreadWhere(organizationId, mailboxId),
+  });
+}
+
+export async function loadClassificationReviewThreadsForMailbox(
+  organizationId: string,
+  mailboxId: string,
+  take: number,
+): Promise<InboxThreadRecord[]> {
+  return prisma.emailThread.findMany({
+    where: classificationReviewThreadWhere(organizationId, mailboxId),
+    orderBy: { lastClassificationAttemptAt: "desc" },
+    take,
+    select: INBOX_THREAD_SELECT,
   });
 }
 

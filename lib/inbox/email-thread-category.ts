@@ -82,6 +82,26 @@ export function computeCrateCounts(rows: InboxThreadDisplayRow[]): InboxCrateCou
   return counts;
 }
 
+export function mapGroupByToCrateCounts(
+  groups: ReadonlyArray<{ category: EmailThreadCategory; _count: { _all: number } }>,
+): InboxCrateCounts {
+  const counts: InboxCrateCounts = {
+    LANDLORD_COMMUNICATION: 0,
+    TENANT_COMMUNICATION: 0,
+    STRATA: 0,
+    TENANT_INQUIRY: 0,
+    UNCATEGORIZED: 0,
+    all: 0,
+  };
+
+  for (const group of groups) {
+    counts[group.category] = group._count._all;
+    counts.all += group._count._all;
+  }
+
+  return counts;
+}
+
 export function inboxCrateLabel(crate: InboxCrateFilter): string {
   if (crate === ALL_INBOX_CRATE) return ALL_INBOX_CRATE_LABEL;
   return EMAIL_THREAD_CATEGORY_LABELS[crate];

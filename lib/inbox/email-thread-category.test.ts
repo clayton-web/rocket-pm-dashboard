@@ -6,6 +6,7 @@ import {
   filterRowsByCrate,
   isEmailThreadCategory,
   isInboxCrateFilter,
+  mapGroupByToCrateCounts,
 } from "./email-thread-category";
 
 function row(
@@ -21,6 +22,11 @@ function row(
     isUnread: false,
     participantEmails: [],
     category,
+    categorySource: null,
+    categoryConfidence: null,
+    categoryAiReason: null,
+    lastClassificationAttemptAt: null,
+    needsClassificationReview: false,
     needsReply: false,
     unreadInbound: false,
     unlinked: true,
@@ -68,5 +74,19 @@ describe("email-thread-category", () => {
     assert.equal(counts.STRATA, 1);
     assert.equal(counts.TENANT_INQUIRY, 0);
     assert.equal(counts.all, 3);
+  });
+
+  it("maps prisma groupBy results to crate counts", () => {
+    const counts = mapGroupByToCrateCounts([
+      { category: "UNCATEGORIZED", _count: { _all: 4 } },
+      { category: "STRATA", _count: { _all: 2 } },
+      { category: "TENANT_INQUIRY", _count: { _all: 1 } },
+    ]);
+
+    assert.equal(counts.UNCATEGORIZED, 4);
+    assert.equal(counts.STRATA, 2);
+    assert.equal(counts.TENANT_INQUIRY, 1);
+    assert.equal(counts.LANDLORD_COMMUNICATION, 0);
+    assert.equal(counts.all, 7);
   });
 });

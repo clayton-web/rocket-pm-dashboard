@@ -2,7 +2,12 @@ import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 
 export const INBOX_PREVIEW_LIMIT = 5;
 
-export type InboxQueueParam = "needs_reply" | "needs_review" | "unlinked" | "recent";
+export type InboxQueueParam =
+  | "needs_reply"
+  | "needs_review"
+  | "classification_review"
+  | "unlinked"
+  | "recent";
 
 export type InboxCommandCenterSummary = {
   totalUnique: number;
@@ -10,6 +15,7 @@ export type InboxCommandCenterSummary = {
   needsReply: number;
   unlinked: number;
   reviewRequired: number;
+  classificationReview: number;
   connectionIssues: number;
 };
 
@@ -34,6 +40,14 @@ function sortByDraftCreatedDesc(rows: InboxThreadDisplayRow[]): InboxThreadDispl
   });
 }
 
+function sortByClassificationAttemptDesc(rows: InboxThreadDisplayRow[]): InboxThreadDisplayRow[] {
+  return [...rows].sort((a, b) => {
+    const aTime = a.lastClassificationAttemptAt ?? "";
+    const bTime = b.lastClassificationAttemptAt ?? "";
+    return bTime.localeCompare(aTime);
+  });
+}
+
 function previewSection(rows: InboxThreadDisplayRow[]): InboxCommandCenterSection {
   return {
     total: rows.length,
@@ -49,6 +63,10 @@ export function filterNeedsReview(rows: InboxThreadDisplayRow[]): InboxThreadDis
   return sortByDraftCreatedDesc(rows.filter((row) => row.reviewRequired));
 }
 
+export function filterClassificationReview(rows: InboxThreadDisplayRow[]): InboxThreadDisplayRow[] {
+  return sortByClassificationAttemptDesc(rows.filter((row) => row.needsClassificationReview));
+}
+
 export function filterUnlinked(rows: InboxThreadDisplayRow[]): InboxThreadDisplayRow[] {
   return sortByLastMessageDesc(rows.filter((row) => row.unlinked));
 }
@@ -60,6 +78,7 @@ export function filterRecent(rows: InboxThreadDisplayRow[]): InboxThreadDisplayR
 export function computeInboxSummary(
   rows: InboxThreadDisplayRow[],
   connectionIssues: number,
+  classificationReviewCount: number,
 ): InboxCommandCenterSummary {
   const attentionIds = new Set<string>();
 
@@ -85,6 +104,9 @@ export function computeInboxSummary(
       reviewRequired += 1;
       attentionIds.add(row.id);
     }
+    if (row.needsClassificationReview) {
+      attentionIds.add(row.id);
+    }
   }
 
   return {
@@ -93,19 +115,29 @@ export function computeInboxSummary(
     needsReply,
     unlinked,
     reviewRequired,
+    classificationReview: classificationReviewCount,
     connectionIssues,
   };
 }
 
-export function buildInboxQueueSections(rows: InboxThreadDisplayRow[]): {
+export function buildInboxQueueSections(
+  rows: InboxThreadDisplayRow[],
+  classificationReviewPreview: InboxThreadDisplayRow[],
+  classificationReviewTotal: number,
+): {
   needsReply: InboxCommandCenterSection;
   needsReview: InboxCommandCenterSection;
+  classificationReview: InboxCommandCenterSection;
   unlinked: InboxCommandCenterSection;
   recentActivity: InboxCommandCenterSection;
 } {
   return {
     needsReply: previewSection(filterNeedsReply(rows)),
     needsReview: previewSection(filterNeedsReview(rows)),
+    classificationReview: {
+      total: classificationReviewTotal,
+      preview: classificationReviewPreview.slice(0, INBOX_PREVIEW_LIMIT),
+    },
     unlinked: previewSection(filterUnlinked(rows)),
     recentActivity: previewSection(filterRecent(rows)),
   };
@@ -120,6 +152,8 @@ export function filterRowsByQueue(
       return filterNeedsReply(rows);
     case "needs_review":
       return filterNeedsReview(rows);
+    case "classification_review":
+      return filterClassificationReview(rows);
     case "unlinked":
       return filterUnlinked(rows);
     case "recent":
@@ -131,6 +165,7 @@ export function isInboxQueueParam(value: string | undefined): value is InboxQueu
   return (
     value === "needs_reply" ||
     value === "needs_review" ||
+    value === "classification_review" ||
     value === "unlinked" ||
     value === "recent"
   );
