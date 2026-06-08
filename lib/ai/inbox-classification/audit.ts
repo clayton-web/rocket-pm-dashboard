@@ -36,6 +36,8 @@ export async function auditInboxClassificationCompleted(args: {
   lowConfidence: number;
   skipped: number;
   failed: number;
+  rateLimited?: number;
+  deferred?: number;
 }): Promise<void> {
   await prisma.auditLog.create({
     data: {
@@ -50,6 +52,8 @@ export async function auditInboxClassificationCompleted(args: {
         lowConfidence: args.lowConfidence,
         skipped: args.skipped,
         failed: args.failed,
+        ...(args.rateLimited != null ? { rateLimited: args.rateLimited } : {}),
+        ...(args.deferred != null ? { deferred: args.deferred } : {}),
       } satisfies AuditMetadata,
     },
   });

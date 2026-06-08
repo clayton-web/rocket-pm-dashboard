@@ -31,7 +31,8 @@ export async function middleware(req: NextRequest) {
   const isLogin = pathname.startsWith("/login");
   const isAuthApi = pathname.startsWith("/api/auth");
   const isHealth = pathname === "/api/health";
-  const isInternalJobProcessor = pathname === "/api/internal/jobs/process";
+  const isInternalJobProcessor =
+    pathname === "/api/internal/jobs/process" || pathname === "/api/internal/gemini-probe";
   const isPortal = pathname.startsWith("/portal");
   const isSignLease = pathname.startsWith("/sign/lease");
   const isSignLeaseApi = pathname.startsWith("/api/sign/lease");

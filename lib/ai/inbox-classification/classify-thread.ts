@@ -7,6 +7,8 @@ import {
   shouldAttemptInboxClassification,
   shouldPersistInboxClassification,
 } from "@/lib/ai/inbox-classification/should-classify";
+import { uncategorizedNonManualThreadWhere } from "@/lib/ai/inbox-classification/thread-filter";
+import { isGeminiRateLimitError } from "@/lib/ai/gemini-errors";
 import { createChatJsonCompletion } from "@/lib/ai/gemini-client";
 import prisma from "@/lib/db/prisma";
 
@@ -14,6 +16,7 @@ export type ClassifyInboxThreadResult =
   | { status: "skipped"; reason: string }
   | { status: "low_confidence"; category: EmailThreadCategory; confidence: number; reason: string }
   | { status: "classified"; category: EmailThreadCategory; confidence: number; reason: string }
+  | { status: "rate_limited"; error: string }
   | { status: "failed"; error: string };
 
 type CreateCompletion = (args: {
@@ -89,12 +92,10 @@ export async function classifyInboxThread(args: {
     }
 
     const updated = await prisma.emailThread.updateMany({
-      where: {
-        id: thread.id,
+      where: uncategorizedNonManualThreadWhere({
+        threadId: thread.id,
         organizationId: args.organizationId,
-        category: "UNCATEGORIZED",
-        NOT: { categorySource: "manual" },
-      },
+      }),
       data: {
         category: parsed.category,
         categorySource: "ai",
@@ -116,12 +117,17 @@ export async function classifyInboxThread(args: {
       reason: parsed.reason,
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : "classification_failed";
+
+    if (isGeminiRateLimitError(error)) {
+      return { status: "rate_limited", error: message.slice(0, 500) };
+    }
+
     await recordInboxClassificationAttempt({
       threadId: args.threadId,
       organizationId: args.organizationId,
     }).catch(() => undefined);
 
-    const message = error instanceof Error ? error.message : "classification_failed";
     return { status: "failed", error: message.slice(0, 500) };
   }
 }

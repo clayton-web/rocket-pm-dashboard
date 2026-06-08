@@ -56,12 +56,15 @@ export const handleAgentTriage: JobHandler = async (ctx) => {
   let lowConfidence = 0;
   let skipped = 0;
   let failed = 0;
+  let rateLimited = 0;
+  let processed = 0;
 
   for (const threadId of threadIds) {
     const result = await classifyInboxThread({
       threadId,
       organizationId: ctx.job.organizationId,
     });
+    processed += 1;
 
     if (result.status === "classified") {
       classified += 1;
@@ -87,6 +90,11 @@ export const handleAgentTriage: JobHandler = async (ctx) => {
       continue;
     }
 
+    if (result.status === "rate_limited") {
+      rateLimited += 1;
+      break;
+    }
+
     failed += 1;
   }
 
@@ -99,6 +107,8 @@ export const handleAgentTriage: JobHandler = async (ctx) => {
     lowConfidence,
     skipped,
     failed,
+    rateLimited,
+    deferred: Math.max(0, threadIds.length - processed),
   });
 
   return {
@@ -109,6 +119,8 @@ export const handleAgentTriage: JobHandler = async (ctx) => {
       lowConfidence,
       skipped,
       failed,
+      rateLimited,
+      deferred: Math.max(0, threadIds.length - processed),
     },
   };
 };
