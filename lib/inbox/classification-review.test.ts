@@ -58,7 +58,7 @@ describe("classification-review", () => {
       connectedAccountId: "mailbox_1",
       category: "UNCATEGORIZED",
       lastClassificationAttemptAt: { not: null },
-      NOT: { categorySource: "manual" },
+      OR: [{ categorySource: null }, { categorySource: { not: "manual" } }],
     });
   });
 });

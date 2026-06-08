@@ -10,7 +10,7 @@ export function classificationReviewThreadWhere(
     connectedAccountId: mailboxId,
     category: "UNCATEGORIZED",
     lastClassificationAttemptAt: { not: null },
-    NOT: { categorySource: "manual" },
+    OR: [{ categorySource: null }, { categorySource: { not: "manual" } }],
   };
 }
 
