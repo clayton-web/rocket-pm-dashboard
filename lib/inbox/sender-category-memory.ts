@@ -1,6 +1,7 @@
 import type { EmailThreadCategory, Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { extractInboundSenderFromMessages } from "@/lib/inbox/extract-thread-sender";
+import { normalizeSenderEmail } from "@/lib/inbox/normalize-sender-email";
 import type { EmailThreadCategorySource } from "@/lib/inbox/email-thread-category";
 import type { ParsedGmailMessage } from "@/lib/gmail/gmail-message-parser";
 
@@ -76,12 +77,17 @@ export async function upsertSenderCategoryMemoryFromThread(args: {
   threadId: string;
   category: EmailThreadCategory;
   userId: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<
+  { ok: true; senderEmail: string | null } | { ok: false; error: string }
+> {
   const thread = await prisma.emailThread.findFirst({
     where: { id: args.threadId },
     select: {
       organizationId: true,
       connectedAccountId: true,
+      connectedAccount: {
+        select: { email: true },
+      },
       messages: {
         select: { fromAddr: true, isOutbound: true, sentAt: true },
       },
@@ -94,7 +100,12 @@ export async function upsertSenderCategoryMemoryFromThread(args: {
 
   const sender = extractInboundSenderFromMessages(thread.messages);
   if (!sender) {
-    return { ok: true };
+    return { ok: true, senderEmail: null };
+  }
+
+  const mailboxEmail = normalizeSenderEmail(thread.connectedAccount.email);
+  if (mailboxEmail && sender.senderEmail === mailboxEmail) {
+    return { ok: true, senderEmail: null };
   }
 
   await upsertSenderCategoryMemory({
@@ -107,7 +118,7 @@ export async function upsertSenderCategoryMemoryFromThread(args: {
     createdByUserId: args.userId,
   });
 
-  return { ok: true };
+  return { ok: true, senderEmail: sender.senderEmail };
 }
 
 export type ResolvedSenderCategory = {

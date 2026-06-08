@@ -69,6 +69,7 @@ describe("upsertSenderCategoryMemoryFromThread", () => {
           findFirst: async () => ({
             organizationId: ORG_ID,
             connectedAccountId: MAILBOX_ID,
+            connectedAccount: { email: "manager@pm.com" },
             messages: [
               {
                 fromAddr: "manager@pm.com",
@@ -99,7 +100,7 @@ describe("upsertSenderCategoryMemoryFromThread", () => {
           userId: USER_ID,
         });
 
-        assert.deepEqual(result, { ok: true });
+        assert.deepEqual(result, { ok: true, senderEmail: "tenant@example.com" });
         assert.equal(upsertCalls.length, 1);
         assert.deepEqual((upsertCalls[0] as { create: Record<string, unknown> }).create, {
           organizationId: ORG_ID,
@@ -111,6 +112,47 @@ describe("upsertSenderCategoryMemoryFromThread", () => {
           source: "manual",
           createdByUserId: USER_ID,
         });
+      },
+    );
+  });
+
+  it("skips sender memory when latest inbound sender is the connected mailbox", async () => {
+    const upsertCalls: unknown[] = [];
+
+    await withMockPrisma(
+      {
+        emailThread: {
+          findFirst: async () => ({
+            organizationId: ORG_ID,
+            connectedAccountId: MAILBOX_ID,
+            connectedAccount: { email: "Manager@PM.com" },
+            messages: [
+              {
+                fromAddr: "Manager@PM.com",
+                isOutbound: false,
+                sentAt: new Date("2026-06-10T11:00:00.000Z"),
+              },
+            ],
+          }),
+        },
+        emailSenderCategoryMemory: {
+          upsert: async (input) => {
+            upsertCalls.push(input);
+            return { id: "memory_1" };
+          },
+          findUnique: async () => null,
+          update: async () => ({ id: "memory_1" }),
+        },
+      },
+      async () => {
+        const result = await upsertSenderCategoryMemoryFromThread({
+          threadId: THREAD_ID,
+          category: "LANDLORD_COMMUNICATION",
+          userId: USER_ID,
+        });
+
+        assert.deepEqual(result, { ok: true, senderEmail: null });
+        assert.equal(upsertCalls.length, 0);
       },
     );
   });

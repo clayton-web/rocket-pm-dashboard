@@ -12,7 +12,7 @@ type UpdateCall = {
 };
 
 describe("update-thread-category", () => {
-  it("clears classification metadata when category is set manually", async () => {
+  it("clears classification metadata when manually reclassifying from any prior crate", async () => {
     const updates: UpdateCall[] = [];
 
     const originalFindFirst = prisma.emailThread.findFirst;

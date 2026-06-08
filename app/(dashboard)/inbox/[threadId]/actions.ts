@@ -16,6 +16,7 @@ import { isGmailAuthError } from "@/lib/gmail/gmail-errors";
 import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { isEmailThreadCategory } from "@/lib/inbox/email-thread-category";
 import { upsertSenderCategoryMemoryFromThread } from "@/lib/inbox/sender-category-memory";
+import { buildThreadReclassifySuccessMessage } from "@/lib/inbox/thread-reclassify-feedback";
 import { updateEmailThreadCategory } from "@/lib/inbox/update-thread-category";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
 
@@ -326,17 +327,35 @@ export async function removeThreadPmContextLinkAction(formData: FormData): Promi
   revalidatePath(`/inbox/${threadId}`);
 }
 
-export async function updateThreadCategoryAction(formData: FormData): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) return;
+export type UpdateThreadCategoryState = {
+  error: string | null;
+  successMessage: string | null;
+  completedAt: number;
+};
 
+export async function updateThreadCategoryAction(
+  _prev: UpdateThreadCategoryState,
+  formData: FormData,
+): Promise<UpdateThreadCategoryState> {
+  const completedAt = Date.now();
   const threadId = formData.get("threadId");
   const category = formData.get("category");
-  if (typeof threadId !== "string" || typeof category !== "string") return;
-  if (!isEmailThreadCategory(category)) return;
+  if (typeof threadId !== "string" || typeof category !== "string") {
+    return { error: "Invalid request.", successMessage: null, completedAt: 0 };
+  }
+  if (!isEmailThreadCategory(category)) {
+    return { error: "Choose a valid crate.", successMessage: null, completedAt: 0 };
+  }
+
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "You must be signed in.", successMessage: null, completedAt: 0 };
+  }
 
   const active = await getActiveOrganizationContext();
-  if (!active) return;
+  if (!active) {
+    return { error: "Choose an active organization.", successMessage: null, completedAt: 0 };
+  }
 
   const thread = await prisma.emailThread.findFirst({
     where: { id: threadId, organizationId: active.id },
@@ -346,7 +365,9 @@ export async function updateThreadCategoryAction(formData: FormData): Promise<vo
       },
     },
   });
-  if (!thread) return;
+  if (!thread) {
+    return { error: "Thread not found.", successMessage: null, completedAt: 0 };
+  }
 
   try {
     await assertCanUseMailbox({
@@ -356,22 +377,37 @@ export async function updateThreadCategoryAction(formData: FormData): Promise<vo
       account: thread.connectedAccount,
     });
   } catch {
-    return;
+    return { error: "You cannot edit this mailbox.", successMessage: null, completedAt: 0 };
   }
 
-  await updateEmailThreadCategory({
+  const updateResult = await updateEmailThreadCategory({
     threadId: thread.id,
     organizationId: active.id,
     category,
     categorySource: "manual",
   });
+  if (!updateResult.ok) {
+    return { error: updateResult.error, successMessage: null, completedAt: 0 };
+  }
 
-  await upsertSenderCategoryMemoryFromThread({
+  const memoryResult = await upsertSenderCategoryMemoryFromThread({
     threadId: thread.id,
     category,
     userId: session.user.id,
   });
+  if (!memoryResult.ok) {
+    return { error: memoryResult.error, successMessage: null, completedAt: 0 };
+  }
 
   revalidatePath(`/inbox/${threadId}`);
   revalidatePath("/inbox");
+
+  return {
+    error: null,
+    successMessage: buildThreadReclassifySuccessMessage({
+      category,
+      senderEmail: memoryResult.senderEmail,
+    }),
+    completedAt,
+  };
 }
