@@ -7,6 +7,7 @@ import {
   shouldAttemptInboxClassification,
   shouldPersistInboxClassification,
 } from "@/lib/ai/inbox-classification/should-classify";
+import { evaluateDeterministicInboxFilters } from "@/lib/ai/inbox-classification/deterministic-filters";
 import { uncategorizedNonManualThreadWhere } from "@/lib/ai/inbox-classification/thread-filter";
 import { isGeminiRateLimitError } from "@/lib/ai/gemini-errors";
 import { createChatJsonCompletion } from "@/lib/ai/gemini-client";
@@ -59,6 +60,45 @@ export async function classifyInboxThread(args: {
 
   if (!shouldAttemptInboxClassification(thread)) {
     return { status: "skipped", reason: "not_eligible" };
+  }
+
+  const deterministic = evaluateDeterministicInboxFilters(thread);
+  if (deterministic.action === "classify") {
+    const updated = await prisma.emailThread.updateMany({
+      where: uncategorizedNonManualThreadWhere({
+        threadId: thread.id,
+        organizationId: args.organizationId,
+      }),
+      data: {
+        category: deterministic.category,
+        categorySource: "rule",
+        categoryConfidence: deterministic.confidence,
+        categoryAiReason: deterministic.reason,
+        categoryUpdatedAt: new Date(),
+        lastClassificationAttemptAt: new Date(),
+      },
+    });
+
+    if (updated.count === 0) {
+      return { status: "skipped", reason: "manual_or_already_classified" };
+    }
+
+    return {
+      status: "classified",
+      category: deterministic.category,
+      confidence: deterministic.confidence,
+      reason: deterministic.reason,
+    };
+  }
+
+  if (deterministic.action === "skip_uncategorized") {
+    await recordInboxClassificationAttempt({
+      threadId: thread.id,
+      organizationId: args.organizationId,
+      confidence: deterministic.confidence,
+      reason: deterministic.reason,
+    });
+    return { status: "skipped", reason: "deterministic_uncategorized" };
   }
 
   try {
