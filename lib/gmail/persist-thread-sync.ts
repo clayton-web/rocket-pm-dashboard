@@ -51,6 +51,8 @@ export async function upsertSyncedThread(args: UpsertThreadArgs) {
       const resolved = await resolveCategoryForNewSyncedThread(tx, {
         organizationId: args.organizationId,
         connectedAccountId: args.connectedAccountId,
+        subject: args.subject,
+        snippet: args.snippet,
         messages: args.messages,
       });
       if (resolved) {

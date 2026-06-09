@@ -52,6 +52,16 @@ describe("evaluateDeterministicInboxFilters", () => {
     }
   });
 
+  it("classifies spaced LMS and BCS identifiers as STRATA", () => {
+    for (const subject of ["LMS 2505 - Building update", "BCS 1234 AGM notice"]) {
+      const result = evaluateDeterministicInboxFilters(thread({ subject }));
+      assert.equal(result.action, "classify");
+      if (result.action === "classify") {
+        assert.equal(result.category, "STRATA");
+      }
+    }
+  });
+
   it("classifies known strata sender domains as STRATA", () => {
     const result = evaluateDeterministicInboxFilters(
       thread({

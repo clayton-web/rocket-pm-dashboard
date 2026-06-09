@@ -1,9 +1,10 @@
 import type { EmailThreadCategory, Prisma } from "@prisma/client";
+import { threadHasStrataCorporationIdentifier } from "@/lib/ai/inbox-classification/deterministic-filters";
 import prisma from "@/lib/db/prisma";
+import type { ParsedGmailMessage } from "@/lib/gmail/gmail-message-parser";
+import type { EmailThreadCategorySource } from "@/lib/inbox/email-thread-category";
 import { extractInboundSenderFromMessages } from "@/lib/inbox/extract-thread-sender";
 import { normalizeSenderEmail } from "@/lib/inbox/normalize-sender-email";
-import type { EmailThreadCategorySource } from "@/lib/inbox/email-thread-category";
-import type { ParsedGmailMessage } from "@/lib/gmail/gmail-message-parser";
 
 export type SenderCategoryMemoryRecord = {
   id: string;
@@ -85,11 +86,18 @@ export async function upsertSenderCategoryMemoryFromThread(args: {
     select: {
       organizationId: true,
       connectedAccountId: true,
+      subject: true,
+      snippet: true,
       connectedAccount: {
         select: { email: true },
       },
       messages: {
-        select: { fromAddr: true, isOutbound: true, sentAt: true },
+        select: {
+          fromAddr: true,
+          isOutbound: true,
+          sentAt: true,
+          bodyText: true,
+        },
       },
     },
   });
@@ -105,6 +113,17 @@ export async function upsertSenderCategoryMemoryFromThread(args: {
 
   const mailboxEmail = normalizeSenderEmail(thread.connectedAccount.email);
   if (mailboxEmail && sender.senderEmail === mailboxEmail) {
+    return { ok: true, senderEmail: null };
+  }
+
+  if (
+    args.category === "STRATA" &&
+    threadHasStrataCorporationIdentifier({
+      subject: thread.subject,
+      snippet: thread.snippet,
+      messages: thread.messages,
+    })
+  ) {
     return { ok: true, senderEmail: null };
   }
 
@@ -132,9 +151,26 @@ export async function resolveCategoryForNewSyncedThread(
   args: {
     organizationId: string;
     connectedAccountId: string;
+    subject?: string | null;
+    snippet?: string | null;
     messages: ParsedGmailMessage[];
   },
 ): Promise<ResolvedSenderCategory | null> {
+  if (
+    threadHasStrataCorporationIdentifier({
+      subject: args.subject ?? null,
+      snippet: args.snippet ?? null,
+      messages: args.messages.map((message) => ({
+        fromAddr: message.fromAddr,
+        isOutbound: message.isOutbound,
+        sentAt: message.sentAt,
+        bodyText: message.bodyText,
+      })),
+    })
+  ) {
+    return null;
+  }
+
   const sender = extractInboundSenderFromMessages(
     args.messages.map((message) => ({
       fromAddr: message.fromAddr,

@@ -106,6 +106,56 @@ describe("classifyInboxThread", () => {
     assert.equal((updateCalls[0]?.data as { categorySource?: string }).categorySource, "rule");
   });
 
+  it("classifies owner-forwarded LMS notices as STRATA even when sender memory would say landlord", async () => {
+    let geminiCalled = false;
+
+    const result = await withMockPrisma(
+      {
+        findFirst: async () => ({
+          ...baseThread,
+          subject: "Fwd: LMS2505 - Building Notice",
+          messages: [
+            {
+              fromAddr: "owner@example.com",
+              isOutbound: false,
+              sentAt: new Date("2026-06-10T12:00:00.000Z"),
+              bodyText: "FYI",
+            },
+          ],
+        }),
+        updateMany: async () => ({ count: 1 }),
+        senderMemoryFindUnique: async () => ({
+          id: "memory_1",
+          organizationId: ORG_ID,
+          connectedAccountId: "mailbox_test",
+          senderEmail: "owner@example.com",
+          senderName: null,
+          category: "LANDLORD_COMMUNICATION",
+          contextNote: null,
+          source: "manual",
+          createdByUserId: "user_test",
+          lastMatchedAt: null,
+          matchCount: 3,
+        }),
+      },
+      () =>
+        classifyInboxThread({
+          threadId: THREAD_ID,
+          organizationId: ORG_ID,
+          createCompletion: async () => {
+            geminiCalled = true;
+            return { category: "LANDLORD_COMMUNICATION", confidence: 1, reason: "should not run" };
+          },
+        }),
+    );
+
+    assert.equal(geminiCalled, false);
+    assert.equal(result.status, "classified");
+    if (result.status === "classified") {
+      assert.equal(result.category, "STRATA");
+    }
+  });
+
   it("returns rate_limited without recording an attempt", async () => {
     const updateCalls: UpdateManyCall[] = [];
 

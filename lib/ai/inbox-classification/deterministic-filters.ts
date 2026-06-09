@@ -33,7 +33,7 @@ const SKIP_CONFIDENCE = 0.95;
 
 const STRATA_SENDER_DOMAINS = ["fsresidential.com"] as const;
 
-const STRATA_CODE_PATTERN = /\b(?:BCS|LMS)\d+[A-Z0-9-]*/i;
+const STRATA_CODE_PATTERN = /\b(?:BCS|LMS)\s*\d+[A-Z0-9-]*/i;
 
 const TENANT_COMMUNICATION_PATTERNS = [
   /tenancy agreement/i,
@@ -60,7 +60,9 @@ const NOISE_SUBJECT_PATTERNS = [/google alert/i, /travelzoo/i, /\bnewsletter\b/i
 
 const NOISE_SENDER_DOMAINS = ["travelzoo.com", "ca.travelzoo.com", "joepolish.com"] as const;
 
-function collectFilterText(thread: ThreadForDeterministicFilter): string {
+function collectFilterText(
+  thread: Pick<ThreadForDeterministicFilter, "subject" | "snippet" | "messages">,
+): string {
   const bodies = thread.messages
     .map((message) => message.bodyText)
     .filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -112,8 +114,18 @@ function matchesNoiseSender(domains: string[], text: string): boolean {
   );
 }
 
+export function containsStrataCorporationIdentifier(text: string): boolean {
+  return STRATA_CODE_PATTERN.test(text);
+}
+
+export function threadHasStrataCorporationIdentifier(
+  thread: Pick<ThreadForDeterministicFilter, "subject" | "snippet" | "messages">,
+): boolean {
+  return containsStrataCorporationIdentifier(collectFilterText(thread));
+}
+
 function matchesStrataSignals(text: string, domains: string[]): boolean {
-  if (STRATA_CODE_PATTERN.test(text)) return true;
+  if (containsStrataCorporationIdentifier(text)) return true;
   return matchesStrataSenderDomain(domains);
 }
 

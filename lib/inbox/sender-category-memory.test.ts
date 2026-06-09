@@ -18,7 +18,15 @@ type MockPrisma = {
     findFirst: () => Promise<{
       organizationId: string;
       connectedAccountId: string;
-      messages: { fromAddr: string; isOutbound: boolean; sentAt: Date }[];
+      subject?: string | null;
+      snippet?: string | null;
+      connectedAccount?: { email: string };
+      messages: {
+        fromAddr: string;
+        isOutbound: boolean;
+        sentAt: Date;
+        bodyText?: string | null;
+      }[];
     } | null>;
   };
   emailSenderCategoryMemory: {
@@ -112,6 +120,97 @@ describe("upsertSenderCategoryMemoryFromThread", () => {
           source: "manual",
           createdByUserId: USER_ID,
         });
+      },
+    );
+  });
+
+  it("skips sender memory when manually moving owner-forwarded LMS/BCS notice to STRATA", async () => {
+    const upsertCalls: unknown[] = [];
+
+    await withMockPrisma(
+      {
+        emailThread: {
+          findFirst: async () => ({
+            organizationId: ORG_ID,
+            connectedAccountId: MAILBOX_ID,
+            connectedAccount: { email: "manager@pm.com" },
+            subject: "Fwd: LMS2505R - Building Notice - Dryer Vent Cleaning",
+            snippet: null,
+            messages: [
+              {
+                fromAddr: "owner@example.com",
+                isOutbound: false,
+                sentAt: new Date("2026-06-10T11:00:00.000Z"),
+                bodyText: "FYI",
+              },
+            ],
+          }),
+        },
+        emailSenderCategoryMemory: {
+          upsert: async (input) => {
+            upsertCalls.push(input);
+            return { id: "memory_1" };
+          },
+          findUnique: async () => null,
+          update: async () => ({ id: "memory_1" }),
+        },
+      },
+      async () => {
+        const result = await upsertSenderCategoryMemoryFromThread({
+          threadId: THREAD_ID,
+          category: "STRATA",
+          userId: USER_ID,
+        });
+
+        assert.deepEqual(result, { ok: true, senderEmail: null });
+        assert.equal(upsertCalls.length, 0);
+      },
+    );
+  });
+
+  it("still upserts sender memory for STRATA when thread lacks LMS/BCS identifier", async () => {
+    const upsertCalls: unknown[] = [];
+
+    await withMockPrisma(
+      {
+        emailThread: {
+          findFirst: async () => ({
+            organizationId: ORG_ID,
+            connectedAccountId: MAILBOX_ID,
+            connectedAccount: { email: "manager@pm.com" },
+            subject: "Building maintenance update",
+            snippet: null,
+            messages: [
+              {
+                fromAddr: "communications@mc.fsresidential.com",
+                isOutbound: false,
+                sentAt: new Date("2026-06-10T11:00:00.000Z"),
+                bodyText: "Elevator inspection scheduled.",
+              },
+            ],
+          }),
+        },
+        emailSenderCategoryMemory: {
+          upsert: async (input) => {
+            upsertCalls.push(input);
+            return { id: "memory_1" };
+          },
+          findUnique: async () => null,
+          update: async () => ({ id: "memory_1" }),
+        },
+      },
+      async () => {
+        const result = await upsertSenderCategoryMemoryFromThread({
+          threadId: THREAD_ID,
+          category: "STRATA",
+          userId: USER_ID,
+        });
+
+        assert.deepEqual(result, {
+          ok: true,
+          senderEmail: "communications@mc.fsresidential.com",
+        });
+        assert.equal(upsertCalls.length, 1);
       },
     );
   });
@@ -245,6 +344,89 @@ describe("resolveCategoryForNewSyncedThread", () => {
     });
 
     assert.equal(resolved, null);
+  });
+
+  it("skips sender memory when thread contains LMS/BCS identifier", async () => {
+    const tx = {
+      emailSenderCategoryMemory: {
+        findUnique: async () => {
+          throw new Error("should not read sender memory");
+        },
+        update: async () => {
+          throw new Error("should not update sender memory");
+        },
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const resolved = await resolveCategoryForNewSyncedThread(tx, {
+      organizationId: ORG_ID,
+      connectedAccountId: MAILBOX_ID,
+      subject: "Fwd: LMS2505R - Building Notice - Dryer Vent Cleaning",
+      snippet: null,
+      messages: [
+        {
+          providerMessageId: "msg_1",
+          fromAddr: "owner@example.com",
+          toAddrs: ["manager@pm.com"],
+          ccAddrs: [],
+          sentAt: new Date("2026-06-10T10:00:00.000Z"),
+          bodyText: "Please see attached notice.",
+          bodyHtml: null,
+          labelIds: [],
+          isOutbound: false,
+          isUnread: true,
+        },
+      ],
+    });
+
+    assert.equal(resolved, null);
+  });
+
+  it("still applies landlord sender memory when thread lacks LMS/BCS identifier", async () => {
+    const tx = {
+      emailSenderCategoryMemory: {
+        findUnique: async () => ({
+          id: "memory_1",
+          organizationId: ORG_ID,
+          connectedAccountId: MAILBOX_ID,
+          senderEmail: "owner@example.com",
+          senderName: null,
+          category: "LANDLORD_COMMUNICATION" as const,
+          contextNote: null,
+          source: "manual",
+          createdByUserId: USER_ID,
+          lastMatchedAt: null,
+          matchCount: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+        update: async () => ({ id: "memory_1" }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const resolved = await resolveCategoryForNewSyncedThread(tx, {
+      organizationId: ORG_ID,
+      connectedAccountId: MAILBOX_ID,
+      subject: "Question about unit turnover",
+      snippet: "When can we schedule access?",
+      messages: [
+        {
+          providerMessageId: "msg_1",
+          fromAddr: "owner@example.com",
+          toAddrs: ["manager@pm.com"],
+          ccAddrs: [],
+          sentAt: new Date("2026-06-10T10:00:00.000Z"),
+          bodyText: "When can we schedule access?",
+          bodyHtml: null,
+          labelIds: [],
+          isOutbound: false,
+          isUnread: true,
+        },
+      ],
+    });
+
+    assert.equal(resolved?.category, "LANDLORD_COMMUNICATION");
+    assert.equal(resolved?.categorySource, "rule");
   });
 });
 
