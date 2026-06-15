@@ -69,9 +69,35 @@ export function legacyStringToAssignmentSourceLabel(source: string | null): stri
   }
 }
 
-function categoryPriorityIndex(category: EmailThreadCategory): number {
+export function categoryPriorityIndex(category: EmailThreadCategory): number {
   const index = LEGACY_CATEGORY_PRIORITY.indexOf(category);
   return index === -1 ? LEGACY_CATEGORY_PRIORITY.length : index;
+}
+
+/** Short stakeholder labels for inbox list rows and sorting. */
+export const STAKEHOLDER_SHORT_LABELS: Record<EmailThreadCategory, string> = {
+  LANDLORD_COMMUNICATION: "Landlord",
+  TENANT_COMMUNICATION: "Tenant",
+  STRATA: "Strata",
+  TENANT_INQUIRY: "Inquiry",
+  UNCATEGORIZED: "Unsorted",
+};
+
+/**
+ * Highest-priority stakeholder category for sorting and display.
+ * Multi-category threads use the first entry in priority order.
+ */
+export function getPrimaryStakeholderCategory(
+  categories: readonly EmailThreadCategory[],
+): EmailThreadCategory {
+  if (categories.length === 0) return "UNCATEGORIZED";
+
+  const meaningful = categories.filter((category) => category !== "UNCATEGORIZED");
+  if (meaningful.length === 0) return "UNCATEGORIZED";
+
+  return [...meaningful].sort(
+    (left, right) => categoryPriorityIndex(left) - categoryPriorityIndex(right),
+  )[0]!;
 }
 
 function sourcePriorityIndex(source: EmailThreadCategoryAssignmentSource): number {

@@ -66,6 +66,29 @@ export type InboxCrateCounts = Record<EmailThreadCategory, number> & {
   all: number;
 };
 
+/** Needs-reply counts per crate from loaded display rows (overlapping assignments allowed). */
+export type InboxCrateActionCounts = InboxCrateCounts;
+
+export function computeCrateNeedsReplyCounts(rows: InboxThreadDisplayRow[]): InboxCrateActionCounts {
+  const counts: InboxCrateActionCounts = {
+    LANDLORD_COMMUNICATION: 0,
+    TENANT_COMMUNICATION: 0,
+    STRATA: 0,
+    TENANT_INQUIRY: 0,
+    UNCATEGORIZED: 0,
+    all: 0,
+  };
+
+  for (const row of rows) {
+    if (!row.needsReply) continue;
+    for (const category of row.categories) {
+      counts[category] += 1;
+    }
+  }
+
+  return counts;
+}
+
 export function computeCrateCounts(rows: InboxThreadDisplayRow[]): InboxCrateCounts {
   const counts: InboxCrateCounts = {
     LANDLORD_COMMUNICATION: 0,

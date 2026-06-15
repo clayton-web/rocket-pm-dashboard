@@ -1,7 +1,9 @@
 import type { ConnectedEmailAccountStatus } from "@prisma/client";
 import {
+  computeCrateNeedsReplyCounts,
   filterRowsByCrate,
   inboxCrateLabel,
+  type InboxCrateActionCounts,
   type InboxCrateCounts,
   type InboxCrateFilter,
 } from "@/lib/inbox/email-thread-category";
@@ -28,6 +30,7 @@ import {
 export type InboxCommandCenterData = {
   summary: InboxCommandCenterSummary;
   crateCounts: InboxCrateCounts;
+  crateActionCounts: InboxCrateActionCounts;
   needsReply: InboxCommandCenterSection;
   needsReview: InboxCommandCenterSection;
   classificationReview: InboxCommandCenterSection;
@@ -77,6 +80,7 @@ export async function getInboxCommandCenter(args: {
 
   const connectionIssues = args.mailboxStatus !== "CONNECTED" ? 1 : 0;
   const summary = computeInboxSummary(rows, connectionIssues, classificationReviewCount);
+  const crateActionCounts = computeCrateNeedsReplyCounts(rows);
   const sections = buildInboxQueueSections(
     rows,
     classificationReviewPreview,
@@ -114,6 +118,7 @@ export async function getInboxCommandCenter(args: {
   return {
     summary,
     crateCounts,
+    crateActionCounts,
     needsReply: sections.needsReply,
     needsReview: sections.needsReview,
     classificationReview: sections.classificationReview,

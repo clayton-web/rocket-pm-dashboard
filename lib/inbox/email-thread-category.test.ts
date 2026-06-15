@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 import {
   computeCrateCounts,
+  computeCrateNeedsReplyCounts,
   filterRowsByCrate,
   isEmailThreadCategory,
   isInboxCrateFilter,
@@ -36,6 +37,9 @@ function row(
     draftCreatedAt: null,
     badges: [],
     chips: [],
+    actionState: "no_action",
+    stakeholderLabel: "Unsorted",
+    primaryContextLabel: "Test",
   };
 }
 
@@ -88,5 +92,21 @@ describe("email-thread-category", () => {
     assert.equal(counts.STRATA, 4);
     assert.equal(counts.TENANT_COMMUNICATION, 2);
     assert.equal(counts.all, 5);
+  });
+
+  it("computes overlapping needs-reply counts per crate", () => {
+    const counts = computeCrateNeedsReplyCounts([
+      row(["LANDLORD_COMMUNICATION"], "1"),
+      row(["TENANT_COMMUNICATION", "STRATA"], "2"),
+      row(["STRATA"], "3"),
+    ].map((entry, index) => ({
+      ...entry,
+      needsReply: index < 2,
+    })));
+
+    assert.equal(counts.LANDLORD_COMMUNICATION, 1);
+    assert.equal(counts.TENANT_COMMUNICATION, 1);
+    assert.equal(counts.STRATA, 1);
+    assert.equal(counts.UNCATEGORIZED, 0);
   });
 });

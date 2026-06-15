@@ -1,4 +1,8 @@
 import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
+import {
+  categoryPriorityIndex,
+  getPrimaryStakeholderCategory,
+} from "@/lib/inbox/thread-category-assignments";
 
 export const INBOX_PREVIEW_LIMIT = 5;
 
@@ -55,8 +59,23 @@ function previewSection(rows: InboxThreadDisplayRow[]): InboxCommandCenterSectio
   };
 }
 
+/** Needs-reply queue: stakeholder priority ascending, then oldest waiting first. */
+export function sortNeedsReplyByStakeholderThenAge(
+  rows: InboxThreadDisplayRow[],
+): InboxThreadDisplayRow[] {
+  return [...rows].sort((left, right) => {
+    const leftPriority = categoryPriorityIndex(getPrimaryStakeholderCategory(left.categories));
+    const rightPriority = categoryPriorityIndex(getPrimaryStakeholderCategory(right.categories));
+    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+
+    const leftTime = left.lastMessageAt ?? "";
+    const rightTime = right.lastMessageAt ?? "";
+    return leftTime.localeCompare(rightTime);
+  });
+}
+
 export function filterNeedsReply(rows: InboxThreadDisplayRow[]): InboxThreadDisplayRow[] {
-  return sortByLastMessageDesc(rows.filter((row) => row.needsReply));
+  return sortNeedsReplyByStakeholderThenAge(rows.filter((row) => row.needsReply));
 }
 
 export function filterNeedsReview(rows: InboxThreadDisplayRow[]): InboxThreadDisplayRow[] {

@@ -2,12 +2,18 @@ import { isPmContextLink, parseEmailThreadContextLinks, type PmContextLink } fro
 import { isClassificationReviewThread } from "@/lib/inbox/classification-review";
 import type { EmailThreadCategory } from "@prisma/client";
 import type { LatestDraftSnapshot, LatestMessageSnapshot, InboxThreadRecord } from "@/lib/inbox/inbox-thread-data";
-import { getEffectiveCategories } from "@/lib/inbox/thread-category-assignments";
+import { getEffectiveCategories, getPrimaryStakeholderCategory, STAKEHOLDER_SHORT_LABELS } from "@/lib/inbox/thread-category-assignments";
 import { getPmLinkDisplay, resolvePmLinkDisplay, type PmLinkDisplay } from "@/lib/inbox/pm-link-display";
 
 const LIST_CHIP_KINDS = new Set<PmContextLink["kind"]>(["property", "tenancy", "maintenance_request"]);
 
 export type InboxThreadBadge = "review_required" | "classification_review" | "draft_ready";
+
+export type InboxThreadActionState =
+  | "draft_review"
+  | "new_reply_needed"
+  | "reply_needed"
+  | "no_action";
 
 export type InboxThreadChip = {
   kind: PmContextLink["kind"];
@@ -36,6 +42,9 @@ export type InboxThreadDisplayRow = {
   draftCreatedAt: string | null;
   badges: InboxThreadBadge[];
   chips: InboxThreadChip[];
+  actionState: InboxThreadActionState;
+  stakeholderLabel: string;
+  primaryContextLabel: string;
 };
 
 function chipPrefix(kind: PmContextLink["kind"]): string {
@@ -70,6 +79,49 @@ function buildBadges(
   return [];
 }
 
+export function deriveActionState(args: {
+  reviewRequired: boolean;
+  unreadInbound: boolean;
+  needsReply: boolean;
+}): InboxThreadActionState {
+  if (args.reviewRequired) return "draft_review";
+  if (args.unreadInbound) return "new_reply_needed";
+  if (args.needsReply) return "reply_needed";
+  return "no_action";
+}
+
+const PRIMARY_CHIP_KIND_ORDER: PmContextLink["kind"][] = [
+  "tenancy",
+  "property",
+  "maintenance_request",
+];
+
+function stripChipPrefix(label: string): string {
+  return label.replace(/^(Property|Tenancy|Maintenance) · /, "");
+}
+
+export function derivePrimaryContextLabel(args: {
+  chips: InboxThreadChip[];
+  stakeholderLabel: string;
+  subject: string | null;
+  unlinked: boolean;
+}): string {
+  for (const kind of PRIMARY_CHIP_KIND_ORDER) {
+    const chip = args.chips.find((entry) => entry.kind === kind);
+    if (chip) return stripChipPrefix(chip.label);
+  }
+
+  if (args.unlinked) return `${args.stakeholderLabel} · Unlinked`;
+  const trimmedSubject = args.subject?.trim();
+  if (trimmedSubject) return trimmedSubject;
+  return args.stakeholderLabel;
+}
+
+export function deriveStakeholderLabel(categories: EmailThreadCategory[]): string {
+  const primary = getPrimaryStakeholderCategory(categories);
+  return STAKEHOLDER_SHORT_LABELS[primary];
+}
+
 export async function buildInboxThreadDisplayRows(
   organizationId: string,
   threads: InboxThreadRecord[],
@@ -94,11 +146,22 @@ export async function buildInboxThreadDisplayRows(
     const reviewRequired = draft?.reviewRequired ?? false;
     const hasDraftReady = draft != null && !reviewRequired;
     const categories = getEffectiveCategories(thread.categoryAssignments, thread.category);
+    const effectiveCategories: EmailThreadCategory[] =
+      categories.length > 0 ? categories : ["UNCATEGORIZED"];
     const needsClassificationReview = isClassificationReviewThread({
       category: thread.category,
       categorySource: thread.categorySource,
       lastClassificationAttemptAt: thread.lastClassificationAttemptAt,
       assignments: thread.categoryAssignments,
+    });
+    const chips = buildChips(pmLinks, displayMap);
+    const stakeholderLabel = deriveStakeholderLabel(effectiveCategories);
+    const actionState = deriveActionState({ reviewRequired, unreadInbound, needsReply });
+    const primaryContextLabel = derivePrimaryContextLabel({
+      chips,
+      stakeholderLabel,
+      subject: thread.subject,
+      unlinked,
     });
 
     return {
@@ -109,7 +172,7 @@ export async function buildInboxThreadDisplayRows(
       isUnread: thread.isUnread,
       participantEmails: thread.participantEmails,
       category: thread.category,
-      categories: categories.length > 0 ? categories : ["UNCATEGORIZED"],
+      categories: effectiveCategories,
       categorySource: thread.categorySource,
       categoryConfidence: thread.categoryConfidence,
       categoryAiReason: thread.categoryAiReason,
@@ -122,7 +185,10 @@ export async function buildInboxThreadDisplayRows(
       hasDraftReady,
       draftCreatedAt: draft?.createdAt.toISOString() ?? null,
       badges: buildBadges(reviewRequired, needsClassificationReview, draft != null),
-      chips: buildChips(pmLinks, displayMap),
+      chips,
+      actionState,
+      stakeholderLabel,
+      primaryContextLabel,
     };
   });
 }

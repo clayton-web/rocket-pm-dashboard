@@ -121,9 +121,10 @@ export function InboxCommandCenter(props: {
 }) {
   const { data, mailboxId, queue, crate, lastSyncedAt } = props;
   const { summary } = data;
+  const isFiltered = Boolean(crate || queue);
 
   let filteredContent: ReactNode = null;
-  if ((crate || queue) && data.filteredThreads && data.filteredViewTitle) {
+  if (isFiltered && data.filteredThreads && data.filteredViewTitle) {
     filteredContent = (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -145,16 +146,9 @@ export function InboxCommandCenter(props: {
     );
   }
 
-  return (
-    <div className="space-y-8">
-      <InboxCrateNav
-        mailboxId={mailboxId}
-        crateCounts={data.crateCounts}
-        activeCrate={crate}
-      />
-
-      <div id="unread-inbound">
-        <FormField label="Attention summary" htmlFor="inbox-command-center-summary">
+  const attentionSummary = (
+    <div id="attention-summary">
+      <FormField label="Attention summary" htmlFor="inbox-command-center-summary">
         <output
           id="inbox-command-center-summary"
           className={`block ${SURFACE_PANEL} px-3.5 py-3 text-sm`}
@@ -164,11 +158,6 @@ export function InboxCommandCenter(props: {
           </span>
           {summary.totalUnique > 0 || summary.connectionIssues > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
-              <SummaryPill
-                href="#unread-inbound"
-                label="Unread inbound"
-                count={summary.unreadInbound}
-              />
               <SummaryPill href="#needs-reply" label="Needs reply" count={summary.needsReply} />
               <SummaryPill href="#unlinked" label="Unlinked" count={summary.unlinked} />
               <SummaryPill
@@ -194,69 +183,90 @@ export function InboxCommandCenter(props: {
           ) : (
             <span className="mt-1 block text-neutral-600">Nothing needs attention right now.</span>
           )}
-          {summary.totalUnique > 0 ? (
-            <span className="mt-2 block text-xs text-neutral-500">
-              Counts may overlap — one thread can appear in multiple categories.
-            </span>
-          ) : null}
         </output>
-        </FormField>
-      </div>
+      </FormField>
+    </div>
+  );
 
-      {filteredContent ?? (
-        <div className="flex flex-col gap-10">
-          <PreviewSection
-            id="needs-reply"
-            title="Needs reply"
-            total={data.needsReply.total}
-            viewAllHref={mailboxQuery(mailboxId, "needs_reply")}
-            mailboxId={mailboxId}
-            rows={data.needsReply.preview}
-            emptyMessage="No threads waiting for a reply."
-          />
+  const needsReplySection = (
+    <PreviewSection
+      id="needs-reply"
+      title="Needs reply"
+      description="Sorted by stakeholder priority, oldest waiting first."
+      total={data.needsReply.total}
+      viewAllHref={mailboxQuery(mailboxId, "needs_reply")}
+      mailboxId={mailboxId}
+      rows={data.needsReply.preview}
+      emptyMessage="No threads waiting for a reply."
+    />
+  );
 
-          <PreviewSection
-            id="needs-review"
-            title="Needs review"
-            description="AI draft responses flagged for review."
-            total={data.needsReview.total}
-            viewAllHref={mailboxQuery(mailboxId, "needs_review")}
-            mailboxId={mailboxId}
-            rows={data.needsReview.preview}
-            emptyMessage="No drafts flagged for review."
-          />
+  const crateNav = (
+    <InboxCrateNav
+      mailboxId={mailboxId}
+      crateCounts={data.crateCounts}
+      crateActionCounts={data.crateActionCounts}
+      activeCrate={crate}
+    />
+  );
 
-          <PreviewSection
-            id="classification-review"
-            title="Classification Review"
-            description="Synced emails the classifier attempted but left uncategorized."
-            total={data.classificationReview.total}
-            viewAllHref={mailboxQuery(mailboxId, "classification_review")}
-            mailboxId={mailboxId}
-            rows={data.classificationReview.preview}
-            emptyMessage="No threads need classification review."
-          />
+  const remainingSections = (
+    <div className="flex flex-col gap-10">
+      <PreviewSection
+        id="needs-review"
+        title="Needs review"
+        description="AI draft responses flagged for review."
+        total={data.needsReview.total}
+        viewAllHref={mailboxQuery(mailboxId, "needs_review")}
+        mailboxId={mailboxId}
+        rows={data.needsReview.preview}
+        emptyMessage="No drafts flagged for review."
+      />
 
-          <PreviewSection
-            id="unlinked"
-            title="Unlinked"
-            total={data.unlinked.total}
-            viewAllHref={mailboxQuery(mailboxId, "unlinked")}
-            mailboxId={mailboxId}
-            rows={data.unlinked.preview}
-            emptyMessage="All synced threads have PM context links."
-          />
+      <PreviewSection
+        id="classification-review"
+        title="Classification Review"
+        description="Synced emails the classifier attempted but left uncategorized."
+        total={data.classificationReview.total}
+        viewAllHref={mailboxQuery(mailboxId, "classification_review")}
+        mailboxId={mailboxId}
+        rows={data.classificationReview.preview}
+        emptyMessage="No threads need classification review."
+      />
 
-          <PreviewSection
-            id="recent-activity"
-            title="Recent activity"
-            total={data.recentActivity.total}
-            viewAllHref={mailboxQuery(mailboxId, "recent")}
-            mailboxId={mailboxId}
-            rows={data.recentActivity.preview}
-            emptyMessage="No synced threads yet."
-          />
-        </div>
+      <PreviewSection
+        id="unlinked"
+        title="Unlinked"
+        total={data.unlinked.total}
+        viewAllHref={mailboxQuery(mailboxId, "unlinked")}
+        mailboxId={mailboxId}
+        rows={data.unlinked.preview}
+        emptyMessage="All synced threads have PM context links."
+      />
+
+      <PreviewSection
+        id="recent-activity"
+        title="Recent activity"
+        total={data.recentActivity.total}
+        viewAllHref={mailboxQuery(mailboxId, "recent")}
+        mailboxId={mailboxId}
+        rows={data.recentActivity.preview}
+        emptyMessage="No synced threads yet."
+      />
+    </div>
+  );
+
+  return (
+    <div className="space-y-8">
+      {isFiltered ? (
+        filteredContent
+      ) : (
+        <>
+          {attentionSummary}
+          {needsReplySection}
+          {crateNav}
+          {remainingSections}
+        </>
       )}
     </div>
   );

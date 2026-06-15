@@ -86,7 +86,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
       <div>
         <h1 className="text-lg font-semibold text-neutral-900">Inbox</h1>
         <p className="text-sm text-neutral-600">
-          PM work queue from synced Gmail threads. Sync runs in the background via the job queue.
+          PM work queue from synced Gmail threads.
         </p>
       </div>
 

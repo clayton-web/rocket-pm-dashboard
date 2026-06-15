@@ -29,17 +29,7 @@ export function InboxToolbar(props: {
   const syncDisabled = selectedMailbox != null && selectedMailbox.status !== "CONNECTED";
 
   return (
-    <div className="space-y-3 rounded-lg border border-neutral-200 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">Mailbox</h2>
-          <p className="text-xs text-neutral-500">Sync pulls recent threads from Gmail into this dashboard.</p>
-        </div>
-        <Link href="/email" className="text-xs font-medium text-neutral-700 hover:text-neutral-900">
-          Manage connections
-        </Link>
-      </div>
-
+    <div className="space-y-2 rounded-lg border border-neutral-200 bg-white px-3 py-2.5">
       {syncEnqueued ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
           Sync queued — processing in the background.
@@ -83,56 +73,59 @@ export function InboxToolbar(props: {
           </Link>
         </p>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          {mailboxes.map((mailbox) => {
-            const active = mailbox.id === selectedMailboxId;
-            return (
-              <Link
-                key={mailbox.id}
-                href={`/inbox?mailbox=${encodeURIComponent(mailbox.id)}`}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  active
-                    ? "border-neutral-900 bg-neutral-900 text-white"
-                    : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {mailboxes.map((mailbox) => {
+              const active = mailbox.id === selectedMailboxId;
+              return (
+                <Link
+                  key={mailbox.id}
+                  href={`/inbox?mailbox=${encodeURIComponent(mailbox.id)}`}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                    active
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                  }`}
+                >
+                  {mailbox.email}
+                </Link>
+              );
+            })}
+          </div>
+
+          {selectedMailboxId ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`text-xs ${
+                  selectedMailbox?.syncFreshnessLevel === "overdue"
+                    ? "font-medium text-amber-800"
+                    : selectedMailbox?.syncFreshnessLevel === "in_progress"
+                      ? "font-medium text-sky-800"
+                      : "text-neutral-500"
                 }`}
               >
-                {mailbox.email}
+                {selectedMailbox?.syncFreshnessLabel ?? "Never synced"}
+              </span>
+              {selectedMailbox?.lastError && !needsReconnect ? (
+                <span className="text-xs text-amber-800">{selectedMailbox.lastError}</span>
+              ) : null}
+              <form action={syncGmailMailboxAction}>
+                <input type="hidden" name="connectedAccountId" value={selectedMailboxId} />
+                <button
+                  type="submit"
+                  disabled={syncDisabled || selectedMailbox?.syncFreshnessLevel === "in_progress"}
+                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {selectedMailbox?.syncFreshnessLevel === "in_progress" ? "Syncing…" : "Sync now"}
+                </button>
+              </form>
+              <Link href="/email" className="text-xs font-medium text-neutral-600 hover:text-neutral-900">
+                Manage
               </Link>
-            );
-          })}
+            </div>
+          ) : null}
         </div>
       )}
-
-      {selectedMailboxId ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-100 pt-3">
-          <div className="text-xs">
-            <span
-              className={
-                selectedMailbox?.syncFreshnessLevel === "overdue"
-                  ? "font-medium text-amber-800"
-                  : selectedMailbox?.syncFreshnessLevel === "in_progress"
-                    ? "font-medium text-sky-800"
-                    : "text-neutral-500"
-              }
-            >
-              {selectedMailbox?.syncFreshnessLabel ?? "Never synced"}
-            </span>
-            {selectedMailbox?.lastError && !needsReconnect ? (
-              <span className="ml-2 text-amber-800">{selectedMailbox.lastError}</span>
-            ) : null}
-          </div>
-          <form action={syncGmailMailboxAction}>
-            <input type="hidden" name="connectedAccountId" value={selectedMailboxId} />
-            <button
-              type="submit"
-              disabled={syncDisabled || selectedMailbox?.syncFreshnessLevel === "in_progress"}
-              className="rounded-md bg-neutral-900 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {selectedMailbox?.syncFreshnessLevel === "in_progress" ? "Syncing…" : "Sync now"}
-            </button>
-          </form>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   deriveLegacyCategoryFromAssignments,
   deriveLegacyCategorySourceFromAssignments,
   getEffectiveCategories,
+  getPrimaryStakeholderCategory,
   isManualClassificationLocked,
   isUncategorizedForClassification,
   legacyStringToAssignmentSourceLabel,
@@ -83,5 +84,14 @@ describe("thread-category-assignments", () => {
     ]);
 
     assert.equal(source, "rule");
+  });
+
+  it("returns the highest-priority stakeholder category for multi-category threads", () => {
+    assert.equal(
+      getPrimaryStakeholderCategory(["STRATA", "TENANT_COMMUNICATION", "LANDLORD_COMMUNICATION"]),
+      "LANDLORD_COMMUNICATION",
+    );
+    assert.equal(getPrimaryStakeholderCategory(["UNCATEGORIZED"]), "UNCATEGORIZED");
+    assert.equal(getPrimaryStakeholderCategory([]), "UNCATEGORIZED");
   });
 });

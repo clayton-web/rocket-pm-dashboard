@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { InboxThreadRecord } from "@/lib/inbox/inbox-thread-data";
 import type { LatestDraftSnapshot, LatestMessageSnapshot } from "@/lib/inbox/inbox-thread-data";
-import { buildInboxThreadDisplayRows } from "./inbox-thread-display";
+import {
+  buildInboxThreadDisplayRows,
+  deriveActionState,
+  derivePrimaryContextLabel,
+  deriveStakeholderLabel,
+} from "./inbox-thread-display";
 
 const baseThread: InboxThreadRecord = {
   id: "thread_1",
@@ -33,6 +38,8 @@ describe("inbox-thread-display", () => {
     assert.equal(rows[0]?.needsClassificationReview, true);
     assert.deepEqual(rows[0]?.badges, ["classification_review"]);
     assert.deepEqual(rows[0]?.categories, ["UNCATEGORIZED"]);
+    assert.equal(rows[0]?.stakeholderLabel, "Unsorted");
+    assert.equal(rows[0]?.primaryContextLabel, "Unsorted · Unlinked");
   });
 
   it("exposes multiple category chips from assignments", async () => {
@@ -53,6 +60,7 @@ describe("inbox-thread-display", () => {
     );
 
     assert.deepEqual(rows[0]?.categories, ["TENANT_COMMUNICATION", "STRATA"]);
+    assert.equal(rows[0]?.stakeholderLabel, "Tenant");
   });
 
   it("does not flag manual uncategorized threads for classification review", async () => {
@@ -71,5 +79,82 @@ describe("inbox-thread-display", () => {
 
     assert.equal(rows[0]?.needsClassificationReview, false);
     assert.deepEqual(rows[0]?.badges, []);
+  });
+
+  it("derives action states for reply and draft review", () => {
+    assert.equal(
+      deriveActionState({ reviewRequired: true, unreadInbound: true, needsReply: true }),
+      "draft_review",
+    );
+    assert.equal(
+      deriveActionState({ reviewRequired: false, unreadInbound: true, needsReply: true }),
+      "new_reply_needed",
+    );
+    assert.equal(
+      deriveActionState({ reviewRequired: false, unreadInbound: false, needsReply: true }),
+      "reply_needed",
+    );
+    assert.equal(
+      deriveActionState({ reviewRequired: false, unreadInbound: false, needsReply: false }),
+      "no_action",
+    );
+  });
+
+  it("derives stakeholder labels from primary category", () => {
+    assert.equal(deriveStakeholderLabel(["STRATA", "TENANT_COMMUNICATION"]), "Tenant");
+    assert.equal(deriveStakeholderLabel(["UNCATEGORIZED"]), "Unsorted");
+  });
+
+  it("derives primary context from chips, unlinked state, and subject fallback", () => {
+    assert.equal(
+      derivePrimaryContextLabel({
+        chips: [{ kind: "tenancy", label: "Tenancy · Oak Tower · Unit 4B · Jane Doe" }],
+        stakeholderLabel: "Tenant",
+        subject: "Leak report",
+        unlinked: false,
+      }),
+      "Oak Tower · Unit 4B · Jane Doe",
+    );
+
+    assert.equal(
+      derivePrimaryContextLabel({
+        chips: [],
+        stakeholderLabel: "Landlord",
+        subject: "Expense approval",
+        unlinked: true,
+      }),
+      "Landlord · Unlinked",
+    );
+
+    assert.equal(
+      derivePrimaryContextLabel({
+        chips: [],
+        stakeholderLabel: "Strata",
+        subject: null,
+        unlinked: false,
+      }),
+      "Strata",
+    );
+  });
+
+  it("sets reply-needed action state from latest inbound message", async () => {
+    const rows = await buildInboxThreadDisplayRows(
+      "org_test",
+      [{ ...baseThread, isUnread: false }],
+      new Map<string, LatestMessageSnapshot>([
+        [
+          "thread_1",
+          {
+            isOutbound: false,
+            isUnread: false,
+            sentAt: new Date("2026-06-09T12:00:00.000Z"),
+          },
+        ],
+      ]),
+      new Map<string, LatestDraftSnapshot>(),
+    );
+
+    assert.equal(rows[0]?.needsReply, true);
+    assert.equal(rows[0]?.actionState, "reply_needed");
   });
 });

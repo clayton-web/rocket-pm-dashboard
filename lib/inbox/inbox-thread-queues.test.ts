@@ -4,7 +4,9 @@ import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 import {
   computeInboxSummary,
   filterClassificationReview,
+  filterNeedsReply,
   isInboxQueueParam,
+  sortNeedsReplyByStakeholderThenAge,
 } from "./inbox-thread-queues";
 
 function row(
@@ -31,6 +33,9 @@ function row(
     draftCreatedAt: null,
     badges: [],
     chips: [],
+    actionState: "no_action",
+    stakeholderLabel: "Unsorted",
+    primaryContextLabel: "Test",
     ...overrides,
   };
 }
@@ -74,5 +79,60 @@ describe("inbox-thread-queues", () => {
     assert.equal(summary.classificationReview, 7);
     assert.equal(summary.reviewRequired, 1);
     assert.equal(summary.totalUnique, 2);
+  });
+
+  it("sorts needs reply by stakeholder priority then oldest waiting first", () => {
+    const rows = sortNeedsReplyByStakeholderThenAge([
+      row({
+        id: "tenant-new",
+        needsReply: true,
+        categories: ["TENANT_COMMUNICATION"],
+        lastMessageAt: "2026-06-09T14:00:00.000Z",
+      }),
+      row({
+        id: "landlord-old",
+        needsReply: true,
+        categories: ["LANDLORD_COMMUNICATION"],
+        lastMessageAt: "2026-06-09T08:00:00.000Z",
+      }),
+      row({
+        id: "landlord-new",
+        needsReply: true,
+        categories: ["LANDLORD_COMMUNICATION"],
+        lastMessageAt: "2026-06-09T16:00:00.000Z",
+      }),
+      row({
+        id: "unsorted",
+        needsReply: true,
+        categories: ["UNCATEGORIZED"],
+        lastMessageAt: "2026-06-09T06:00:00.000Z",
+      }),
+    ]);
+
+    assert.deepEqual(rows.map((entry) => entry.id), [
+      "landlord-old",
+      "landlord-new",
+      "tenant-new",
+      "unsorted",
+    ]);
+  });
+
+  it("uses highest-priority category when sorting multi-category threads", () => {
+    const sorted = filterNeedsReply([
+      row({
+        id: "tenant-strata",
+        needsReply: true,
+        categories: ["TENANT_COMMUNICATION", "STRATA"],
+        lastMessageAt: "2026-06-09T10:00:00.000Z",
+      }),
+      row({
+        id: "landlord",
+        needsReply: true,
+        categories: ["LANDLORD_COMMUNICATION"],
+        lastMessageAt: "2026-06-09T12:00:00.000Z",
+      }),
+    ]);
+
+    assert.deepEqual(sorted.map((entry) => entry.id), ["landlord", "tenant-strata"]);
   });
 });

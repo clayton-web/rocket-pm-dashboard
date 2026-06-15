@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { EMAIL_THREAD_CATEGORY_LABELS } from "@/lib/inbox/email-thread-category";
-import type { InboxThreadBadge, InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
+import type { InboxThreadActionState, InboxThreadBadge, InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 
 function formatLastMessageAt(iso: string | null) {
   if (!iso) return "";
@@ -9,32 +8,38 @@ function formatLastMessageAt(iso: string | null) {
   return new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" }).format(d);
 }
 
+function actionStateLabel(state: InboxThreadActionState) {
+  if (state === "draft_review") return "Draft review";
+  if (state === "new_reply_needed") return "New reply needed";
+  if (state === "reply_needed") return "Reply needed";
+  return null;
+}
+
+function actionStateClassName(state: InboxThreadActionState) {
+  if (state === "draft_review") return "border-amber-200 bg-amber-50 text-amber-900";
+  if (state === "new_reply_needed") return "border-sky-200 bg-sky-50 text-sky-900";
+  if (state === "reply_needed") return "border-neutral-200 bg-neutral-50 text-neutral-700";
+  return "";
+}
+
 function badgeLabel(badge: InboxThreadBadge) {
-  if (badge === "review_required") return "Review required";
   if (badge === "classification_review") return "Review";
-  return "Draft ready";
+  if (badge === "draft_ready") return "Draft ready";
+  return null;
 }
 
 function badgeClassName(badge: InboxThreadBadge) {
-  if (badge === "review_required") {
-    return "border-amber-200 bg-amber-50 text-amber-900";
-  }
   if (badge === "classification_review") {
     return "border-violet-200 bg-violet-50 text-violet-900";
   }
   return "border-sky-200 bg-sky-50 text-sky-900";
 }
 
-function chipClassName(kind: InboxThreadDisplayRow["chips"][number]["kind"]) {
-  if (kind === "property") return "border-violet-200 bg-violet-50 text-violet-900";
-  if (kind === "tenancy") return "border-emerald-200 bg-emerald-50 text-emerald-900";
-  return "border-orange-200 bg-orange-50 text-orange-900";
-}
-
 export function InboxThreadRow(props: { row: InboxThreadDisplayRow; mailboxId: string }) {
   const { row, mailboxId } = props;
-  const visibleChips = row.chips.slice(0, 3);
-  const hiddenChipCount = row.chips.length - visibleChips.length;
+  const actionLabel = actionStateLabel(row.actionState);
+  const subject = row.subject?.trim() || "(No subject)";
+  const showSubjectLine = row.primaryContextLabel !== subject;
 
   return (
     <Link
@@ -44,51 +49,43 @@ export function InboxThreadRow(props: { row: InboxThreadDisplayRow; mailboxId: s
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
+            {row.actionState === "new_reply_needed" ? (
+              <span className="h-2 w-2 shrink-0 rounded-full bg-sky-500" aria-hidden />
+            ) : null}
             <div
-              className={`truncate text-sm ${row.isUnread ? "font-semibold text-neutral-900" : "font-medium text-neutral-800"}`}
+              className={`truncate text-sm ${row.actionState === "new_reply_needed" ? "font-semibold text-neutral-900" : "font-medium text-neutral-800"}`}
             >
-              {row.subject?.trim() || "(No subject)"}
+              <span className="text-neutral-500">{row.stakeholderLabel}</span>
+              <span className="text-neutral-400"> · </span>
+              <span>{row.primaryContextLabel}</span>
             </div>
-            {row.badges.map((badge) => (
+            {actionLabel ? (
               <span
-                key={badge}
-                className={`inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-medium ${badgeClassName(badge)}`}
+                className={`inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-medium ${actionStateClassName(row.actionState)}`}
               >
-                {badgeLabel(badge)}
+                {actionLabel}
               </span>
-            ))}
-            {row.categories.map((category) => (
-              <span
-                key={category}
-                className="inline-flex shrink-0 items-center rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-medium text-neutral-600"
-              >
-                {EMAIL_THREAD_CATEGORY_LABELS[category]}
-              </span>
-            ))}
+            ) : null}
+            {row.badges
+              .filter((badge) => badge !== "review_required")
+              .map((badge) => {
+                const label = badgeLabel(badge);
+                if (!label) return null;
+                return (
+                  <span
+                    key={badge}
+                    className={`inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[10px] font-medium ${badgeClassName(badge)}`}
+                  >
+                    {label}
+                  </span>
+                );
+              })}
           </div>
-          <div className="truncate text-xs text-neutral-500">{row.snippet}</div>
-          {row.participantEmails.length ? (
-            <div className="mt-1 truncate text-[11px] text-neutral-400">
-              {row.participantEmails.slice(0, 4).join(", ")}
-              {row.participantEmails.length > 4 ? "…" : ""}
-            </div>
+          {showSubjectLine ? (
+            <div className="truncate text-xs text-neutral-600">{subject}</div>
           ) : null}
-          {visibleChips.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {visibleChips.map((chip) => (
-                <span
-                  key={`${chip.kind}-${chip.label}`}
-                  className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-medium ${chipClassName(chip.kind)}`}
-                >
-                  {chip.label}
-                </span>
-              ))}
-              {hiddenChipCount > 0 ? (
-                <span className="inline-flex items-center rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-medium text-neutral-600">
-                  +{hiddenChipCount}
-                </span>
-              ) : null}
-            </div>
+          {row.snippet ? (
+            <div className="truncate text-xs text-neutral-500">{row.snippet}</div>
           ) : null}
         </div>
         <div className="shrink-0 text-[11px] text-neutral-400">{formatLastMessageAt(row.lastMessageAt)}</div>
