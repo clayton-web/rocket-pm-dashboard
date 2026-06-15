@@ -6,12 +6,15 @@ import {
   InlineNotice,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
-import { InboxCrateNav, inboxCommandCenterQuery } from "@/components/inbox/inbox-crate-nav";
+import {
+  inboxCommandCenterQuery,
+  InboxSecondaryLinks,
+} from "@/components/inbox/inbox-secondary-links";
 import { InboxThreadRow } from "@/components/inbox/inbox-thread-row";
 import { ThreadList } from "@/components/inbox/thread-list";
 import type { InboxCommandCenterData } from "@/lib/inbox/inbox-command-center.service";
 import type { InboxCrateFilter } from "@/lib/inbox/email-thread-category";
-import type { InboxQueueParam } from "@/lib/inbox/inbox-thread-queues";
+import type { InboxQueueParam, StakeholderBinSection } from "@/lib/inbox/inbox-thread-queues";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -42,24 +45,34 @@ function mailboxQuery(mailboxId: string, queue?: InboxQueueParam) {
   return `/inbox?${params.toString()}`;
 }
 
+function mailboxCrateQuery(mailboxId: string, crate: InboxCrateFilter) {
+  const params = new URLSearchParams({ mailbox: mailboxId, crate });
+  return `/inbox?${params.toString()}`;
+}
+
 function SectionHeader({
   id,
   title,
   total,
   viewAllHref,
+  cleanup,
 }: {
   id: string;
   title: string;
   total: number;
   viewAllHref: string;
+  cleanup?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 id={id} className="scroll-mt-6 text-lg font-semibold text-neutral-900">
+        <h2
+          id={id}
+          className={`scroll-mt-6 text-lg font-semibold ${cleanup ? "text-amber-950" : "text-neutral-900"}`}
+        >
           {title}
         </h2>
-        <p className="mt-1 text-sm text-neutral-600">
+        <p className={`mt-1 text-sm ${cleanup ? "text-amber-800" : "text-neutral-600"}`}>
           {total} thread{total === 1 ? "" : "s"}
         </p>
       </div>
@@ -67,6 +80,45 @@ function SectionHeader({
         View all →
       </Link>
     </div>
+  );
+}
+
+function StakeholderBinPreview({
+  bin,
+  mailboxId,
+}: {
+  bin: StakeholderBinSection;
+  mailboxId: string;
+}) {
+  return (
+    <FormSection legend="">
+      <SectionHeader
+        id={bin.sectionId}
+        title={bin.title}
+        total={bin.total}
+        viewAllHref={mailboxCrateQuery(mailboxId, bin.category)}
+        cleanup={bin.variant === "cleanup"}
+      />
+      <div className="mt-4">
+        {bin.preview.length === 0 ? (
+          <InlineNotice>{bin.emptyMessage}</InlineNotice>
+        ) : (
+          <div
+            className={`overflow-hidden rounded-lg border bg-white ${
+              bin.variant === "cleanup" ? "border-amber-200" : "border-neutral-200"
+            }`}
+          >
+            <ul className="divide-y divide-neutral-100">
+              {bin.preview.map((row) => (
+                <li key={row.id}>
+                  <InboxThreadRow row={row} mailboxId={mailboxId} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </FormSection>
   );
 }
 
@@ -86,7 +138,7 @@ function PreviewSection({
   total: number;
   viewAllHref: string;
   mailboxId: string;
-  rows: InboxCommandCenterData["needsReply"]["preview"];
+  rows: InboxCommandCenterData["needsReview"]["preview"];
   emptyMessage: string;
 }) {
   return (
@@ -158,7 +210,11 @@ export function InboxCommandCenter(props: {
           </span>
           {summary.totalUnique > 0 || summary.connectionIssues > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
-              <SummaryPill href="#needs-reply" label="Needs reply" count={summary.needsReply} />
+              <SummaryPill
+                href="#landlord-communication"
+                label="Waiting for reply"
+                count={summary.needsReply}
+              />
               <SummaryPill href="#unlinked" label="Unlinked" count={summary.unlinked} />
               <SummaryPill
                 href="#needs-review"
@@ -188,26 +244,18 @@ export function InboxCommandCenter(props: {
     </div>
   );
 
-  const needsReplySection = (
-    <PreviewSection
-      id="needs-reply"
-      title="Needs reply"
-      description="Sorted by stakeholder priority, oldest waiting first."
-      total={data.needsReply.total}
-      viewAllHref={mailboxQuery(mailboxId, "needs_reply")}
-      mailboxId={mailboxId}
-      rows={data.needsReply.preview}
-      emptyMessage="No threads waiting for a reply."
-    />
-  );
-
-  const crateNav = (
-    <InboxCrateNav
-      mailboxId={mailboxId}
-      crateCounts={data.crateCounts}
-      crateActionCounts={data.crateActionCounts}
-      activeCrate={crate}
-    />
+  const stakeholderBins = (
+    <div className="flex flex-col gap-10">
+      {data.stakeholderBins.map((bin) => (
+        <StakeholderBinPreview key={bin.category} bin={bin} mailboxId={mailboxId} />
+      ))}
+      <InboxSecondaryLinks
+        mailboxId={mailboxId}
+        crateCounts={data.crateCounts}
+        crateActionCounts={data.crateActionCounts}
+        activeCrate={crate}
+      />
+    </div>
   );
 
   const remainingSections = (
@@ -263,8 +311,7 @@ export function InboxCommandCenter(props: {
       ) : (
         <>
           {attentionSummary}
-          {needsReplySection}
-          {crateNav}
+          {stakeholderBins}
           {remainingSections}
         </>
       )}

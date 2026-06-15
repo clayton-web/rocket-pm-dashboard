@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 import {
+  buildInboxBrowseAllLink,
+  buildInboxSecondaryNavLinks,
   computeCrateCounts,
   computeCrateNeedsReplyCounts,
   filterRowsByCrate,
+  INBOX_STAKEHOLDER_BIN_ORDER,
+  INBOX_STAKEHOLDER_BIN_SHORT_LABELS,
   isEmailThreadCategory,
   isInboxCrateFilter,
   mapAssignmentGroupByToCrateCounts,
+  STAKEHOLDER_BIN_EMPTY_MESSAGES,
 } from "./email-thread-category";
 
 function row(
@@ -108,5 +113,63 @@ describe("email-thread-category", () => {
     assert.equal(counts.TENANT_COMMUNICATION, 1);
     assert.equal(counts.STRATA, 1);
     assert.equal(counts.UNCATEGORIZED, 0);
+  });
+
+  it("defines stakeholder bin empty messages", () => {
+    assert.equal(
+      STAKEHOLDER_BIN_EMPTY_MESSAGES.LANDLORD_COMMUNICATION,
+      "No landlord threads waiting for a reply.",
+    );
+    assert.equal(STAKEHOLDER_BIN_EMPTY_MESSAGES.UNCATEGORIZED, "No unsorted threads.");
+  });
+
+  it("defines the finalized stakeholder bin order without tenant inquiries", () => {
+    assert.deepEqual(INBOX_STAKEHOLDER_BIN_ORDER, [
+      "LANDLORD_COMMUNICATION",
+      "TENANT_COMMUNICATION",
+      "STRATA",
+      "UNCATEGORIZED",
+    ]);
+    assert.ok(!INBOX_STAKEHOLDER_BIN_ORDER.some((category) => category === "TENANT_INQUIRY"));
+  });
+
+  it("uses short labels and Unsorted for stakeholder bins", () => {
+    assert.equal(INBOX_STAKEHOLDER_BIN_SHORT_LABELS.LANDLORD_COMMUNICATION, "Landlords");
+    assert.equal(INBOX_STAKEHOLDER_BIN_SHORT_LABELS.TENANT_COMMUNICATION, "Tenants");
+    assert.equal(INBOX_STAKEHOLDER_BIN_SHORT_LABELS.STRATA, "Strata");
+    assert.equal(INBOX_STAKEHOLDER_BIN_SHORT_LABELS.UNCATEGORIZED, "Unsorted");
+  });
+
+  it("keeps tenant inquiries out of stakeholder bins and in secondary links", () => {
+    const secondary = buildInboxSecondaryNavLinks({
+      crateActionCounts: {
+        LANDLORD_COMMUNICATION: 0,
+        TENANT_COMMUNICATION: 0,
+        STRATA: 0,
+        TENANT_INQUIRY: 2,
+        UNCATEGORIZED: 0,
+        all: 2,
+      },
+    });
+
+    assert.equal(secondary.length, 1);
+    assert.equal(secondary[0]?.crate, "TENANT_INQUIRY");
+    assert.equal(secondary[0]?.label, "Tenant Inquiries");
+    assert.equal(secondary[0]?.countLabel, "2 waiting");
+  });
+
+  it("renders browse-all as a secondary text link config", () => {
+    const browseAll = buildInboxBrowseAllLink({
+      LANDLORD_COMMUNICATION: 0,
+      TENANT_COMMUNICATION: 0,
+      STRATA: 0,
+      TENANT_INQUIRY: 0,
+      UNCATEGORIZED: 0,
+      all: 847,
+    });
+
+    assert.equal(browseAll.crate, "all");
+    assert.equal(browseAll.label, "Browse all threads");
+    assert.equal(browseAll.count, 847);
   });
 });

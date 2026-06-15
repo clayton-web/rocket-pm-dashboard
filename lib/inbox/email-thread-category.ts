@@ -1,6 +1,16 @@
 import type { EmailThreadCategory } from "@prisma/client";
 import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 
+/** Finalized PM stakeholder bin order for the inbox homepage (excludes Tenant Inquiries). */
+export const INBOX_STAKEHOLDER_BIN_ORDER = [
+  "LANDLORD_COMMUNICATION",
+  "TENANT_COMMUNICATION",
+  "STRATA",
+  "UNCATEGORIZED",
+] as const satisfies readonly EmailThreadCategory[];
+
+export type InboxStakeholderBinCategory = (typeof INBOX_STAKEHOLDER_BIN_ORDER)[number];
+
 /** Dashboard inbox crates in display order. All Inbox is handled separately. */
 export const INBOX_CRATE_ORDER: readonly EmailThreadCategory[] = [
   "LANDLORD_COMMUNICATION",
@@ -19,7 +29,42 @@ export const EMAIL_THREAD_CATEGORY_LABELS: Record<EmailThreadCategory, string> =
   TENANT_COMMUNICATION: "Tenant Communication",
   STRATA: "Strata",
   TENANT_INQUIRY: "Tenant Inquiries",
-  UNCATEGORIZED: "Uncategorized",
+  UNCATEGORIZED: "Unsorted",
+};
+
+/** Short labels for stakeholder bins. */
+export const INBOX_STAKEHOLDER_BIN_SHORT_LABELS: Record<InboxStakeholderBinCategory, string> = {
+  LANDLORD_COMMUNICATION: "Landlords",
+  TENANT_COMMUNICATION: "Tenants",
+  STRATA: "Strata",
+  UNCATEGORIZED: "Unsorted",
+};
+
+export type InboxSecondaryNavLink = {
+  crate: InboxCrateFilter;
+  label: string;
+  count: number;
+  countLabel: string;
+};
+
+export type InboxBrowseAllLink = {
+  crate: typeof ALL_INBOX_CRATE;
+  label: string;
+  count: number;
+};
+
+export const STAKEHOLDER_BIN_EMPTY_MESSAGES: Record<InboxStakeholderBinCategory, string> = {
+  LANDLORD_COMMUNICATION: "No landlord threads waiting for a reply.",
+  TENANT_COMMUNICATION: "No tenant threads waiting for a reply.",
+  STRATA: "No strata threads waiting for a reply.",
+  UNCATEGORIZED: "No unsorted threads.",
+};
+
+export const STAKEHOLDER_BIN_SECTION_IDS: Record<InboxStakeholderBinCategory, string> = {
+  LANDLORD_COMMUNICATION: "landlord-communication",
+  TENANT_COMMUNICATION: "tenant-communication",
+  STRATA: "strata-communication",
+  UNCATEGORIZED: "unsorted",
 };
 
 export const EMAIL_THREAD_CATEGORY_DESCRIPTIONS: Record<EmailThreadCategory, string> = {
@@ -30,10 +75,42 @@ export const EMAIL_THREAD_CATEGORY_DESCRIPTIONS: Record<EmailThreadCategory, str
   STRATA: "Strata council, strata manager, bylaws, minutes, levies, move-in/out forms, strata documents.",
   TENANT_INQUIRY:
     "New rental leads, viewing requests, applications, availability questions.",
-  UNCATEGORIZED: "Synced emails that have not yet been classified.",
+  UNCATEGORIZED: "Synced emails that have not yet been sorted into a stakeholder lane.",
 };
 
-export const ALL_INBOX_CRATE_LABEL = "All Inbox";
+export const ALL_INBOX_CRATE_LABEL = "All threads";
+
+export function formatPriorityRailCountLabel(
+  category: EmailThreadCategory,
+  count: number,
+): string {
+  if (category === "UNCATEGORIZED") {
+    return count === 1 ? "1 item" : `${count} items`;
+  }
+  return count === 1 ? "1 waiting" : `${count} waiting`;
+}
+
+export function buildInboxSecondaryNavLinks(args: {
+  crateActionCounts: InboxCrateActionCounts;
+}): InboxSecondaryNavLink[] {
+  const count = args.crateActionCounts.TENANT_INQUIRY;
+  return [
+    {
+      crate: "TENANT_INQUIRY",
+      label: EMAIL_THREAD_CATEGORY_LABELS.TENANT_INQUIRY,
+      count,
+      countLabel: formatPriorityRailCountLabel("TENANT_INQUIRY", count),
+    },
+  ];
+}
+
+export function buildInboxBrowseAllLink(crateCounts: InboxCrateCounts): InboxBrowseAllLink {
+  return {
+    crate: ALL_INBOX_CRATE,
+    label: "Browse all threads",
+    count: crateCounts.all,
+  };
+}
 
 export type EmailThreadCategorySource = "manual" | "ai" | "rule" | "approved_rule";
 

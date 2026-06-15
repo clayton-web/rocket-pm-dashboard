@@ -9,12 +9,14 @@ import {
 } from "@/lib/inbox/email-thread-category";
 import {
   buildInboxQueueSections,
+  buildStakeholderBinSections,
   computeInboxSummary,
   filterRowsByQueue,
   INBOX_PREVIEW_LIMIT,
   type InboxCommandCenterSection,
   type InboxCommandCenterSummary,
   type InboxQueueParam,
+  type StakeholderBinSection,
 } from "@/lib/inbox/inbox-thread-queues";
 import { buildInboxThreadDisplayRows, type InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 import {
@@ -31,7 +33,7 @@ export type InboxCommandCenterData = {
   summary: InboxCommandCenterSummary;
   crateCounts: InboxCrateCounts;
   crateActionCounts: InboxCrateActionCounts;
-  needsReply: InboxCommandCenterSection;
+  stakeholderBins: StakeholderBinSection[];
   needsReview: InboxCommandCenterSection;
   classificationReview: InboxCommandCenterSection;
   unlinked: InboxCommandCenterSection;
@@ -81,6 +83,7 @@ export async function getInboxCommandCenter(args: {
   const connectionIssues = args.mailboxStatus !== "CONNECTED" ? 1 : 0;
   const summary = computeInboxSummary(rows, connectionIssues, classificationReviewCount);
   const crateActionCounts = computeCrateNeedsReplyCounts(rows);
+  const stakeholderBins = buildStakeholderBinSections({ rows, crateActionCounts, crateCounts });
   const sections = buildInboxQueueSections(
     rows,
     classificationReviewPreview,
@@ -119,7 +122,7 @@ export async function getInboxCommandCenter(args: {
     summary,
     crateCounts,
     crateActionCounts,
-    needsReply: sections.needsReply,
+    stakeholderBins,
     needsReview: sections.needsReview,
     classificationReview: sections.classificationReview,
     unlinked: sections.unlinked,
