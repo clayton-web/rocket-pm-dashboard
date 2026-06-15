@@ -169,20 +169,49 @@ export function portfolioImportPlaceholderDate(): Date {
   return d;
 }
 
+/** Sentinel calendar date used when PDF portfolio imports lack lease/move-in dates. */
+export const PORTFOLIO_PDF_IMPORT_PLACEHOLDER_DATE_KEY = "2020-03-03";
+
+function isValidDate(value: Date): boolean {
+  return !Number.isNaN(value.getTime());
+}
+
+function normalizeToUtcDateKey(value: Date | string): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const dateOnly = new Date(`${trimmed}T12:00:00.000Z`);
+      return isValidDate(dateOnly) ? trimmed : null;
+    }
+    const parsed = new Date(trimmed);
+    if (!isValidDate(parsed)) return null;
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  if (!isValidDate(value)) return null;
+  return value.toISOString().slice(0, 10);
+}
+
 /** UTC calendar date (YYYY-MM-DD) for the portfolio import placeholder (1st of current month, prior year). */
 export function getPortfolioImportPlaceholderDateKey(referenceDate: Date = new Date()): string {
-  const d = new Date(referenceDate.getTime());
+  const safeReference = isValidDate(referenceDate) ? referenceDate : new Date();
+  const d = new Date(safeReference.getTime());
   d.setUTCFullYear(d.getUTCFullYear() - 1);
   d.setUTCMonth(d.getUTCMonth(), 1);
   d.setUTCHours(0, 0, 0, 0);
   return d.toISOString().slice(0, 10);
 }
 
-/** Matches dates written when portfolio CSV import substitutes missing lease/move-in dates. */
+/** Matches dates written when portfolio CSV/PDF import substitutes missing lease/move-in dates. */
 export function isPortfolioImportPlaceholderDate(
-  date: Date | null | undefined,
+  date: Date | string | null | undefined,
   referenceDate: Date = new Date(),
 ): boolean {
-  if (!date) return false;
-  return date.toISOString().slice(0, 10) === getPortfolioImportPlaceholderDateKey(referenceDate);
+  const dateKey = date == null ? null : normalizeToUtcDateKey(date);
+  if (!dateKey) return false;
+
+  if (dateKey === getPortfolioImportPlaceholderDateKey(referenceDate)) return true;
+  if (dateKey === PORTFOLIO_PDF_IMPORT_PLACEHOLDER_DATE_KEY) return true;
+  return false;
 }

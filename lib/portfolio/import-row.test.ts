@@ -5,6 +5,7 @@ import {
   getPortfolioImportPlaceholderDateKey,
   hasTenantData,
   isPortfolioImportPlaceholderDate,
+  PORTFOLIO_PDF_IMPORT_PLACEHOLDER_DATE_KEY,
   portfolioImportPlaceholderDate,
   splitTenantName,
   validatePortfolioRow,
@@ -101,5 +102,34 @@ describe("portfolio import placeholder dates", () => {
       isPortfolioImportPlaceholderDate(new Date("2025-07-01T00:00:00.000Z"), referenceDate),
       false,
     );
+  });
+
+  it("detects the PDF import sentinel date 2020-03-03", () => {
+    assert.equal(
+      isPortfolioImportPlaceholderDate(
+        new Date(`${PORTFOLIO_PDF_IMPORT_PLACEHOLDER_DATE_KEY}T12:00:00.000Z`),
+      ),
+      true,
+    );
+    assert.equal(isPortfolioImportPlaceholderDate(PORTFOLIO_PDF_IMPORT_PLACEHOLDER_DATE_KEY), true);
+    assert.equal(isPortfolioImportPlaceholderDate("2020-03-03T00:00:00.000Z"), true);
+  });
+
+  it("returns false for invalid or empty values without throwing", () => {
+    assert.equal(isPortfolioImportPlaceholderDate(null), false);
+    assert.equal(isPortfolioImportPlaceholderDate(undefined), false);
+    assert.equal(isPortfolioImportPlaceholderDate(""), false);
+    assert.equal(isPortfolioImportPlaceholderDate("   "), false);
+    assert.equal(isPortfolioImportPlaceholderDate("not-a-date"), false);
+    assert.equal(isPortfolioImportPlaceholderDate("2020-13-40"), false);
+    assert.equal(isPortfolioImportPlaceholderDate(new Date("invalid")), false);
+    assert.equal(isPortfolioImportPlaceholderDate(new Date(Number.NaN)), false);
+  });
+
+  it("accepts ISO date strings and valid Date objects", () => {
+    const referenceDate = new Date("2026-06-15T12:00:00.000Z");
+    assert.equal(isPortfolioImportPlaceholderDate("2025-06-01", referenceDate), true);
+    assert.equal(isPortfolioImportPlaceholderDate("2026-06-15T12:00:00.000Z", referenceDate), false);
+    assert.equal(isPortfolioImportPlaceholderDate(new Date("2026-01-01T12:00:00.000Z"), referenceDate), false);
   });
 });
