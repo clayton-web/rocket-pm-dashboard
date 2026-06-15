@@ -58,6 +58,9 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       postalCode: property.postalCode,
       country: property.country,
       isActive: property.isActive,
+      ownerEmail: property.ownerEmail,
+      ownerPhone: property.ownerPhone,
+      strataNotes: property.strataNotes,
       profile: propertyProfileFromRecord(property),
       units: units.map((unit) => ({
         id: unit.id,

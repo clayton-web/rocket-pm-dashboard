@@ -161,6 +161,13 @@ model Property {
   bathrooms    Decimal? @db.Decimal(4, 1)
   approxSqft   Int?
 
+  /// Per-property owner contact (portfolio / strata management).
+  ownerEmail String?
+  ownerPhone String?
+
+  /// Staff-facing strata reference notes (not official strata records).
+  strataNotes String? @db.Text
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 

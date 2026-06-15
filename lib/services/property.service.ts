@@ -44,6 +44,9 @@ export type UpdatePropertyInput = Partial<
     | "propertyType"
     | "bedrooms"
     | "approxSqft"
+    | "ownerEmail"
+    | "ownerPhone"
+    | "strataNotes"
   >
 > & {
   bathrooms?: number | null;
@@ -59,6 +62,9 @@ const PROPERTY_AUDIT_FIELDS = [
   "propertyType",
   "bedrooms",
   "approxSqft",
+  "ownerEmail",
+  "ownerPhone",
+  "strataNotes",
 ] as const;
 
 function profileCreateData(input: CreatePropertyInput): Pick<
@@ -140,6 +146,9 @@ export async function updateProperty(
     data.bathrooms = input.bathrooms != null ? new Prisma.Decimal(input.bathrooms) : null;
   }
   if (input.approxSqft !== undefined) data.approxSqft = input.approxSqft;
+  if (input.ownerEmail !== undefined) data.ownerEmail = input.ownerEmail?.trim().toLowerCase() || null;
+  if (input.ownerPhone !== undefined) data.ownerPhone = input.ownerPhone?.trim() || null;
+  if (input.strataNotes !== undefined) data.strataNotes = input.strataNotes?.trim() || null;
   if (Object.keys(data).length === 0) return getPropertyById(prisma, principal, propertyId);
   const before = await prisma.property.findUnique({ where: { id: propertyId } });
   const row = await prisma.property.update({
@@ -163,6 +172,20 @@ export async function updatePropertyProfile(
     bedrooms: number | null;
     bathrooms: number | null;
     approxSqft: number | null;
+  },
+): Promise<Property> {
+  return updateProperty(prisma, principal, propertyId, input);
+}
+
+/** PM / org admin — update owner contact and strata notes. */
+export async function updatePropertyOwnerStrata(
+  prisma: PrismaClient,
+  principal: StaffContext,
+  propertyId: string,
+  input: {
+    ownerEmail: string | null;
+    ownerPhone: string | null;
+    strataNotes: string | null;
   },
 ): Promise<Property> {
   return updateProperty(prisma, principal, propertyId, input);

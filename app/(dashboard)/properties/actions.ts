@@ -10,13 +10,14 @@ import {
   PropertyHardDeleteBlockedError,
   hardDeleteDummyProperty,
 } from "@/lib/services/hard-delete-dummy-property";
-import { createProperty, updatePropertyProfile } from "@/lib/services/property.service";
+import { createProperty, updatePropertyOwnerStrata, updatePropertyProfile } from "@/lib/services/property.service";
 import { createUnit } from "@/lib/services/unit.service";
 import {
   parseCreatePropertyFormInput,
   parseCreateUnitFormInput,
 } from "@/lib/validation/property-form";
 import { parsePropertyProfileFormInput } from "@/lib/validation/property-profile";
+import { parsePropertyOwnerStrataFormInput } from "@/lib/validation/property-owner-strata";
 
 export type PropertyActionResult =
   | { ok: true; propertyId?: string; unitId?: string }
@@ -164,6 +165,41 @@ export async function updatePropertyProfileAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not update property profile";
+    return { ok: false, error: message };
+  }
+}
+
+export async function updatePropertyOwnerStrataAction(
+  propertyId: string,
+  formData: unknown,
+): Promise<PropertyActionResult> {
+  const trimmedPropertyId = propertyId.trim();
+  if (!trimmedPropertyId) {
+    return { ok: false, error: "Invalid property id" };
+  }
+
+  const parsed = parsePropertyOwnerStrataFormInput(formData);
+  if ("error" in parsed) {
+    return { ok: false, error: parsed.error };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    await updatePropertyOwnerStrata(prisma, ctx, trimmedPropertyId, parsed);
+    revalidatePath("/properties");
+    revalidatePath(`/properties/${trimmedPropertyId}`);
+    return { ok: true, propertyId: trimmedPropertyId };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not update owner and strata details";
     return { ok: false, error: message };
   }
 }

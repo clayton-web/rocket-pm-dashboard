@@ -1,6 +1,6 @@
 "use client";
 
-import { createUnitAction, hardDeletePropertyAction, updatePropertyProfileAction } from "@/app/(dashboard)/properties/actions";
+import { createUnitAction, hardDeletePropertyAction, updatePropertyOwnerStrataAction, updatePropertyProfileAction } from "@/app/(dashboard)/properties/actions";
 import {
   FormField,
   FormSection,
@@ -52,6 +52,9 @@ export type PropertyDetailData = {
   postalCode: string;
   country: string;
   isActive: boolean;
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+  strataNotes: string | null;
   profile: PropertyProfileFields;
   units: PropertyDetailUnit[];
 };
@@ -196,6 +199,136 @@ function PropertyProfileSection({
                     setBedrooms(profile.bedrooms != null ? String(profile.bedrooms) : "");
                     setBathrooms(profile.bathrooms != null ? String(profile.bathrooms) : "");
                     setApproxSqft(profile.approxSqft != null ? String(profile.approxSqft) : "");
+                  }}
+                  className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PropertyOwnerStrataSection({
+  propertyId,
+  ownerEmail,
+  ownerPhone,
+  strataNotes,
+  canEdit,
+}: {
+  propertyId: string;
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+  strataNotes: string | null;
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const ownerEmailId = useId();
+  const ownerPhoneId = useId();
+  const strataNotesId = useId();
+  const [showEdit, setShowEdit] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [ownerEmailValue, setOwnerEmailValue] = useState(ownerEmail ?? "");
+  const [ownerPhoneValue, setOwnerPhoneValue] = useState(ownerPhone ?? "");
+  const [strataNotesValue, setStrataNotesValue] = useState(strataNotes ?? "");
+
+  function onSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await updatePropertyOwnerStrataAction(propertyId, {
+        ownerEmail: ownerEmailValue || null,
+        ownerPhone: ownerPhoneValue || null,
+        strataNotes: strataNotesValue || null,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setShowEdit(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
+      <p className="text-sm font-medium text-neutral-900">Owner &amp; strata</p>
+      <div className={`${SURFACE_PANEL} mt-3 space-y-2 px-3.5 py-3`}>
+        <p className="text-sm text-neutral-700">
+          <span className="text-neutral-500">Owner Email · </span>
+          {ownerEmail ?? "—"}
+        </p>
+        <p className="text-sm text-neutral-700">
+          <span className="text-neutral-500">Owner Phone · </span>
+          {ownerPhone ?? "—"}
+        </p>
+        <p className="text-sm text-neutral-700">
+          <span className="text-neutral-500">Strata Notes · </span>
+          {strataNotes ? (
+            <span className="whitespace-pre-wrap">{strataNotes}</span>
+          ) : (
+            "—"
+          )}
+        </p>
+      </div>
+      {canEdit ? (
+        <div className="mt-3">
+          {!showEdit ? (
+            <button
+              type="button"
+              onClick={() => setShowEdit(true)}
+              className="text-sm font-medium text-neutral-800 underline"
+            >
+              Edit owner &amp; strata
+            </button>
+          ) : (
+            <form className="mt-3 flex flex-col gap-4 border-t border-neutral-200 pt-4" onSubmit={onSave}>
+              {error ? <InlineNotice>{error}</InlineNotice> : null}
+              <FormField label="Owner Email" htmlFor={ownerEmailId}>
+                <input
+                  id={ownerEmailId}
+                  type="email"
+                  value={ownerEmailValue}
+                  onChange={(e) => setOwnerEmailValue(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Owner Phone" htmlFor={ownerPhoneId}>
+                <input
+                  id={ownerPhoneId}
+                  type="tel"
+                  value={ownerPhoneValue}
+                  onChange={(e) => setOwnerPhoneValue(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Strata Notes" htmlFor={strataNotesId}>
+                <textarea
+                  id={strataNotesId}
+                  rows={4}
+                  value={strataNotesValue}
+                  onChange={(e) => setStrataNotesValue(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <div className="flex flex-wrap gap-3">
+                <PrimaryButton type="submit" disabled={pending} className="!w-auto px-5">
+                  {pending ? "Saving…" : "Save"}
+                </PrimaryButton>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    setShowEdit(false);
+                    setError(null);
+                    setOwnerEmailValue(ownerEmail ?? "");
+                    setOwnerPhoneValue(ownerPhone ?? "");
+                    setStrataNotesValue(strataNotes ?? "");
                   }}
                   className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700"
                 >
@@ -485,6 +618,14 @@ function PropertyDetailBody({
       <PropertyProfileSection
         propertyId={detail.id}
         profile={detail.profile}
+        canEdit={canAddUnit}
+      />
+
+      <PropertyOwnerStrataSection
+        propertyId={detail.id}
+        ownerEmail={detail.ownerEmail}
+        ownerPhone={detail.ownerPhone}
+        strataNotes={detail.strataNotes}
         canEdit={canAddUnit}
       />
 
