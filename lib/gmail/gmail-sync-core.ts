@@ -12,7 +12,7 @@ function clampInt(value: number, min: number, max: number) {
 }
 
 export function getSyncMaxThreads(): number {
-  const raw = Number(process.env.GMAIL_SYNC_MAX_THREADS ?? "50");
+  const raw = Number(process.env.GMAIL_SYNC_MAX_THREADS ?? "15");
   return clampInt(raw, 1, 100);
 }
 

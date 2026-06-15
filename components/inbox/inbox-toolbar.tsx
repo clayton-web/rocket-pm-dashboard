@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { syncGmailMailboxAction } from "@/app/(dashboard)/inbox/actions";
+import { restartGmailSyncAction, syncGmailMailboxAction } from "@/app/(dashboard)/inbox/actions";
 import type { SyncFreshnessLevel } from "@/lib/gmail/sync-freshness";
 import type { ConnectedEmailAccountStatus } from "@prisma/client";
 
@@ -18,15 +18,27 @@ export function InboxToolbar(props: {
   selectedMailboxId: string | null;
   syncEnqueued?: boolean;
   syncQueued?: boolean;
+  syncRestarted?: boolean;
+  syncStillRunning?: boolean;
   syncError?: string;
 }) {
-  const { mailboxes, selectedMailboxId, syncEnqueued, syncQueued, syncError } = props;
+  const {
+    mailboxes,
+    selectedMailboxId,
+    syncEnqueued,
+    syncQueued,
+    syncRestarted,
+    syncStillRunning,
+    syncError,
+  } = props;
   const selectedMailbox = selectedMailboxId
     ? mailboxes.find((m) => m.id === selectedMailboxId) ?? null
     : null;
   const needsReconnect =
     selectedMailbox?.status === "NEEDS_REAUTH" || selectedMailbox?.status === "REVOKED";
   const syncDisabled = selectedMailbox != null && selectedMailbox.status !== "CONNECTED";
+  const syncStuck = selectedMailbox?.syncFreshnessLevel === "sync_stuck";
+  const syncActive = selectedMailbox?.syncFreshnessLevel === "in_progress";
 
   return (
     <div className="space-y-2 rounded-lg border border-neutral-200 bg-white px-3 py-2.5">
@@ -42,9 +54,27 @@ export function InboxToolbar(props: {
         </div>
       ) : null}
 
+      {syncRestarted ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          Sync restarted — processing in the background.
+        </div>
+      ) : null}
+
+      {syncStillRunning ? (
+        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          Sync is still running. Try again once it has been active for at least 5 minutes.
+        </div>
+      ) : null}
+
       {syncError ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
           {syncError}
+        </div>
+      ) : null}
+
+      {syncStuck ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+          Sync appears stuck. You can restart it.
         </div>
       ) : null}
 
@@ -99,9 +129,11 @@ export function InboxToolbar(props: {
                 className={`text-xs ${
                   selectedMailbox?.syncFreshnessLevel === "overdue"
                     ? "font-medium text-amber-800"
-                    : selectedMailbox?.syncFreshnessLevel === "in_progress"
-                      ? "font-medium text-sky-800"
-                      : "text-neutral-500"
+                    : selectedMailbox?.syncFreshnessLevel === "sync_stuck"
+                      ? "font-medium text-amber-800"
+                      : selectedMailbox?.syncFreshnessLevel === "in_progress"
+                        ? "font-medium text-sky-800"
+                        : "text-neutral-500"
                 }`}
               >
                 {selectedMailbox?.syncFreshnessLabel ?? "Never synced"}
@@ -109,16 +141,29 @@ export function InboxToolbar(props: {
               {selectedMailbox?.lastError && !needsReconnect ? (
                 <span className="text-xs text-amber-800">{selectedMailbox.lastError}</span>
               ) : null}
-              <form action={syncGmailMailboxAction}>
-                <input type="hidden" name="connectedAccountId" value={selectedMailboxId} />
-                <button
-                  type="submit"
-                  disabled={syncDisabled || selectedMailbox?.syncFreshnessLevel === "in_progress"}
-                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {selectedMailbox?.syncFreshnessLevel === "in_progress" ? "Syncing…" : "Sync now"}
-                </button>
-              </form>
+              {syncStuck ? (
+                <form action={restartGmailSyncAction}>
+                  <input type="hidden" name="connectedAccountId" value={selectedMailboxId} />
+                  <button
+                    type="submit"
+                    disabled={syncDisabled}
+                    className="rounded-md border border-amber-700 bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Restart Sync
+                  </button>
+                </form>
+              ) : (
+                <form action={syncGmailMailboxAction}>
+                  <input type="hidden" name="connectedAccountId" value={selectedMailboxId} />
+                  <button
+                    type="submit"
+                    disabled={syncDisabled || syncActive}
+                    className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {syncActive ? "Syncing…" : "Sync now"}
+                  </button>
+                </form>
+              )}
               <Link href="/email" className="text-xs font-medium text-neutral-600 hover:text-neutral-900">
                 Manage
               </Link>

@@ -1,8 +1,21 @@
-export type SyncFreshnessLevel = "never" | "fresh" | "stale" | "overdue" | "in_progress";
+import { USER_RESTART_MS } from "@/lib/gmail/restart-gmail-sync";
+
+export type SyncFreshnessLevel =
+  | "never"
+  | "fresh"
+  | "stale"
+  | "overdue"
+  | "in_progress"
+  | "sync_stuck";
 
 export type SyncFreshness = {
   level: SyncFreshnessLevel;
   label: string;
+};
+
+export type ActiveSyncJobState = {
+  status: "PENDING" | "RUNNING";
+  startedAt: Date;
 };
 
 const MS_PER_MINUTE = 60_000;
@@ -23,14 +36,41 @@ function formatRelativeMinutes(minutes: number): string {
   return `${hours} hours ago`;
 }
 
+function getActiveSyncFreshness(
+  activeSyncJob: ActiveSyncJobState,
+  now: Date,
+): SyncFreshness {
+  const ageMs = now.getTime() - activeSyncJob.startedAt.getTime();
+
+  if (ageMs >= USER_RESTART_MS) {
+    return {
+      level: "sync_stuck",
+      label: "Sync appears stuck. You can restart it.",
+    };
+  }
+
+  if (activeSyncJob.status === "PENDING") {
+    return { level: "in_progress", label: "Sync queued" };
+  }
+
+  return { level: "in_progress", label: "Sync in progress" };
+}
+
 /**
  * Lightweight inbox sync freshness label for staff visibility.
  */
 export function getSyncFreshness(args: {
   lastSyncedAt: Date | null;
   syncInProgress?: boolean;
+  activeSyncJob?: ActiveSyncJobState | null;
   now?: Date;
 }): SyncFreshness {
+  const now = args.now ?? new Date();
+
+  if (args.activeSyncJob) {
+    return getActiveSyncFreshness(args.activeSyncJob, now);
+  }
+
   if (args.syncInProgress) {
     return { level: "in_progress", label: "Sync in progress" };
   }
@@ -39,7 +79,6 @@ export function getSyncFreshness(args: {
     return { level: "never", label: "Never synced" };
   }
 
-  const now = args.now ?? new Date();
   const elapsedMs = now.getTime() - args.lastSyncedAt.getTime();
   const minutes = Math.max(0, Math.floor(elapsedMs / MS_PER_MINUTE));
 

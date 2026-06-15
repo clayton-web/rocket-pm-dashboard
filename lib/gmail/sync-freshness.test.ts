@@ -15,6 +15,18 @@ describe("getSyncFreshness", () => {
     assert.equal(result.label, "Sync in progress");
   });
 
+  it("returns sync_stuck when active sync job exceeds restart threshold", () => {
+    const result = getSyncFreshness({
+      lastSyncedAt: new Date("2026-06-03T11:00:00.000Z"),
+      activeSyncJob: {
+        status: "RUNNING",
+        startedAt: new Date(now.getTime() - 6 * 60 * 1000),
+      },
+      now,
+    });
+    assert.equal(result.level, "sync_stuck");
+  });
+
   it("returns never when never synced", () => {
     const result = getSyncFreshness({ lastSyncedAt: null, now });
     assert.equal(result.level, "never");

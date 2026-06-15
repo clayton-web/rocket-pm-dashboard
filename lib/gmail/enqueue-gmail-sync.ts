@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import prisma from "@/lib/db/prisma";
 import { auditGmailSyncEnqueued } from "@/lib/gmail/gmail-sync-audit";
 import { enqueueJob } from "@/lib/jobs/enqueue";
+import { reclaimStaleGmailSyncJobs } from "@/lib/jobs/reclaim-stale-jobs";
 import { JOB_TYPES } from "@/lib/jobs/types";
 
 export type EnqueueGmailSyncResult = {
@@ -17,6 +18,11 @@ export async function enqueueGmailSyncJob(args: {
   triggerSource?: "USER" | "CRON" | "SYSTEM";
 }): Promise<EnqueueGmailSyncResult> {
   const triggerSource = args.triggerSource ?? "USER";
+
+  await reclaimStaleGmailSyncJobs({
+    organizationId: args.organizationId,
+    connectedAccountId: args.connectedAccountId,
+  });
 
   const activeJob = await prisma.backgroundJob.findFirst({
     where: {
@@ -62,6 +68,10 @@ export async function getActiveGmailSyncAccountIds(args: {
   connectedAccountIds: string[];
 }): Promise<Set<string>> {
   if (args.connectedAccountIds.length === 0) return new Set();
+
+  await reclaimStaleGmailSyncJobs({
+    organizationId: args.organizationId,
+  });
 
   const jobs = await prisma.backgroundJob.findMany({
     where: {

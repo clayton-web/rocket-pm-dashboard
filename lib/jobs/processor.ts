@@ -5,6 +5,7 @@ import { auditJobCompleted, auditJobFailed } from "@/lib/jobs/audit";
 import { claimPendingJobs } from "@/lib/jobs/claim";
 import { getJobHandler } from "@/lib/jobs/handlers/registry";
 import { assertJobTypeAllowedForPhase } from "@/lib/jobs/policy";
+import { reclaimStaleGmailSyncJobs } from "@/lib/jobs/reclaim-stale-jobs";
 import type { ProcessJobsResult } from "@/lib/jobs/types";
 
 const RETRY_DELAY_MS = 60_000;
@@ -15,6 +16,8 @@ function buildWorkerId(): string {
 }
 
 export async function processClaimedJobs(args?: { limit?: number }): Promise<ProcessJobsResult> {
+  await reclaimStaleGmailSyncJobs({});
+
   const workerId = buildWorkerId();
   const jobs = await claimPendingJobs({ limit: args?.limit, workerId });
 

@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { InboxCommandCenter } from "@/components/inbox/inbox-command-center";
 import { InboxToolbar } from "@/components/inbox/inbox-toolbar";
-import { getActiveGmailSyncAccountIds } from "@/lib/gmail/enqueue-gmail-sync";
+import { getActiveGmailSyncJobsByMailbox } from "@/lib/gmail/restart-gmail-sync";
 import { getSyncFreshness } from "@/lib/gmail/sync-freshness";
 import { listMailboxesForInbox } from "@/lib/gmail/sync-permissions";
 import { getInboxCommandCenter } from "@/lib/inbox/inbox-command-center.service";
@@ -43,20 +43,24 @@ export default async function InboxPage({ searchParams }: PageProps) {
     activeRole: active.role,
   });
 
-  const syncingAccountIds = await getActiveGmailSyncAccountIds({
+  const activeSyncJobs = await getActiveGmailSyncJobsByMailbox({
     organizationId: active.id,
     connectedAccountIds: mailboxesRaw.map((m) => m.id),
   });
 
   const mailboxes = mailboxesRaw.map((mailbox) => {
+    const activeSyncJob = activeSyncJobs.get(mailbox.id) ?? null;
     const freshness = getSyncFreshness({
       lastSyncedAt: mailbox.lastSyncedAt,
-      syncInProgress: syncingAccountIds.has(mailbox.id),
+      activeSyncJob: activeSyncJob
+        ? { status: activeSyncJob.status, startedAt: activeSyncJob.startedAt }
+        : null,
     });
     return {
       ...mailbox,
       syncFreshnessLabel: freshness.label,
       syncFreshnessLevel: freshness.level,
+      activeSyncJob,
     };
   });
 
@@ -96,6 +100,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
           selectedMailboxId={selectedMailboxId}
           syncEnqueued={params.sync === "enqueued"}
           syncQueued={params.sync === "queued"}
+          syncRestarted={params.sync === "restarted"}
+          syncStillRunning={params.sync === "still_running"}
           syncError={params.sync_error}
         />
       </div>

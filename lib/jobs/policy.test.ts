@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, beforeEach, afterEach } from "node:test";
 import {
   assertJobTypeAllowedForPhase,
+  getJobProcessorSecret,
   isAgentAutomationEnabled,
   verifyJobProcessorRequest,
 } from "@/lib/jobs/policy";
@@ -10,12 +11,15 @@ import { JOB_TYPES } from "@/lib/jobs/types";
 describe("job policy", () => {
   const prevAutomation = process.env.AGENT_AUTOMATION_ENABLED;
   const prevSecret = process.env.JOB_PROCESSOR_SECRET;
+  const prevCronSecret = process.env.CRON_SECRET;
 
   afterEach(() => {
     if (prevAutomation === undefined) delete process.env.AGENT_AUTOMATION_ENABLED;
     else process.env.AGENT_AUTOMATION_ENABLED = prevAutomation;
     if (prevSecret === undefined) delete process.env.JOB_PROCESSOR_SECRET;
     else process.env.JOB_PROCESSOR_SECRET = prevSecret;
+    if (prevCronSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = prevCronSecret;
   });
 
   it("defaults agent automation to disabled", () => {
@@ -45,6 +49,29 @@ describe("job policy", () => {
       headers: { authorization: "Bearer test-secret" },
     });
     assert.equal(verifyJobProcessorRequest(req), true);
+  });
+
+  it("verifies Bearer CRON_SECRET", () => {
+    delete process.env.JOB_PROCESSOR_SECRET;
+    process.env.CRON_SECRET = "cron-secret";
+    const req = new Request("http://localhost/api/internal/jobs/process", {
+      headers: { authorization: "Bearer cron-secret" },
+    });
+    assert.equal(verifyJobProcessorRequest(req), true);
+  });
+
+  it("verifies x-cron-secret header", () => {
+    process.env.JOB_PROCESSOR_SECRET = "test-secret";
+    const req = new Request("http://localhost/api/internal/jobs/process", {
+      headers: { "x-cron-secret": "test-secret" },
+    });
+    assert.equal(verifyJobProcessorRequest(req), true);
+  });
+
+  it("returns null when no processor secret is configured", () => {
+    delete process.env.JOB_PROCESSOR_SECRET;
+    delete process.env.CRON_SECRET;
+    assert.equal(getJobProcessorSecret(), null);
   });
 
   it("rejects missing processor secret", () => {

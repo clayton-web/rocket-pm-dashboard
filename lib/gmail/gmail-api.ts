@@ -1,5 +1,14 @@
 import { GmailAuthError } from "@/lib/gmail/gmail-errors";
 
+export const GMAIL_FETCH_TIMEOUT_MS = 30_000;
+
+export type GmailFetchFn = (url: string, init?: RequestInit) => Promise<Response>;
+
+export type GmailApiRequestOptions = {
+  fetchFn?: GmailFetchFn;
+  timeoutMs?: number;
+};
+
 export type ThreadListResponse = {
   threads?: { id: string; snippet?: string; historyId?: string }[];
   nextPageToken?: string;
@@ -30,6 +39,32 @@ export type GmailPayloadPart = {
   parts?: GmailPayloadPart[];
 };
 
+export function createGmailFetchAbortSignal(timeoutMs: number = GMAIL_FETCH_TIMEOUT_MS): AbortSignal {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(timeoutMs);
+  }
+
+  const controller = new AbortController();
+  setTimeout(() => {
+    controller.abort(new DOMException("The operation timed out.", "TimeoutError"));
+  }, timeoutMs);
+  return controller.signal;
+}
+
+async function gmailFetch(
+  url: string,
+  init: RequestInit,
+  options?: GmailApiRequestOptions,
+): Promise<Response> {
+  const fetchFn = options?.fetchFn ?? fetch;
+  const timeoutMs = options?.timeoutMs ?? GMAIL_FETCH_TIMEOUT_MS;
+
+  return fetchFn(url, {
+    ...init,
+    signal: init.signal ?? createGmailFetchAbortSignal(timeoutMs),
+  });
+}
+
 function assertOk(response: Response): void {
   if (response.status === 401) {
     throw new GmailAuthError("unauthorized", "Gmail rejected the access token (401).");
@@ -39,7 +74,11 @@ function assertOk(response: Response): void {
   }
 }
 
-export async function listInboxThreads(accessToken: string, args: { maxResults: number; labelIds: string[] }) {
+export async function listInboxThreads(
+  accessToken: string,
+  args: { maxResults: number; labelIds: string[] },
+  options?: GmailApiRequestOptions,
+) {
   const params = new URLSearchParams();
   params.set("maxResults", String(args.maxResults));
   for (const labelId of args.labelIds) {
@@ -47,10 +86,14 @@ export async function listInboxThreads(accessToken: string, args: { maxResults: 
   }
 
   const url = `https://gmail.googleapis.com/gmail/v1/users/me/threads?${params.toString()}`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+  const response = await gmailFetch(
+    url,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+    options,
+  );
 
   assertOk(response);
   if (!response.ok) {
@@ -61,12 +104,20 @@ export async function listInboxThreads(accessToken: string, args: { maxResults: 
   return (await response.json()) as ThreadListResponse;
 }
 
-export async function getThreadFull(accessToken: string, threadId: string) {
+export async function getThreadFull(
+  accessToken: string,
+  threadId: string,
+  options?: GmailApiRequestOptions,
+) {
   const url = `https://gmail.googleapis.com/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?format=full`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: "no-store",
-  });
+  const response = await gmailFetch(
+    url,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    },
+    options,
+  );
 
   assertOk(response);
   if (!response.ok) {

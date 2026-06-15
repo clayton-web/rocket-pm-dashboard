@@ -47,3 +47,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: message.slice(0, 500) }, { status: 500 });
   }
 }
+
+/** Vercel Cron invokes scheduled jobs with HTTP GET. */
+export async function GET(request: Request) {
+  return POST(request);
+}

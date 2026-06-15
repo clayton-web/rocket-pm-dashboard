@@ -5,15 +5,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { enqueueGmailSyncJob } from "@/lib/gmail/enqueue-gmail-sync";
+import { restartGmailSyncJob } from "@/lib/gmail/restart-gmail-sync";
 import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { requireActiveOrganization } from "@/lib/org/active-organization";
 
-export async function syncGmailMailboxAction(formData: FormData) {
-  const mailboxId = formData.get("connectedAccountId");
-  if (typeof mailboxId !== "string" || mailboxId.length === 0) {
-    throw new Error("connectedAccountId is required");
-  }
-
+async function loadMailboxForSyncAction(mailboxId: string) {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/login");
@@ -35,6 +31,17 @@ export async function syncGmailMailboxAction(formData: FormData) {
     account,
   });
 
+  return { session, active, account };
+}
+
+export async function syncGmailMailboxAction(formData: FormData) {
+  const mailboxId = formData.get("connectedAccountId");
+  if (typeof mailboxId !== "string" || mailboxId.length === 0) {
+    throw new Error("connectedAccountId is required");
+  }
+
+  const { session, active, account } = await loadMailboxForSyncAction(mailboxId);
+
   try {
     const result = await enqueueGmailSyncJob({
       organizationId: active.id,
@@ -47,6 +54,38 @@ export async function syncGmailMailboxAction(formData: FormData) {
     redirect(`/inbox?mailbox=${encodeURIComponent(account.id)}&${query}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : "sync_enqueue_failed";
+    redirect(
+      `/inbox?mailbox=${encodeURIComponent(account.id)}&sync_error=${encodeURIComponent(msg.slice(0, 240))}`,
+    );
+  }
+}
+
+export async function restartGmailSyncAction(formData: FormData) {
+  const mailboxId = formData.get("connectedAccountId");
+  if (typeof mailboxId !== "string" || mailboxId.length === 0) {
+    throw new Error("connectedAccountId is required");
+  }
+
+  const { session, active, account } = await loadMailboxForSyncAction(mailboxId);
+
+  try {
+    const result = await restartGmailSyncJob({
+      organizationId: active.id,
+      connectedAccountId: account.id,
+      triggeredByUserId: session.user.id,
+    });
+
+    revalidatePath("/inbox");
+
+    if (!result.restarted) {
+      redirect(
+        `/inbox?mailbox=${encodeURIComponent(account.id)}&sync=still_running`,
+      );
+    }
+
+    redirect(`/inbox?mailbox=${encodeURIComponent(account.id)}&sync=restarted`);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "sync_restart_failed";
     redirect(
       `/inbox?mailbox=${encodeURIComponent(account.id)}&sync_error=${encodeURIComponent(msg.slice(0, 240))}`,
     );

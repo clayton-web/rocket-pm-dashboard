@@ -41,7 +41,7 @@ Blocked until a later phase (even if `AGENT_AUTOMATION_ENABLED=true`):
 ## Gmail sync flow
 
 1. Staff clicks **Sync now** on `/inbox` → `enqueueGmailSyncJob()` creates a `gmail.sync` job.
-2. Vercel Cron (every 15 min) or manual `POST /api/internal/jobs/process` claims pending jobs.
+2. Vercel Cron (every 5 min via GET) or manual `POST /api/internal/jobs/process` claims pending jobs.
 3. `handleGmailSync` loads the mailbox, validates org ownership, runs `runGmailMailboxSync()`, updates `lastSyncedAt`.
 4. Audit events: `gmail.sync.enqueued`, `gmail.sync.started`, `gmail.sync.completed` / `gmail.sync.failed` (no message bodies). Job layer also writes `job.enqueued`, `job.completed`, `job.failed`.
 
@@ -69,7 +69,11 @@ Active sync deduplication: if a PENDING/RUNNING `gmail.sync` already exists for 
 
 ## Vercel Cron
 
-`vercel.json` schedules `POST /api/internal/jobs/process` every 15 minutes. Set `CRON_SECRET` in Vercel; the platform sends `Authorization: Bearer <CRON_SECRET>` on cron invocations when configured.
+`vercel.json` schedules `GET /api/internal/jobs/process` every 5 minutes (`*/5 * * * *`, UTC). The route also accepts `POST` for manual drains. Set `CRON_SECRET` in Vercel; the platform sends `Authorization: Bearer <CRON_SECRET>` on cron invocations when configured. Manual calls may use `JOB_PROCESSOR_SECRET` or `CRON_SECRET` via Bearer token or `x-cron-secret` header.
+
+If neither secret is configured, the route returns `503`. Unauthorized requests return `401`.
+
+> **Hobby plan:** Vercel limits cron to once per day; use a daily schedule (e.g. `0 * * * *`) or upgrade for 5-minute intervals.
 
 An empty queue is cheap; cron only drains work that was explicitly enqueued.
 
