@@ -30,6 +30,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+const TENANT_EDIT_BUTTON_CLASSES =
+  "inline-flex items-center rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-neutral-800";
+
 function CleanupQueueSnapshot({ summary }: { summary: PortfolioHealthSummary }) {
   const items = PORTFOLIO_HEALTH_SNAPSHOT_LABELS.map(({ label, value }) => ({
     label,
@@ -131,18 +134,18 @@ function UnitHealthCard({
         <>
           {unitIssues.length > 0 ? <MissingItemList items={unitIssues} /> : null}
           {slot.tenancyId ? (
-            <div className="mt-3 flex flex-wrap gap-4">
-              <Link
-                href={`/leasing/tenancies/${slot.tenancyId}`}
-                className="text-sm font-medium text-neutral-900 underline"
-              >
-                View tenancy
-              </Link>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <Link
                 href={buildHealthEditTenancyHref(slot.tenancyId, selectedFilters)}
-                className="text-sm font-medium text-neutral-900 underline"
+                className={TENANT_EDIT_BUTTON_CLASSES}
               >
-                Edit tenancy
+                Edit Tenant Info
+              </Link>
+              <Link
+                href={`/leasing/tenancies/${slot.tenancyId}`}
+                className="text-sm font-medium text-neutral-700 underline"
+              >
+                Open Tenancy
               </Link>
             </div>
           ) : null}

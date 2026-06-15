@@ -4,6 +4,9 @@ import { FormSection, InlineNotice, SURFACE_PANEL } from "@/components/portal/ui
 import type { PropertyTenanciesPageData, PropertyTenancyUnitRow } from "@/lib/property/property-tenancies-staff";
 import Link from "next/link";
 
+const TENANT_EDIT_BUTTON_CLASSES =
+  "inline-flex items-center rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-neutral-800";
+
 function DetailField({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
@@ -59,18 +62,18 @@ function PropertyTenancyUnitCard({ row }: { row: PropertyTenancyUnitRow }) {
           </dl>
 
           {row.tenancyId ? (
-            <div className="mt-4 flex flex-wrap gap-4">
-              <Link
-                href={`/leasing/tenancies/${row.tenancyId}`}
-                className="text-sm font-medium text-neutral-900 underline"
-              >
-                Open tenancy
-              </Link>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <Link
                 href={`/leasing/tenancies/${row.tenancyId}#edit-tenancy`}
-                className="text-sm font-medium text-neutral-900 underline"
+                className={TENANT_EDIT_BUTTON_CLASSES}
               >
-                Edit tenancy
+                Edit Tenant Info
+              </Link>
+              <Link
+                href={`/leasing/tenancies/${row.tenancyId}`}
+                className="text-sm font-medium text-neutral-700 underline"
+              >
+                Open Tenancy
               </Link>
             </div>
           ) : null}
@@ -88,10 +91,9 @@ export function PropertyTenanciesSection({
   loadError: string | null;
 }) {
   return (
-    <FormSection legend="Tenancies">
+    <FormSection legend="Tenant & Lease Details">
       <p className="mb-4 text-sm text-neutral-600">
-        Review active tenancy details by unit, then open or edit the tenancy record to clean up imported
-        data.
+        Use this section to update tenant contact information, rent, deposits, and lease dates.
       </p>
 
       {loadError ? <InlineNotice className="mb-4">{loadError}</InlineNotice> : null}

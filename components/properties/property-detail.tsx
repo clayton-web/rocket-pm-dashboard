@@ -637,16 +637,16 @@ function PropertyDetailBody({
         canEdit={canAddUnit}
       />
 
+      <PropertyTenanciesSection
+        data={detail.tenancies}
+        loadError={detail.tenanciesLoadError}
+      />
+
       <PropertyDocumentsSection
         propertyId={detail.id}
         data={detail.documents}
         canEdit={canAddUnit}
         loadError={detail.documentsLoadError}
-      />
-
-      <PropertyTenanciesSection
-        data={detail.tenancies}
-        loadError={detail.tenanciesLoadError}
       />
 
       {marketRentResearch && onlyDefaultUnit && entirePropertyUnit
