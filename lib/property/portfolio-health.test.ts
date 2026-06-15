@@ -169,9 +169,55 @@ describe("portfolio health helpers", () => {
 });
 
 describe("isPortfolioImportPlaceholderDate", () => {
-  it("matches the portfolio import placeholder pattern", () => {
+  it("matches noon and midnight UTC timestamps for the placeholder calendar date", () => {
+    const referenceDate = new Date("2026-06-15T12:00:00.000Z");
     const placeholder = portfolioImportPlaceholderDate();
-    assert.equal(isPortfolioImportPlaceholderDate(placeholder), true);
-    assert.equal(isPortfolioImportPlaceholderDate(new Date("2026-06-15T12:00:00.000Z")), false);
+    const placeholderKey = placeholder.toISOString().slice(0, 10);
+
+    assert.equal(isPortfolioImportPlaceholderDate(placeholder, referenceDate), true);
+    assert.equal(
+      isPortfolioImportPlaceholderDate(new Date(`${placeholderKey}T00:00:00.000Z`), referenceDate),
+      true,
+    );
+    assert.equal(
+      isPortfolioImportPlaceholderDate(new Date(`${placeholderKey}T12:00:00.000Z`), referenceDate),
+      true,
+    );
+    assert.equal(isPortfolioImportPlaceholderDate(new Date("2026-06-15T12:00:00.000Z"), referenceDate), false);
+    assert.equal(isPortfolioImportPlaceholderDate(new Date("2025-07-01T00:00:00.000Z"), referenceDate), false);
+  });
+
+  it("flags midnight UTC placeholder dates on the health assessment", () => {
+    const placeholderKey = portfolioImportPlaceholderDate().toISOString().slice(0, 10);
+    const midnightPlaceholder = new Date(`${placeholderKey}T00:00:00.000Z`);
+
+    const row = assessPortfolioHealthProperty(
+      baseProperty({
+        documentCount: 1,
+        tenancies: [
+          {
+            status: "active",
+            leaseStartDate: midnightPlaceholder,
+            moveInDate: midnightPlaceholder,
+            monthlyRent: 2400,
+            securityDeposit: 1200,
+            createdAt: new Date("2026-06-15T00:00:00.000Z"),
+          },
+        ],
+        contacts: [
+          {
+            contactType: "tenant",
+            firstName: "Taylor",
+            lastName: "Applicant",
+            email: "tenant@example.com",
+            phone: "604-555-0200",
+          },
+        ],
+      }),
+    );
+
+    assert.equal(isPortfolioImportPlaceholderDate(midnightPlaceholder), true);
+    assert.equal(row.hasImportPlaceholders, true);
+    assert.ok(row.missingItemKeys.includes("import_placeholder_dates"));
   });
 });

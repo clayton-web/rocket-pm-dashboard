@@ -169,16 +169,20 @@ export function portfolioImportPlaceholderDate(): Date {
   return d;
 }
 
-/** Heuristic for dates written by portfolio CSV import (1st of month, UTC noon, at least one year ago). */
-export function isPortfolioImportPlaceholderDate(date: Date | null | undefined): boolean {
+/** UTC calendar date (YYYY-MM-DD) for the portfolio import placeholder (1st of current month, prior year). */
+export function getPortfolioImportPlaceholderDateKey(referenceDate: Date = new Date()): string {
+  const d = new Date(referenceDate.getTime());
+  d.setUTCFullYear(d.getUTCFullYear() - 1);
+  d.setUTCMonth(d.getUTCMonth(), 1);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Matches dates written when portfolio CSV import substitutes missing lease/move-in dates. */
+export function isPortfolioImportPlaceholderDate(
+  date: Date | null | undefined,
+  referenceDate: Date = new Date(),
+): boolean {
   if (!date) return false;
-  const now = new Date();
-  return (
-    date.getUTCDate() === 1 &&
-    date.getUTCHours() === 12 &&
-    date.getUTCMinutes() === 0 &&
-    date.getUTCSeconds() === 0 &&
-    date.getUTCMilliseconds() === 0 &&
-    date.getUTCFullYear() <= now.getUTCFullYear() - 1
-  );
+  return date.toISOString().slice(0, 10) === getPortfolioImportPlaceholderDateKey(referenceDate);
 }

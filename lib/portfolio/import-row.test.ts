@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseCsv } from "./csv";
 import {
+  getPortfolioImportPlaceholderDateKey,
   hasTenantData,
+  isPortfolioImportPlaceholderDate,
+  portfolioImportPlaceholderDate,
   splitTenantName,
   validatePortfolioRow,
   validateTenantEmail,
@@ -73,5 +76,30 @@ describe("hasTenantData", () => {
   it("detects partial tenant data", () => {
     assert.equal(hasTenantData({ tenantName: "A", tenantEmail: "" } as never), true);
     assert.equal(hasTenantData({ tenantName: "", tenantEmail: "" } as never), false);
+  });
+});
+
+describe("portfolio import placeholder dates", () => {
+  it("detects midnight and noon UTC for the placeholder calendar date", () => {
+    const referenceDate = new Date("2026-06-15T12:00:00.000Z");
+    const placeholderKey = getPortfolioImportPlaceholderDateKey(referenceDate);
+
+    assert.equal(placeholderKey, "2025-06-01");
+    assert.equal(
+      isPortfolioImportPlaceholderDate(new Date("2025-06-01T00:00:00.000Z"), referenceDate),
+      true,
+    );
+    assert.equal(
+      isPortfolioImportPlaceholderDate(new Date("2025-06-01T12:00:00.000Z"), referenceDate),
+      true,
+    );
+    assert.equal(
+      isPortfolioImportPlaceholderDate(portfolioImportPlaceholderDate(), referenceDate),
+      true,
+    );
+    assert.equal(
+      isPortfolioImportPlaceholderDate(new Date("2025-07-01T00:00:00.000Z"), referenceDate),
+      false,
+    );
   });
 });
