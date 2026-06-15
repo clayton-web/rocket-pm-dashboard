@@ -91,9 +91,7 @@ export async function updateTenancyContact(
     data.lastName = v;
   }
   if (input.email !== undefined) {
-    const v = normalizeEmail(input.email);
-    if (!v) throw new Error("email cannot be empty");
-    data.email = v;
+    data.email = normalizeEmail(input.email);
   }
   if (input.phone !== undefined) data.phone = input.phone?.trim() || null;
   if (input.contactType !== undefined) data.contactType = input.contactType;

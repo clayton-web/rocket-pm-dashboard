@@ -18,9 +18,11 @@ import { OffboardingSummary } from "@/components/leasing/offboarding-summary";
 import { LeaseSetupSection } from "@/components/leasing/lease-setup-section";
 import { Rtb1DraftSection } from "@/components/leasing/rtb1-draft-section";
 import { LeaseSigningSection } from "@/components/leasing/lease-signing-section";
+import { TenancyEditSection } from "@/components/leasing/tenancy-edit-section";
 import { OnboardingSummary } from "@/components/leasing/onboarding-summary";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
 import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-types";
+import type { HealthCleanupContext } from "@/lib/property/portfolio-health-return";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -57,9 +59,11 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 export function TenancyDetail({
   initialDetail,
   loadError,
+  healthCleanupContext = null,
 }: {
   initialDetail: TenancyStaffDetail | null;
   loadError: string | null;
+  healthCleanupContext?: HealthCleanupContext | null;
 }) {
   if (loadError || !initialDetail) {
     return (
@@ -74,10 +78,16 @@ export function TenancyDetail({
     );
   }
 
-  return <TenancyDetailBody detail={initialDetail} />;
+  return <TenancyDetailBody detail={initialDetail} healthCleanupContext={healthCleanupContext} />;
 }
 
-function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
+function TenancyDetailBody({
+  detail,
+  healthCleanupContext = null,
+}: {
+  detail: TenancyStaffDetail;
+  healthCleanupContext?: HealthCleanupContext | null;
+}) {
   const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
   const [statusPending, startStatusTransition] = useTransition();
@@ -199,6 +209,8 @@ function TenancyDetailBody({ detail }: { detail: TenancyStaffDetail }) {
           </p>
         ) : null}
       </div>
+
+      <TenancyEditSection detail={detail} healthCleanupContext={healthCleanupContext} />
 
       {detail.showOnboardingSummary ? (
         <OnboardingSummary

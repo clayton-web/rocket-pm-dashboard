@@ -1,3 +1,8 @@
+import {
+  parseTenancyDateField,
+  parseTenancyMoneyField,
+} from "@/lib/validation/tenancy-fields";
+
 export type ConvertTenancyFormInput = {
   leaseStartDate: string;
   moveInDate: string;
@@ -8,39 +13,8 @@ export type ConvertTenancyFormInput = {
   petDeposit?: number;
 };
 
-function parseDateField(
-  value: unknown,
-  field: string,
-  required: boolean,
-): string | undefined | { error: string } {
-  if (value === undefined || value === null || value === "") {
-    if (required) return { error: `${field} is required` };
-    return undefined;
-  }
-  if (typeof value !== "string") return { error: `Invalid ${field}` };
-  const trimmed = value.trim();
-  if (!trimmed) {
-    if (required) return { error: `${field} is required` };
-    return undefined;
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return { error: `${field} must be YYYY-MM-DD` };
-  }
-  const d = new Date(`${trimmed}T12:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return { error: `Invalid ${field}` };
-  return trimmed;
-}
-
-function parseMoney(value: unknown, field: string, required: boolean): number | undefined | { error: string } {
-  if (value === undefined || value === null || value === "") {
-    if (required) return { error: `${field} is required` };
-    return undefined;
-  }
-  const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n) || n < 0) {
-    return { error: `${field} must be a non-negative number` };
-  }
-  return n;
+function isValidationError(value: unknown): value is { error: string } {
+  return typeof value === "object" && value !== null && "error" in value;
 }
 
 export function parseConvertTenancyFormInput(
@@ -51,26 +25,26 @@ export function parseConvertTenancyFormInput(
   }
   const o = body as Record<string, unknown>;
 
-  const leaseStartDate = parseDateField(o.leaseStartDate, "leaseStartDate", true);
-  if (typeof leaseStartDate === "object") return leaseStartDate;
+  const leaseStartDate = parseTenancyDateField(o.leaseStartDate, "leaseStartDate", true);
+  if (isValidationError(leaseStartDate)) return leaseStartDate;
 
-  const moveInDate = parseDateField(o.moveInDate, "moveInDate", true);
-  if (typeof moveInDate === "object") return moveInDate;
+  const moveInDate = parseTenancyDateField(o.moveInDate, "moveInDate", true);
+  if (isValidationError(moveInDate)) return moveInDate;
 
-  const leaseEndDate = parseDateField(o.leaseEndDate, "leaseEndDate", false);
-  if (typeof leaseEndDate === "object") return leaseEndDate;
+  const leaseEndDate = parseTenancyDateField(o.leaseEndDate, "leaseEndDate", false);
+  if (isValidationError(leaseEndDate)) return leaseEndDate;
 
-  const moveOutDate = parseDateField(o.moveOutDate, "moveOutDate", false);
-  if (typeof moveOutDate === "object") return moveOutDate;
+  const moveOutDate = parseTenancyDateField(o.moveOutDate, "moveOutDate", false);
+  if (isValidationError(moveOutDate)) return moveOutDate;
 
-  const monthlyRent = parseMoney(o.monthlyRent, "monthlyRent", true);
-  if (typeof monthlyRent === "object") return monthlyRent;
+  const monthlyRent = parseTenancyMoneyField(o.monthlyRent, "monthlyRent", true);
+  if (isValidationError(monthlyRent)) return monthlyRent;
 
-  const securityDeposit = parseMoney(o.securityDeposit, "securityDeposit", true);
-  if (typeof securityDeposit === "object") return securityDeposit;
+  const securityDeposit = parseTenancyMoneyField(o.securityDeposit, "securityDeposit", true);
+  if (isValidationError(securityDeposit)) return securityDeposit;
 
-  const petDeposit = parseMoney(o.petDeposit, "petDeposit", false);
-  if (typeof petDeposit === "object") return petDeposit;
+  const petDeposit = parseTenancyMoneyField(o.petDeposit, "petDeposit", false);
+  if (isValidationError(petDeposit)) return petDeposit;
 
   return {
     leaseStartDate: leaseStartDate!,

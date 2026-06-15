@@ -2,6 +2,7 @@
 
 import { createUnitAction, hardDeletePropertyAction, updatePropertyOwnerStrataAction, updatePropertyProfileAction } from "@/app/(dashboard)/properties/actions";
 import { PropertyDocumentsSection } from "@/components/properties/property-documents-section";
+import { PropertyTenanciesSection } from "@/components/properties/property-tenancies-section";
 import {
   FormField,
   FormSection,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/property/profile";
 import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
 import type { PropertyDocumentsPageData } from "@/lib/property/property-documents-staff";
+import type { PropertyTenanciesPageData } from "@/lib/property/property-tenancies-staff";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -61,6 +63,8 @@ export type PropertyDetailData = {
   units: PropertyDetailUnit[];
   documents: PropertyDocumentsPageData | null;
   documentsLoadError: string | null;
+  tenancies: PropertyTenanciesPageData | null;
+  tenanciesLoadError: string | null;
 };
 
 function formatProfileSummary(profile: PropertyProfileFields): string {
@@ -638,6 +642,11 @@ function PropertyDetailBody({
         data={detail.documents}
         canEdit={canAddUnit}
         loadError={detail.documentsLoadError}
+      />
+
+      <PropertyTenanciesSection
+        data={detail.tenancies}
+        loadError={detail.tenanciesLoadError}
       />
 
       {marketRentResearch && onlyDefaultUnit && entirePropertyUnit

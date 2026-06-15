@@ -38,6 +38,17 @@ import {
   activationBlockReasonForAdvance,
   loadTenancyActivationReadiness,
 } from "@/lib/leasing/tenancy-activation-gate";
+import { applyTenancyDetailsUpdate } from "@/lib/leasing/apply-tenancy-details-update";
+import {
+  flattenHealthCleanupTenancyQueue,
+  selectNextTenancyInCleanupQueue,
+} from "@/lib/property/portfolio-health-cleanup-queue";
+import {
+  filterPortfolioHealthCleanupQueue,
+  parseCleanupFiltersParam,
+} from "@/lib/property/portfolio-health-cleanup-filters";
+import { loadPortfolioHealthForStaff } from "@/lib/property/portfolio-health-staff";
+import { parseTenancyEditFormInput } from "@/lib/validation/tenancy-edit";
 import type { TenancyStatus } from "@prisma/client";
 
 export type TenancyActionResult = { ok: true } | { ok: false; error: string };
@@ -514,6 +525,69 @@ export async function setTenancyContactPortalAccessAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not update portal access";
+    return { ok: false, error: message };
+  }
+}
+
+export async function updateTenancyDetailsAction(
+  tenancyId: string,
+  formData: unknown,
+): Promise<TenancyActionResult> {
+  const trimmedId = tenancyId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid tenancy id" };
+  }
+
+  const parsed = parseTenancyEditFormInput(formData);
+  if ("error" in parsed) {
+    return { ok: false, error: parsed.error };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const { propertyId } = await applyTenancyDetailsUpdate(prisma, ctx, trimmedId, parsed);
+    revalidatePath("/properties/health");
+    revalidatePath(`/properties/${propertyId}`);
+    revalidatePath("/leasing/tenancies");
+    revalidatePath(`/leasing/tenancies/${trimmedId}`);
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not save tenancy details";
+    return { ok: false, error: message };
+  }
+}
+
+export async function resolveNextHealthCleanupTenancyAction(
+  currentTenancyId: string,
+  healthFiltersRaw: string,
+): Promise<{ ok: true; nextTenancyId: string | null } | { ok: false; error: string }> {
+  const trimmedId = currentTenancyId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid tenancy id" };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const filters = parseCleanupFiltersParam(healthFiltersRaw);
+    const { rows } = await loadPortfolioHealthForStaff(ctx);
+    const filteredRows = filterPortfolioHealthCleanupQueue(rows, filters);
+    const queue = flattenHealthCleanupTenancyQueue(filteredRows);
+    const next = selectNextTenancyInCleanupQueue(queue, trimmedId);
+    return { ok: true, nextTenancyId: next?.tenancyId ?? null };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not resolve next cleanup tenancy";
     return { ok: false, error: message };
   }
 }

@@ -4,6 +4,7 @@ import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
 import { safeResolvePropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
 import { loadPropertyDocumentsForStaff } from "@/lib/property/property-documents-staff";
+import { loadPropertyTenanciesForStaff } from "@/lib/property/property-tenancies-staff";
 import { propertyProfileFromRecord } from "@/lib/property/profile";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
 import { getPropertyById } from "@/lib/services/property.service";
@@ -57,6 +58,22 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       documentsLoadError = e instanceof Error ? e.message : "Could not load documents.";
     }
 
+    const unitInputs = units.map((unit) => ({
+      id: unit.id,
+      unitNumber: unit.unitNumber,
+      floor: unit.floor,
+      bedrooms: unit.bedrooms,
+      isActive: unit.isActive,
+    }));
+
+    let tenancies = null;
+    let tenanciesLoadError: string | null = null;
+    try {
+      tenancies = await loadPropertyTenanciesForStaff(prisma, ctx, propertyId, unitInputs);
+    } catch (e) {
+      tenanciesLoadError = e instanceof Error ? e.message : "Could not load tenancies.";
+    }
+
     const detail: PropertyDetailData = {
       id: property.id,
       name: property.name,
@@ -71,15 +88,11 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       ownerPhone: property.ownerPhone,
       strataNotes: property.strataNotes,
       profile: propertyProfileFromRecord(property),
-      units: units.map((unit) => ({
-        id: unit.id,
-        unitNumber: unit.unitNumber,
-        floor: unit.floor,
-        bedrooms: unit.bedrooms,
-        isActive: unit.isActive,
-      })),
+      units: unitInputs,
       documents,
       documentsLoadError,
+      tenancies,
+      tenanciesLoadError,
     };
 
     const canManageProperty = canManagePropertyUnits(ctx, propertyId);

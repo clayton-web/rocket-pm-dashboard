@@ -2,7 +2,10 @@ import { auth } from "@/auth";
 import { PropertyPortfolioHealth } from "@/components/properties/property-portfolio-health";
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import { loadPortfolioHealthForStaff } from "@/lib/property/portfolio-health-staff";
+import { emptyPortfolioHealthSummary } from "@/lib/property/portfolio-health-metrics";
 import { redirect } from "next/navigation";
+
+import { Suspense } from "react";
 
 export default async function PropertyPortfolioHealthPage() {
   const session = await auth();
@@ -13,40 +16,32 @@ export default async function PropertyPortfolioHealthPage() {
   const ctx = await getStaffContextFromSession();
   if (!ctx) {
     return (
-      <PropertyPortfolioHealth
-        rows={[]}
-        summary={{
-          total: 0,
-          complete: 0,
-          needsReview: 0,
-          missingDocuments: 0,
-          missingOwnerContact: 0,
-          missingTenantInfo: 0,
-          vacant: 0,
-        }}
-        loadError="Select an active organization to view portfolio health."
-      />
+      <Suspense fallback={null}>
+        <PropertyPortfolioHealth
+          rows={[]}
+          summary={emptyPortfolioHealthSummary()}
+          loadError="Select an active organization to view portfolio health."
+        />
+      </Suspense>
     );
   }
 
   try {
     const { rows, summary } = await loadPortfolioHealthForStaff(ctx);
-    return <PropertyPortfolioHealth rows={rows} summary={summary} loadError={null} />;
+    return (
+      <Suspense fallback={null}>
+        <PropertyPortfolioHealth rows={rows} summary={summary} loadError={null} />
+      </Suspense>
+    );
   } catch {
     return (
-      <PropertyPortfolioHealth
-        rows={[]}
-        summary={{
-          total: 0,
-          complete: 0,
-          needsReview: 0,
-          missingDocuments: 0,
-          missingOwnerContact: 0,
-          missingTenantInfo: 0,
-          vacant: 0,
-        }}
-        loadError="Could not load portfolio health."
-      />
+      <Suspense fallback={null}>
+        <PropertyPortfolioHealth
+          rows={[]}
+          summary={emptyPortfolioHealthSummary()}
+          loadError="Could not load portfolio health."
+        />
+      </Suspense>
     );
   }
 }
