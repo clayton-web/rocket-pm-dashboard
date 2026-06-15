@@ -25,7 +25,7 @@ describe("agent.triage batch handling", () => {
 
   it("stops the batch when Gemini returns rate limited", () => {
     const results: ClassifyInboxThreadResult[] = [
-      { status: "low_confidence", category: "TENANT_INQUIRY", confidence: 0.5, reason: "Maybe" },
+      { status: "low_confidence", categories: ["TENANT_INQUIRY"], confidence: 0.5, reason: "Maybe" },
       { status: "rate_limited", error: "quota exceeded" },
       { status: "failed", error: "should not run" },
     ];

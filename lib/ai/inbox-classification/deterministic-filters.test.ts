@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import prisma from "@/lib/db/prisma";
 import { evaluateDeterministicInboxFilters } from "./deterministic-filters";
 
 function thread(overrides: {
+  organizationId?: string;
   subject?: string | null;
   snippet?: string | null;
   participantEmails?: string[];
@@ -14,6 +16,7 @@ function thread(overrides: {
   }>;
 }) {
   return {
+    organizationId: overrides.organizationId ?? "org_test",
     subject: overrides.subject ?? null,
     snippet: overrides.snippet ?? null,
     participantEmails: overrides.participantEmails ?? [],
@@ -26,142 +29,108 @@ function thread(overrides: {
   };
 }
 
+function withMockPrisma<T>(
+  mocks: {
+    propertyFindFirst?: () => Promise<{ id: string; name: string } | null>;
+    tenancyContactFindFirst?: () => Promise<{ firstName: string; lastName: string } | null>;
+  },
+  run: () => Promise<T>,
+): Promise<T> {
+  const originalProperty = prisma.property;
+  const originalContact = prisma.tenancyContact;
+
+  Object.assign(prisma, {
+    property: {
+      findFirst: mocks.propertyFindFirst ?? (async () => null),
+    },
+    tenancyContact: {
+      findFirst: mocks.tenancyContactFindFirst ?? (async () => null),
+    },
+  });
+
+  return run().finally(() => {
+    Object.assign(prisma, {
+      property: originalProperty,
+      tenancyContact: originalContact,
+    });
+  });
+}
+
 describe("evaluateDeterministicInboxFilters", () => {
-  it("classifies LMS building notices as STRATA, including forwarded subjects", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "Fwd: LMS2505R - Building Notice - Dryer Vent Cleaning - 2026-06-22",
-        messages: [{ fromAddr: "owner@example.com", bodyText: "Please forward to tenants." }],
-      }),
+  it("classifies owner email matches as LANDLORD_COMMUNICATION", async () => {
+    const matches = await withMockPrisma(
+      {
+        propertyFindFirst: async () => ({ id: "prop_1", name: "Oak Street" }),
+      },
+      () =>
+        evaluateDeterministicInboxFilters(
+          thread({
+            messages: [{ fromAddr: "owner@example.com", bodyText: "Please review the expense report." }],
+          }),
+        ),
     );
 
-    assert.equal(result.action, "classify");
-    if (result.action === "classify") {
-      assert.equal(result.category, "STRATA");
+    assert.equal(matches.length, 1);
+    assert.equal(matches[0]?.category, "LANDLORD_COMMUNICATION");
+  });
+
+  it("classifies tenant email matches as TENANT_COMMUNICATION", async () => {
+    const matches = await withMockPrisma(
+      {
+        tenancyContactFindFirst: async () => ({ firstName: "Alex", lastName: "Tenant" }),
+      },
+      () =>
+        evaluateDeterministicInboxFilters(
+          thread({
+            messages: [{ fromAddr: "tenant@example.com", bodyText: "The sink is leaking." }],
+          }),
+        ),
+    );
+
+    assert.equal(matches.length, 1);
+    assert.equal(matches[0]?.category, "TENANT_COMMUNICATION");
+  });
+
+  it("classifies BCS, EPS, and LMS identifiers as STRATA", async () => {
+    for (const subject of [
+      "BCS1234 - Annual General Meeting reminder",
+      "EPS 5678 levy notice",
+      "Fwd: LMS2505R - Building Notice",
+    ]) {
+      const matches = await evaluateDeterministicInboxFilters(thread({ subject }));
+      assert.equal(matches.length, 1);
+      assert.equal(matches[0]?.category, "STRATA");
     }
   });
 
-  it("classifies BCS notices as STRATA", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({ subject: "BCS1234 - Annual General Meeting reminder" }),
+  it("accumulates tenant and strata matches", async () => {
+    const matches = await withMockPrisma(
+      {
+        tenancyContactFindFirst: async () => ({ firstName: "Alex", lastName: "Tenant" }),
+      },
+      () =>
+        evaluateDeterministicInboxFilters(
+          thread({
+            subject: "BCS1234 maintenance update",
+            messages: [{ fromAddr: "tenant@example.com" }],
+          }),
+        ),
     );
 
-    assert.equal(result.action, "classify");
-    if (result.action === "classify") {
-      assert.equal(result.category, "STRATA");
-    }
-  });
-
-  it("classifies spaced LMS and BCS identifiers as STRATA", () => {
-    for (const subject of ["LMS 2505 - Building update", "BCS 1234 AGM notice"]) {
-      const result = evaluateDeterministicInboxFilters(thread({ subject }));
-      assert.equal(result.action, "classify");
-      if (result.action === "classify") {
-        assert.equal(result.category, "STRATA");
-      }
-    }
-  });
-
-  it("classifies known strata sender domains as STRATA", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "Building maintenance update",
-        messages: [{ fromAddr: "communications@mc.fsresidential.com" }],
-      }),
+    assert.deepEqual(
+      matches.map((match) => match.category).sort(),
+      ["STRATA", "TENANT_COMMUNICATION"],
     );
-
-    assert.equal(result.action, "classify");
-    if (result.action === "classify") {
-      assert.equal(result.category, "STRATA");
-    }
   });
 
-  it("classifies tenancy agreement HelloSign notifications as TENANT_COMMUNICATION", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "Everyone has signed w4th Tenancy Agreement",
-        messages: [{ fromAddr: "noreply@mail.hellosign.com" }],
-      }),
-    );
-
-    assert.equal(result.action, "classify");
-    if (result.action === "classify") {
-      assert.equal(result.category, "TENANT_COMMUNICATION");
-    }
-  });
-
-  it("classifies lease agreement viewed notifications as TENANT_COMMUNICATION", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "Emily Tennant has viewed lease agreement",
-        messages: [{ fromAddr: "noreply@mail.hellosign.com" }],
-      }),
-    );
-
-    assert.equal(result.action, "classify");
-    if (result.action === "classify") {
-      assert.equal(result.category, "TENANT_COMMUNICATION");
-    }
-  });
-
-  it("leaves real estate sales offers uncategorized without Gemini", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "213th Offer revised has been signed by Katherine",
-        messages: [{ fromAddr: "noreply@mail.hellosign.com" }],
-      }),
-    );
-
-    assert.equal(result.action, "skip_uncategorized");
-    if (result.action === "skip_uncategorized") {
-      assert.match(result.reason, /sales\/offer/i);
-    }
-  });
-
-  it("does not treat rental inquiries with offer language as sales offers", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "Rental inquiry and application to rent 1365 West 4th",
-        snippet: "We would like to apply for rent and schedule a viewing request.",
-      }),
-    );
-
-    assert.equal(result.action, "none");
-  });
-
-  it("skips Google Alert newsletters without Gemini", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "Google Alert - vancouver real estate",
-        messages: [{ fromAddr: "googlealerts-noreply@google.com" }],
-      }),
-    );
-
-    assert.equal(result.action, "skip_uncategorized");
-    if (result.action === "skip_uncategorized") {
-      assert.match(result.reason, /newsletter|alert|marketing/i);
-    }
-  });
-
-  it("skips Travelzoo marketing without Gemini", () => {
-    const result = evaluateDeterministicInboxFilters(
-      thread({
-        subject: "Vancouver travel deals inside",
-        messages: [{ fromAddr: "exclusive@ca.travelzoo.com" }],
-      }),
-    );
-
-    assert.equal(result.action, "skip_uncategorized");
-  });
-
-  it("falls through to Gemini when no deterministic rule matches", () => {
-    const result = evaluateDeterministicInboxFilters(
+  it("returns no matches when no hard rule applies", async () => {
+    const matches = await evaluateDeterministicInboxFilters(
       thread({
         subject: "Maintenance follow-up for unit 204",
-        messages: [{ fromAddr: "tenant@example.com", bodyText: "The sink is still leaking." }],
+        messages: [{ fromAddr: "unknown@example.com", bodyText: "Any update?" }],
       }),
     );
 
-    assert.equal(result.action, "none");
+    assert.deepEqual(matches, []);
   });
 });

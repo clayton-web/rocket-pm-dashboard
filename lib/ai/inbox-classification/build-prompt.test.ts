@@ -3,15 +3,13 @@ import { describe, it } from "node:test";
 import { buildInboxClassificationPrompt } from "./build-prompt";
 
 describe("buildInboxClassificationPrompt", () => {
-  it("includes sender memory and PM context in the user prompt", () => {
+  it("includes PM context but not sender memory in the user prompt", () => {
     const prompt = buildInboxClassificationPrompt({
       subject: "Strata levy notice",
       snippet: "Please review the attached levy",
       participantEmails: ["strata@building.com", "manager@pm.com"],
       senderEmail: "strata@building.com",
       senderName: null,
-      senderMemoryCategory: "STRATA",
-      senderMemorySource: "manual",
       pmContextLines: ["[property] Oak Street: 2-bed condo in Vancouver"],
       messages: [
         {
@@ -27,7 +25,7 @@ describe("buildInboxClassificationPrompt", () => {
     const system = prompt.messages.find((message) => message.role === "system")?.content ?? "";
 
     assert.match(user, /Strata levy notice/);
-    assert.match(user, /Remembered category: STRATA/);
+    assert.doesNotMatch(user, /Remembered category/);
     assert.match(user, /\[property\] Oak Street/);
     assert.match(system, /LANDLORD_COMMUNICATION/);
     assert.match(system, /TENANT_INQUIRY/);

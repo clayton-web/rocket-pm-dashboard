@@ -17,6 +17,12 @@ const baseThread = {
   category: "UNCATEGORIZED" as const,
   categorySource: null,
   lastClassificationAttemptAt: null,
+  categoryAssignments: [] as Array<{
+    category: "UNCATEGORIZED";
+    source: "RULE";
+    reason: string | null;
+    assignedAt: Date;
+  }>,
   messages: [
     {
       fromAddr: "tenant@example.com",
@@ -27,38 +33,66 @@ const baseThread = {
   ],
 };
 
-type UpdateManyCall = {
-  where: unknown;
-  data: unknown;
+type TransactionCall = {
+  callback: (tx: {
+    emailThreadCategoryAssignment: {
+      findMany: () => Promise<typeof baseThread.categoryAssignments>;
+      deleteMany: () => Promise<{ count: number }>;
+      create: () => Promise<{ id: string }>;
+    };
+    emailThread: {
+      update: () => Promise<{ id: string }>;
+    };
+  }) => Promise<unknown>;
 };
 
 function withMockPrisma<T>(
   mocks: {
     findFirst: () => Promise<typeof baseThread | null>;
-    updateMany?: (args: UpdateManyCall) => Promise<{ count: number }>;
-    senderMemoryFindUnique?: () => Promise<null>;
+    transaction?: (call: TransactionCall) => Promise<unknown>;
+    propertyFindFirst?: () => Promise<{ id: string; name: string } | null>;
+    tenancyContactFindFirst?: () => Promise<{ firstName: string; lastName: string } | null>;
+    updateMany?: (args: unknown) => Promise<{ count: number }>;
   },
   run: () => Promise<T>,
 ): Promise<T> {
   const originalThread = prisma.emailThread;
-  const originalMemory = prisma.emailSenderCategoryMemory;
+  const originalProperty = prisma.property;
+  const originalContact = prisma.tenancyContact;
+  const originalTransaction = prisma.$transaction;
 
   Object.assign(prisma, {
     emailThread: {
       findFirst: mocks.findFirst,
-      updateMany:
-        mocks.updateMany ??
-        (async () => ({ count: 0 })),
+      updateMany: mocks.updateMany ?? (async () => ({ count: 1 })),
     },
-    emailSenderCategoryMemory: {
-      findUnique: mocks.senderMemoryFindUnique ?? (async () => null),
+    property: {
+      findFirst: mocks.propertyFindFirst ?? (async () => null),
     },
+    tenancyContact: {
+      findFirst: mocks.tenancyContactFindFirst ?? (async () => null),
+    },
+    $transaction:
+      mocks.transaction ??
+      (async (callback: TransactionCall["callback"]) =>
+        callback({
+          emailThreadCategoryAssignment: {
+            findMany: async () => [],
+            deleteMany: async () => ({ count: 0 }),
+            create: async () => ({ id: "assignment_1" }),
+          },
+          emailThread: {
+            update: async () => ({ id: THREAD_ID }),
+          },
+        })),
   });
 
   return run().finally(() => {
     Object.assign(prisma, {
       emailThread: originalThread,
-      emailSenderCategoryMemory: originalMemory,
+      property: originalProperty,
+      tenancyContact: originalContact,
+      $transaction: originalTransaction,
     });
   });
 }
@@ -66,7 +100,6 @@ function withMockPrisma<T>(
 describe("classifyInboxThread", () => {
   it("applies STRATA deterministic rules without calling Gemini", async () => {
     let geminiCalled = false;
-    const updateCalls: UpdateManyCall[] = [];
 
     const result = await withMockPrisma(
       {
@@ -75,17 +108,24 @@ describe("classifyInboxThread", () => {
           subject: "Fwd: LMS2505R - Building Notice - Dryer Vent Cleaning",
           messages: [
             {
-              fromAddr: "communications@mc.fsresidential.com",
+              fromAddr: "owner@example.com",
               isOutbound: false,
               sentAt: new Date("2026-06-10T12:00:00.000Z"),
               bodyText: "Please forward to tenants.",
             },
           ],
         }),
-        updateMany: async (args) => {
-          updateCalls.push(args);
-          return { count: 1 };
-        },
+        transaction: async (callback) =>
+          callback({
+            emailThreadCategoryAssignment: {
+              findMany: async () => [],
+              deleteMany: async () => ({ count: 0 }),
+              create: async () => ({ id: "assignment_1" }),
+            },
+            emailThread: {
+              update: async () => ({ id: THREAD_ID }),
+            },
+          }).then(() => ({ count: 1, assignments: [{ category: "STRATA", source: "RULE", reason: "Matched", assignedAt: new Date() }] })),
       },
       () =>
         classifyInboxThread({
@@ -101,42 +141,30 @@ describe("classifyInboxThread", () => {
     assert.equal(geminiCalled, false);
     assert.equal(result.status, "classified");
     if (result.status === "classified") {
-      assert.equal(result.category, "STRATA");
+      assert.deepEqual(result.categories, ["STRATA"]);
     }
-    assert.equal((updateCalls[0]?.data as { categorySource?: string }).categorySource, "rule");
   });
 
-  it("classifies owner-forwarded LMS notices as STRATA even when sender memory would say landlord", async () => {
+  it("falls back to Gemini only when no deterministic match exists", async () => {
     let geminiCalled = false;
 
     const result = await withMockPrisma(
       {
-        findFirst: async () => ({
-          ...baseThread,
-          subject: "Fwd: LMS2505 - Building Notice",
-          messages: [
-            {
-              fromAddr: "owner@example.com",
-              isOutbound: false,
-              sentAt: new Date("2026-06-10T12:00:00.000Z"),
-              bodyText: "FYI",
+        findFirst: async () => baseThread,
+        transaction: async (callback) =>
+          callback({
+            emailThreadCategoryAssignment: {
+              findMany: async () => [],
+              deleteMany: async () => ({ count: 0 }),
+              create: async () => ({ id: "assignment_1" }),
             },
-          ],
-        }),
-        updateMany: async () => ({ count: 1 }),
-        senderMemoryFindUnique: async () => ({
-          id: "memory_1",
-          organizationId: ORG_ID,
-          connectedAccountId: "mailbox_test",
-          senderEmail: "owner@example.com",
-          senderName: null,
-          category: "LANDLORD_COMMUNICATION",
-          contextNote: null,
-          source: "manual",
-          createdByUserId: "user_test",
-          lastMatchedAt: null,
-          matchCount: 3,
-        }),
+            emailThread: {
+              update: async () => ({ id: THREAD_ID }),
+            },
+          }).then(() => ({
+            count: 1,
+            assignments: [{ category: "TENANT_INQUIRY", source: "AI", reason: "Lead", assignedAt: new Date() }],
+          })),
       },
       () =>
         classifyInboxThread({
@@ -144,20 +172,24 @@ describe("classifyInboxThread", () => {
           organizationId: ORG_ID,
           createCompletion: async () => {
             geminiCalled = true;
-            return { category: "LANDLORD_COMMUNICATION", confidence: 1, reason: "should not run" };
+            return {
+              category: "TENANT_INQUIRY",
+              confidence: 0.9,
+              reason: "Prospective renter asking about a showing.",
+            };
           },
         }),
     );
 
-    assert.equal(geminiCalled, false);
+    assert.equal(geminiCalled, true);
     assert.equal(result.status, "classified");
     if (result.status === "classified") {
-      assert.equal(result.category, "STRATA");
+      assert.deepEqual(result.categories, ["TENANT_INQUIRY"]);
     }
   });
 
   it("returns rate_limited without recording an attempt", async () => {
-    const updateCalls: UpdateManyCall[] = [];
+    const updateCalls: unknown[] = [];
 
     const result = await withMockPrisma(
       {
@@ -184,7 +216,7 @@ describe("classifyInboxThread", () => {
   });
 
   it("records low-confidence attempts for null categorySource threads", async () => {
-    const updateCalls: UpdateManyCall[] = [];
+    const updateCalls: unknown[] = [];
 
     const result = await withMockPrisma(
       {
@@ -208,51 +240,6 @@ describe("classifyInboxThread", () => {
 
     assert.equal(result.status, "low_confidence");
     assert.equal(updateCalls.length, 1);
-    assert.deepEqual(updateCalls[0]?.where, {
-      id: THREAD_ID,
-      organizationId: ORG_ID,
-      category: "UNCATEGORIZED",
-      OR: [{ categorySource: null }, { categorySource: { not: "manual" } }],
-    });
-    assert.equal(
-      (updateCalls[0]?.data as { categoryAiReason?: string }).categoryAiReason,
-      "Prospective renter asking about a showing.",
-    );
-  });
-
-  it("skips sales-offer threads deterministically without calling Gemini", async () => {
-    let geminiCalled = false;
-
-    const result = await withMockPrisma(
-      {
-        findFirst: async () => ({
-          ...baseThread,
-          subject: "Clark Van Alstyne has viewed 213th Offer",
-          messages: [
-            {
-              fromAddr: "noreply@mail.hellosign.com",
-              isOutbound: false,
-              sentAt: new Date("2026-06-10T12:00:00.000Z"),
-              bodyText: null,
-            },
-          ],
-        }),
-        updateMany: async () => ({ count: 1 }),
-      },
-      () =>
-        classifyInboxThread({
-          threadId: THREAD_ID,
-          organizationId: ORG_ID,
-          createCompletion: async () => {
-            geminiCalled = true;
-            return { category: "TENANT_INQUIRY", confidence: 1, reason: "should not run" };
-          },
-        }),
-    );
-
-    assert.equal(geminiCalled, false);
-    assert.equal(result.status, "skipped");
-    assert.equal(result.status === "skipped" ? result.reason : "", "deterministic_uncategorized");
   });
 
   it("skips manual threads before deterministic rules or Gemini", async () => {
@@ -264,9 +251,16 @@ describe("classifyInboxThread", () => {
           ...baseThread,
           categorySource: "manual",
           category: "STRATA",
+          categoryAssignments: [
+            {
+              category: "STRATA",
+              source: "MANUAL",
+              reason: null,
+              assignedAt: new Date("2026-06-10T12:00:00.000Z"),
+            },
+          ],
           subject: "Fwd: LMS2505R - Building Notice",
         }),
-        updateMany: async () => ({ count: 0 }),
       },
       () =>
         classifyInboxThread({

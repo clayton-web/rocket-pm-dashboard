@@ -2,6 +2,7 @@ import { isPmContextLink, parseEmailThreadContextLinks, type PmContextLink } fro
 import { isClassificationReviewThread } from "@/lib/inbox/classification-review";
 import type { EmailThreadCategory } from "@prisma/client";
 import type { LatestDraftSnapshot, LatestMessageSnapshot, InboxThreadRecord } from "@/lib/inbox/inbox-thread-data";
+import { getEffectiveCategories } from "@/lib/inbox/thread-category-assignments";
 import { getPmLinkDisplay, resolvePmLinkDisplay, type PmLinkDisplay } from "@/lib/inbox/pm-link-display";
 
 const LIST_CHIP_KINDS = new Set<PmContextLink["kind"]>(["property", "tenancy", "maintenance_request"]);
@@ -21,6 +22,7 @@ export type InboxThreadDisplayRow = {
   isUnread: boolean;
   participantEmails: string[];
   category: EmailThreadCategory;
+  categories: EmailThreadCategory[];
   categorySource: string | null;
   categoryConfidence: number | null;
   categoryAiReason: string | null;
@@ -91,10 +93,12 @@ export async function buildInboxThreadDisplayRows(
     const unlinked = pmLinks.length === 0;
     const reviewRequired = draft?.reviewRequired ?? false;
     const hasDraftReady = draft != null && !reviewRequired;
+    const categories = getEffectiveCategories(thread.categoryAssignments, thread.category);
     const needsClassificationReview = isClassificationReviewThread({
       category: thread.category,
       categorySource: thread.categorySource,
       lastClassificationAttemptAt: thread.lastClassificationAttemptAt,
+      assignments: thread.categoryAssignments,
     });
 
     return {
@@ -105,6 +109,7 @@ export async function buildInboxThreadDisplayRows(
       isUnread: thread.isUnread,
       participantEmails: thread.participantEmails,
       category: thread.category,
+      categories: categories.length > 0 ? categories : ["UNCATEGORIZED"],
       categorySource: thread.categorySource,
       categoryConfidence: thread.categoryConfidence,
       categoryAiReason: thread.categoryAiReason,

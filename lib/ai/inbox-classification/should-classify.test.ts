@@ -7,11 +7,12 @@ import {
 } from "./should-classify";
 
 describe("shouldAttemptInboxClassification", () => {
-  it("skips manual categories", () => {
+  it("skips manual assignments", () => {
     assert.equal(
       shouldAttemptInboxClassification({
         category: "TENANT_COMMUNICATION",
         categorySource: "manual",
+        assignments: [{ category: "TENANT_COMMUNICATION", source: "MANUAL" }],
       }),
       false,
     );
@@ -22,6 +23,7 @@ describe("shouldAttemptInboxClassification", () => {
       shouldAttemptInboxClassification({
         category: "UNCATEGORIZED",
         categorySource: null,
+        assignments: [],
       }),
       true,
     );
@@ -29,6 +31,7 @@ describe("shouldAttemptInboxClassification", () => {
       shouldAttemptInboxClassification({
         category: "STRATA",
         categorySource: "rule",
+        assignments: [{ category: "STRATA", source: "RULE" }],
       }),
       false,
     );
@@ -42,6 +45,7 @@ describe("isEligibleForClassificationQueue", () => {
         category: "UNCATEGORIZED",
         categorySource: null,
         lastClassificationAttemptAt: new Date("2026-06-10T12:00:00.000Z"),
+        assignments: [],
       }),
       false,
     );
@@ -53,6 +57,7 @@ describe("isEligibleForClassificationQueue", () => {
         category: "UNCATEGORIZED",
         categorySource: null,
         lastClassificationAttemptAt: null,
+        assignments: [],
       }),
       true,
     );

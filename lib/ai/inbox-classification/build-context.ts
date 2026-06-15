@@ -2,7 +2,6 @@ import { isPmContextLink, parseEmailThreadContextLinks } from "@/lib/ai/email-co
 import type { InboxClassificationContext } from "@/lib/ai/inbox-classification/build-prompt";
 import { loadPmContextSnippets } from "@/lib/ai/load-pm-context";
 import { extractInboundSenderFromMessages } from "@/lib/inbox/extract-thread-sender";
-import { getSenderCategoryMemory } from "@/lib/inbox/sender-category-memory";
 
 export type ThreadForClassification = {
   organizationId: string;
@@ -24,21 +23,6 @@ export async function buildInboxClassificationContext(
 ): Promise<InboxClassificationContext> {
   const sender = extractInboundSenderFromMessages(thread.messages);
 
-  let senderMemoryCategory: string | null = null;
-  let senderMemorySource: string | null = null;
-
-  if (sender) {
-    const memory = await getSenderCategoryMemory({
-      organizationId: thread.organizationId,
-      connectedAccountId: thread.connectedAccountId,
-      senderEmail: sender.senderEmail,
-    });
-    if (memory) {
-      senderMemoryCategory = memory.category;
-      senderMemorySource = memory.source;
-    }
-  }
-
   const pmLinks = parseEmailThreadContextLinks(thread.contextLinks).filter(isPmContextLink);
   const pmSnippets = await loadPmContextSnippets(thread.organizationId, pmLinks);
   const pmContextLines = pmSnippets.map((snippet) => `[${snippet.kind}] ${snippet.label}: ${snippet.text}`);
@@ -49,8 +33,6 @@ export async function buildInboxClassificationContext(
     participantEmails: thread.participantEmails,
     senderEmail: sender?.senderEmail ?? null,
     senderName: sender?.senderName ?? null,
-    senderMemoryCategory,
-    senderMemorySource,
     pmContextLines,
     messages: thread.messages.map((message) => ({
       fromAddr: message.fromAddr,

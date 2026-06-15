@@ -59,6 +59,22 @@ describe("classification-review", () => {
       category: "UNCATEGORIZED",
       lastClassificationAttemptAt: { not: null },
       OR: [{ categorySource: null }, { categorySource: { not: "manual" } }],
+      NOT: {
+        categoryAssignments: {
+          some: { source: "MANUAL" },
+        },
+      },
+      AND: [
+        {
+          NOT: {
+            categoryAssignments: {
+              some: {
+                category: { not: "UNCATEGORIZED" },
+              },
+            },
+          },
+        },
+      ],
     });
   });
 });

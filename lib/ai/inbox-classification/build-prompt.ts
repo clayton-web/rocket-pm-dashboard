@@ -11,8 +11,6 @@ export type InboxClassificationContext = {
   participantEmails: string[];
   senderEmail: string | null;
   senderName: string | null;
-  senderMemoryCategory: string | null;
-  senderMemorySource: string | null;
   pmContextLines: string[];
   messages: Array<{
     fromAddr: string;
@@ -51,14 +49,6 @@ export function buildInboxClassificationPrompt(context: InboxClassificationConte
     lines.push(`Name: ${context.senderName}`);
   }
 
-  if (context.senderMemoryCategory) {
-    lines.push("\n## Sender memory (manual/rule hint — prefer this when it fits the thread)");
-    lines.push(`Remembered category: ${context.senderMemoryCategory}`);
-    if (context.senderMemorySource) {
-      lines.push(`Memory source: ${context.senderMemorySource}`);
-    }
-  }
-
   if (context.pmContextLines.length > 0) {
     lines.push("\n## Linked PM records");
     for (const line of context.pmContextLines) {
@@ -81,7 +71,6 @@ export function buildInboxClassificationPrompt(context: InboxClassificationConte
     "confidence must be a number from 0 to 1.",
     "reason must be a short plain-language justification.",
     "Use UNCATEGORIZED when evidence is insufficient.",
-    "Sender memory is a strong hint but not absolute if the thread content clearly disagrees.",
     "",
     "Category definitions:",
     formatCategoryDefinitions(),

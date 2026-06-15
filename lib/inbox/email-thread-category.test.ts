@@ -6,11 +6,11 @@ import {
   filterRowsByCrate,
   isEmailThreadCategory,
   isInboxCrateFilter,
-  mapGroupByToCrateCounts,
+  mapAssignmentGroupByToCrateCounts,
 } from "./email-thread-category";
 
 function row(
-  category: InboxThreadDisplayRow["category"],
+  categories: InboxThreadDisplayRow["categories"],
   id = "1",
   lastMessageAt = "2026-06-09T12:00:00.000Z",
 ): InboxThreadDisplayRow {
@@ -21,7 +21,8 @@ function row(
     lastMessageAt,
     isUnread: false,
     participantEmails: [],
-    category,
+    category: categories[0] ?? "UNCATEGORIZED",
+    categories,
     categorySource: null,
     categoryConfidence: null,
     categoryAiReason: null,
@@ -47,46 +48,45 @@ describe("email-thread-category", () => {
     assert.equal(isInboxCrateFilter(undefined), false);
   });
 
-  it("filters rows by crate", () => {
+  it("filters rows by crate using overlapping categories", () => {
     const rows = [
-      row("UNCATEGORIZED", "1", "2026-06-09T10:00:00.000Z"),
-      row("STRATA", "2"),
-      row("TENANT_INQUIRY", "3"),
-      row("UNCATEGORIZED", "4", "2026-06-09T14:00:00.000Z"),
+      row(["UNCATEGORIZED"], "1", "2026-06-09T10:00:00.000Z"),
+      row(["STRATA"], "2"),
+      row(["TENANT_COMMUNICATION", "STRATA"], "3"),
+      row(["UNCATEGORIZED"], "4", "2026-06-09T14:00:00.000Z"),
     ];
 
-    const uncategorized = filterRowsByCrate(rows, "UNCATEGORIZED");
-    assert.equal(uncategorized.length, 2);
-    assert.deepEqual(uncategorized.map((r) => r.id), ["4", "1"]);
+    const strata = filterRowsByCrate(rows, "STRATA");
+    assert.deepEqual(strata.map((entry) => entry.id).sort(), ["2", "3"]);
 
-    assert.equal(filterRowsByCrate(rows, "all").length, 4);
-    assert.equal(filterRowsByCrate(rows, "LANDLORD_COMMUNICATION").length, 0);
+    const uncategorized = filterRowsByCrate(rows, "UNCATEGORIZED");
+    assert.deepEqual(uncategorized.map((entry) => entry.id), ["4", "1"]);
   });
 
-  it("computes crate counts including all inbox total", () => {
+  it("computes overlapping crate counts", () => {
     const counts = computeCrateCounts([
-      row("UNCATEGORIZED", "1"),
-      row("STRATA", "2"),
-      row("UNCATEGORIZED", "3"),
+      row(["UNCATEGORIZED"], "1"),
+      row(["STRATA"], "2"),
+      row(["TENANT_COMMUNICATION", "STRATA"], "3"),
     ]);
 
-    assert.equal(counts.UNCATEGORIZED, 2);
-    assert.equal(counts.STRATA, 1);
-    assert.equal(counts.TENANT_INQUIRY, 0);
+    assert.equal(counts.UNCATEGORIZED, 1);
+    assert.equal(counts.STRATA, 2);
+    assert.equal(counts.TENANT_COMMUNICATION, 1);
     assert.equal(counts.all, 3);
   });
 
-  it("maps prisma groupBy results to crate counts", () => {
-    const counts = mapGroupByToCrateCounts([
-      { category: "UNCATEGORIZED", _count: { _all: 4 } },
-      { category: "STRATA", _count: { _all: 2 } },
-      { category: "TENANT_INQUIRY", _count: { _all: 1 } },
-    ]);
+  it("maps assignment groupBy results to overlapping crate counts", () => {
+    const counts = mapAssignmentGroupByToCrateCounts(
+      [
+        { category: "STRATA", _count: { _all: 4 } },
+        { category: "TENANT_COMMUNICATION", _count: { _all: 2 } },
+      ],
+      5,
+    );
 
-    assert.equal(counts.UNCATEGORIZED, 4);
-    assert.equal(counts.STRATA, 2);
-    assert.equal(counts.TENANT_INQUIRY, 1);
-    assert.equal(counts.LANDLORD_COMMUNICATION, 0);
-    assert.equal(counts.all, 7);
+    assert.equal(counts.STRATA, 4);
+    assert.equal(counts.TENANT_COMMUNICATION, 2);
+    assert.equal(counts.all, 5);
   });
 });

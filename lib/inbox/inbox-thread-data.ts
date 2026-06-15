@@ -1,11 +1,15 @@
 import prisma from "@/lib/db/prisma";
 import { classificationReviewThreadWhere } from "@/lib/inbox/classification-review";
 import {
-  mapGroupByToCrateCounts,
+  getEffectiveCategories,
+  type ThreadCategoryAssignment,
+} from "@/lib/inbox/thread-category-assignments";
+import {
+  mapAssignmentGroupByToCrateCounts,
   type InboxCrateCounts,
 } from "@/lib/inbox/email-thread-category";
 import { parseDraftClassification } from "@/lib/inbox/draft-classification";
-import type { EmailThreadCategory } from "@prisma/client";
+import type { EmailThreadCategory, EmailThreadCategoryAssignmentSource } from "@prisma/client";
 
 const INBOX_THREAD_SELECT = {
   id: true,
@@ -20,6 +24,14 @@ const INBOX_THREAD_SELECT = {
   categoryConfidence: true,
   categoryAiReason: true,
   lastClassificationAttemptAt: true,
+  categoryAssignments: {
+    select: {
+      category: true,
+      source: true,
+      reason: true,
+      assignedAt: true,
+    },
+  },
 } as const;
 
 export type InboxThreadRecord = {
@@ -35,6 +47,7 @@ export type InboxThreadRecord = {
   categoryConfidence: number | null;
   categoryAiReason: string | null;
   lastClassificationAttemptAt: Date | null;
+  categoryAssignments: ThreadCategoryAssignment[];
 };
 
 export type LatestMessageSnapshot = {
@@ -50,11 +63,43 @@ export type LatestDraftSnapshot = {
   reviewRequired: boolean;
 };
 
+function mapAssignments(
+  rows: Array<{
+    category: EmailThreadCategory;
+    source: EmailThreadCategoryAssignmentSource;
+    reason: string | null;
+    assignedAt: Date;
+  }>,
+): ThreadCategoryAssignment[] {
+  return rows.map((row) => ({
+    category: row.category,
+    source: row.source,
+    reason: row.reason,
+    assignedAt: row.assignedAt,
+  }));
+}
+
+function mapThreadRecord(
+  row: Omit<InboxThreadRecord, "categoryAssignments"> & {
+    categoryAssignments: Array<{
+      category: EmailThreadCategory;
+      source: EmailThreadCategoryAssignmentSource;
+      reason: string | null;
+      assignedAt: Date;
+    }>;
+  },
+): InboxThreadRecord {
+  return {
+    ...row,
+    categoryAssignments: mapAssignments(row.categoryAssignments),
+  };
+}
+
 export async function loadInboxThreadsForMailbox(
   organizationId: string,
   mailboxId: string,
 ): Promise<InboxThreadRecord[]> {
-  return prisma.emailThread.findMany({
+  const rows = await prisma.emailThread.findMany({
     where: {
       organizationId,
       connectedAccountId: mailboxId,
@@ -63,13 +108,40 @@ export async function loadInboxThreadsForMailbox(
     take: 100,
     select: INBOX_THREAD_SELECT,
   });
+
+  return rows.map(mapThreadRecord);
 }
 
 export async function loadCrateCountsForMailbox(
   organizationId: string,
   mailboxId: string,
 ): Promise<InboxCrateCounts> {
-  const groups = await prisma.emailThread.groupBy({
+  const [groups, totalThreads] = await Promise.all([
+    prisma.emailThreadCategoryAssignment.groupBy({
+      by: ["category"],
+      where: {
+        thread: {
+          organizationId,
+          connectedAccountId: mailboxId,
+        },
+      },
+      _count: { _all: true },
+    }),
+    prisma.emailThread.count({
+      where: {
+        organizationId,
+        connectedAccountId: mailboxId,
+      },
+    }),
+  ]);
+
+  const assignmentCounts = mapAssignmentGroupByToCrateCounts(groups, totalThreads);
+
+  if (groups.length > 0) {
+    return assignmentCounts;
+  }
+
+  const legacyGroups = await prisma.emailThread.groupBy({
     by: ["category"],
     where: {
       organizationId,
@@ -78,7 +150,20 @@ export async function loadCrateCountsForMailbox(
     _count: { _all: true },
   });
 
-  return mapGroupByToCrateCounts(groups);
+  const counts: InboxCrateCounts = {
+    LANDLORD_COMMUNICATION: 0,
+    TENANT_COMMUNICATION: 0,
+    STRATA: 0,
+    TENANT_INQUIRY: 0,
+    UNCATEGORIZED: 0,
+    all: totalThreads,
+  };
+
+  for (const group of legacyGroups) {
+    counts[group.category] = group._count._all;
+  }
+
+  return counts;
 }
 
 export async function countClassificationReviewThreads(
@@ -95,12 +180,14 @@ export async function loadClassificationReviewThreadsForMailbox(
   mailboxId: string,
   take: number,
 ): Promise<InboxThreadRecord[]> {
-  return prisma.emailThread.findMany({
+  const rows = await prisma.emailThread.findMany({
     where: classificationReviewThreadWhere(organizationId, mailboxId),
     orderBy: { lastClassificationAttemptAt: "desc" },
     take,
     select: INBOX_THREAD_SELECT,
   });
+
+  return rows.map(mapThreadRecord);
 }
 
 export async function loadLatestMessagesByThreadId(
@@ -168,3 +255,5 @@ export async function loadLatestDraftsByThreadId(
 
   return map;
 }
+
+export { getEffectiveCategories };

@@ -17,6 +17,7 @@ function row(
     isUnread: false,
     participantEmails: [],
     category: "UNCATEGORIZED",
+    categories: ["UNCATEGORIZED"],
     categorySource: null,
     categoryConfidence: null,
     categoryAiReason: null,

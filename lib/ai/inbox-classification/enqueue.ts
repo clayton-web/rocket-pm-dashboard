@@ -1,7 +1,10 @@
 import prisma from "@/lib/db/prisma";
 import { auditInboxClassificationEnqueued } from "@/lib/ai/inbox-classification/audit";
 import { INBOX_CLASSIFICATION_BATCH_SIZE } from "@/lib/ai/inbox-classification/constants";
-import { listUncategorizedThreadIdsForMailbox } from "@/lib/ai/inbox-classification/list-threads";
+import {
+  listUncategorizedThreadIdsForMailbox,
+  mailboxHasEligibleUncategorizedThreads,
+} from "@/lib/ai/inbox-classification/list-threads";
 import { enqueueJob } from "@/lib/jobs/enqueue";
 import { isAgentAutomationEnabled } from "@/lib/jobs/policy";
 import { JOB_TYPES } from "@/lib/jobs/types";
@@ -23,10 +26,6 @@ export async function tryEnqueueInboxClassificationAfterSync(args: {
     return { enqueued: false, reason: "automation_disabled" };
   }
 
-  if (!process.env.GEMINI_API_KEY?.trim()) {
-    return { enqueued: false, reason: "gemini_not_configured" };
-  }
-
   const policy = await prisma.organizationAiPolicy.findUnique({
     where: { organizationId: args.organizationId },
     select: { autoTriageEnabled: true },
@@ -34,6 +33,15 @@ export async function tryEnqueueInboxClassificationAfterSync(args: {
 
   if (!policy?.autoTriageEnabled) {
     return { enqueued: false, reason: "auto_triage_disabled" };
+  }
+
+  const hasEligibleThreads = await mailboxHasEligibleUncategorizedThreads({
+    organizationId: args.organizationId,
+    connectedAccountId: args.connectedAccountId,
+  });
+
+  if (!hasEligibleThreads) {
+    return { enqueued: false, reason: "no_uncategorized_threads" };
   }
 
   const threadIds = await listUncategorizedThreadIdsForMailbox({

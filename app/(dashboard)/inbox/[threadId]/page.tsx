@@ -10,6 +10,7 @@ import { ThreadContextLinksPanel } from "@/components/inbox/thread-context-links
 import { loadThreadContextLinkOptions } from "@/lib/ai/thread-context-link-options";
 import { isPmContextLink, parseEmailThreadContextLinks } from "@/lib/ai/email-context-links";
 import { getPmLinkDisplay, resolvePmLinkDisplay } from "@/lib/inbox/pm-link-display";
+import { getEffectiveCategories } from "@/lib/inbox/thread-category-assignments";
 
 type PageProps = {
   params: Promise<{ threadId: string }>;
@@ -45,6 +46,15 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
           userId: true,
           organizationId: true,
         },
+      },
+      categoryAssignments: {
+        select: {
+          category: true,
+          source: true,
+          reason: true,
+          assignedAt: true,
+        },
+        orderBy: { assignedAt: "asc" },
       },
       messages: {
         orderBy: { sentAt: "asc" },
@@ -91,6 +101,14 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
     .map((link) => getPmLinkDisplay(displayMap, link))
     .filter((display): display is NonNullable<typeof display> => display != null);
 
+  const assignments = thread.categoryAssignments.map((assignment) => ({
+    category: assignment.category,
+    source: assignment.source,
+    reason: assignment.reason,
+    assignedAt: assignment.assignedAt,
+  }));
+  const categories = getEffectiveCategories(assignments, thread.category);
+
   return (
     <div className="mx-auto max-w-6xl">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
@@ -99,6 +117,8 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
           <ThreadCategoryPanel
             threadId={thread.id}
             category={thread.category}
+            categories={categories.length > 0 ? categories : ["UNCATEGORIZED"]}
+            assignments={assignments}
             categorySource={thread.categorySource}
             categoryUpdatedAt={thread.categoryUpdatedAt}
             categoryConfidence={thread.categoryConfidence}

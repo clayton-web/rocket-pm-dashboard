@@ -15,7 +15,6 @@ import { createThreadReplyGmailDraft } from "@/lib/gmail/create-thread-reply-gma
 import { isGmailAuthError } from "@/lib/gmail/gmail-errors";
 import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { isEmailThreadCategory } from "@/lib/inbox/email-thread-category";
-import { upsertSenderCategoryMemoryFromThread } from "@/lib/inbox/sender-category-memory";
 import { buildThreadReclassifySuccessMessage } from "@/lib/inbox/thread-reclassify-feedback";
 import { updateEmailThreadCategory } from "@/lib/inbox/update-thread-category";
 import { getActiveOrganizationContext } from "@/lib/org/active-organization";
@@ -390,15 +389,6 @@ export async function updateThreadCategoryAction(
     return { error: updateResult.error, successMessage: null, completedAt: 0 };
   }
 
-  const memoryResult = await upsertSenderCategoryMemoryFromThread({
-    threadId: thread.id,
-    category,
-    userId: session.user.id,
-  });
-  if (!memoryResult.ok) {
-    return { error: memoryResult.error, successMessage: null, completedAt: 0 };
-  }
-
   revalidatePath(`/inbox/${threadId}`);
   revalidatePath("/inbox");
 
@@ -406,7 +396,6 @@ export async function updateThreadCategoryAction(
     error: null,
     successMessage: buildThreadReclassifySuccessMessage({
       category,
-      senderEmail: memoryResult.senderEmail,
     }),
     completedAt,
   };

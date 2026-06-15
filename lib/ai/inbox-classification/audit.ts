@@ -63,7 +63,7 @@ export async function auditInboxThreadClassified(args: {
   organizationId: string;
   actorUserId: string;
   threadId: string;
-  category: string;
+  categories: string[];
   confidence: number;
   reason: string;
   jobId: string;
@@ -76,7 +76,7 @@ export async function auditInboxThreadClassified(args: {
       resourceType: "EmailThread",
       resourceId: args.threadId,
       metadata: {
-        category: args.category,
+        categories: args.categories,
         confidence: args.confidence,
         reason: args.reason.slice(0, 500),
         jobId: args.jobId,

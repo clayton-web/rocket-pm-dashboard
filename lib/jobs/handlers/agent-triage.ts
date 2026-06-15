@@ -72,7 +72,7 @@ export const handleAgentTriage: JobHandler = async (ctx) => {
         organizationId: ctx.job.organizationId,
         actorUserId,
         threadId,
-        category: result.category,
+        categories: result.categories,
         confidence: result.confidence,
         reason: result.reason,
         jobId: ctx.job.id,

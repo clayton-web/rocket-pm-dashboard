@@ -1,28 +1,59 @@
 import type { EmailThreadCategory } from "@prisma/client";
 import { buildInboxClassificationContext } from "@/lib/ai/inbox-classification/build-context";
 import { buildInboxClassificationPrompt } from "@/lib/ai/inbox-classification/build-prompt";
+import { evaluateDeterministicInboxFilters } from "@/lib/ai/inbox-classification/deterministic-filters";
 import { parseInboxClassificationOutput } from "@/lib/ai/inbox-classification/parse-output";
 import { recordInboxClassificationAttempt } from "@/lib/ai/inbox-classification/record-attempt";
 import {
   shouldAttemptInboxClassification,
   shouldPersistInboxClassification,
 } from "@/lib/ai/inbox-classification/should-classify";
-import { evaluateDeterministicInboxFilters } from "@/lib/ai/inbox-classification/deterministic-filters";
-import { uncategorizedNonManualThreadWhere } from "@/lib/ai/inbox-classification/thread-filter";
 import { isGeminiRateLimitError } from "@/lib/ai/gemini-errors";
 import { createChatJsonCompletion } from "@/lib/ai/gemini-client";
 import prisma from "@/lib/db/prisma";
+import {
+  getEffectiveCategories,
+  isManualClassificationLocked,
+  replaceAutomaticCategoryAssignments,
+  type ThreadCategoryAssignment,
+} from "@/lib/inbox/thread-category-assignments";
 
 export type ClassifyInboxThreadResult =
   | { status: "skipped"; reason: string }
-  | { status: "low_confidence"; category: EmailThreadCategory; confidence: number; reason: string }
-  | { status: "classified"; category: EmailThreadCategory; confidence: number; reason: string }
+  | {
+      status: "low_confidence";
+      categories: EmailThreadCategory[];
+      confidence: number;
+      reason: string;
+    }
+  | {
+      status: "classified";
+      categories: EmailThreadCategory[];
+      confidence: number;
+      reason: string;
+    }
   | { status: "rate_limited"; error: string }
   | { status: "failed"; error: string };
 
 type CreateCompletion = (args: {
   messages: Array<{ role: "system" | "user"; content: string }>;
 }) => Promise<unknown>;
+
+function mapAssignments(
+  rows: Array<{
+    category: EmailThreadCategory;
+    source: ThreadCategoryAssignment["source"];
+    reason: string | null;
+    assignedAt: Date;
+  }>,
+): ThreadCategoryAssignment[] {
+  return rows.map((row) => ({
+    category: row.category,
+    source: row.source,
+    reason: row.reason,
+    assignedAt: row.assignedAt,
+  }));
+}
 
 export async function classifyInboxThread(args: {
   threadId: string;
@@ -42,6 +73,14 @@ export async function classifyInboxThread(args: {
       category: true,
       categorySource: true,
       lastClassificationAttemptAt: true,
+      categoryAssignments: {
+        select: {
+          category: true,
+          source: true,
+          reason: true,
+          assignedAt: true,
+        },
+      },
       messages: {
         orderBy: { sentAt: "asc" },
         select: {
@@ -58,47 +97,69 @@ export async function classifyInboxThread(args: {
     return { status: "failed", error: "Thread not found." };
   }
 
-  if (!shouldAttemptInboxClassification(thread)) {
+  const assignments = mapAssignments(thread.categoryAssignments);
+
+  if (
+    !shouldAttemptInboxClassification({
+      category: thread.category,
+      categorySource: thread.categorySource,
+      lastClassificationAttemptAt: thread.lastClassificationAttemptAt,
+      assignments,
+    })
+  ) {
     return { status: "skipped", reason: "not_eligible" };
   }
 
-  const deterministic = evaluateDeterministicInboxFilters(thread);
-  if (deterministic.action === "classify") {
-    const updated = await prisma.emailThread.updateMany({
-      where: uncategorizedNonManualThreadWhere({
+  if (isManualClassificationLocked(assignments)) {
+    return { status: "skipped", reason: "manual_locked" };
+  }
+
+  const deterministic = await evaluateDeterministicInboxFilters({
+    organizationId: thread.organizationId,
+    subject: thread.subject,
+    snippet: thread.snippet,
+    participantEmails: thread.participantEmails,
+    messages: thread.messages,
+  });
+
+  if (deterministic.length > 0) {
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.emailThreadCategoryAssignment.findMany({
+        where: { threadId: thread.id },
+        select: { category: true, source: true, reason: true, assignedAt: true },
+      });
+
+      if (isManualClassificationLocked(existing)) {
+        return { count: 0, assignments: existing };
+      }
+
+      const nextAssignments = await replaceAutomaticCategoryAssignments(tx, {
         threadId: thread.id,
-        organizationId: args.organizationId,
-      }),
-      data: {
-        category: deterministic.category,
-        categorySource: "rule",
-        categoryConfidence: deterministic.confidence,
-        categoryAiReason: deterministic.reason,
-        categoryUpdatedAt: new Date(),
+        assignments: deterministic.map((match) => ({
+          category: match.category,
+          source: "RULE",
+          reason: match.reason,
+        })),
+        categoryConfidence: deterministic[0]?.confidence ?? null,
+        categoryAiReason: deterministic.map((match) => match.reason).join(" "),
         lastClassificationAttemptAt: new Date(),
-      },
+      });
+
+      return { count: 1, assignments: nextAssignments };
     });
 
     if (updated.count === 0) {
       return { status: "skipped", reason: "manual_or_already_classified" };
     }
 
+    const categories = getEffectiveCategories(updated.assignments, thread.category);
+
     return {
       status: "classified",
-      category: deterministic.category,
-      confidence: deterministic.confidence,
-      reason: deterministic.reason,
+      categories,
+      confidence: deterministic[0]?.confidence ?? 1,
+      reason: deterministic.map((match) => match.reason).join(" "),
     };
-  }
-
-  if (deterministic.action === "skip_uncategorized") {
-    await recordInboxClassificationAttempt({
-      threadId: thread.id,
-      organizationId: args.organizationId,
-      confidence: deterministic.confidence,
-      reason: deterministic.reason,
-    });
-    return { status: "skipped", reason: "deterministic_uncategorized" };
   }
 
   try {
@@ -125,25 +186,37 @@ export async function classifyInboxThread(args: {
       });
       return {
         status: "low_confidence",
-        category: parsed.category,
+        categories: [parsed.category],
         confidence: parsed.confidence,
         reason: parsed.reason,
       };
     }
 
-    const updated = await prisma.emailThread.updateMany({
-      where: uncategorizedNonManualThreadWhere({
+    const updated = await prisma.$transaction(async (tx) => {
+      const existing = await tx.emailThreadCategoryAssignment.findMany({
+        where: { threadId: thread.id },
+        select: { category: true, source: true, reason: true, assignedAt: true },
+      });
+
+      if (isManualClassificationLocked(existing)) {
+        return { count: 0, assignments: existing };
+      }
+
+      const nextAssignments = await replaceAutomaticCategoryAssignments(tx, {
         threadId: thread.id,
-        organizationId: args.organizationId,
-      }),
-      data: {
-        category: parsed.category,
-        categorySource: "ai",
+        assignments: [
+          {
+            category: parsed.category,
+            source: "AI",
+            reason: parsed.reason,
+          },
+        ],
         categoryConfidence: parsed.confidence,
         categoryAiReason: parsed.reason,
-        categoryUpdatedAt: new Date(),
         lastClassificationAttemptAt: new Date(),
-      },
+      });
+
+      return { count: 1, assignments: nextAssignments };
     });
 
     if (updated.count === 0) {
@@ -152,7 +225,7 @@ export async function classifyInboxThread(args: {
 
     return {
       status: "classified",
-      category: parsed.category,
+      categories: getEffectiveCategories(updated.assignments, thread.category),
       confidence: parsed.confidence,
       reason: parsed.reason,
     };

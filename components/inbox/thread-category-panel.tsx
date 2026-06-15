@@ -12,6 +12,10 @@ import {
   EMAIL_THREAD_CATEGORY_LABELS,
   INBOX_CRATE_ORDER,
 } from "@/lib/inbox/email-thread-category";
+import {
+  legacyStringToAssignmentSourceLabel,
+  type ThreadCategoryAssignment,
+} from "@/lib/inbox/thread-category-assignments";
 import type { EmailThreadCategory } from "@prisma/client";
 
 const initialState: UpdateThreadCategoryState = {
@@ -19,14 +23,6 @@ const initialState: UpdateThreadCategoryState = {
   successMessage: null,
   completedAt: 0,
 };
-
-function formatCategorySource(source: string | null) {
-  if (!source) return "Not set";
-  if (source === "manual") return "Manual";
-  if (source === "ai") return "AI";
-  if (source === "rule") return "Sender memory";
-  return source;
-}
 
 function formatConfidence(confidence: number | null) {
   if (confidence == null) return "—";
@@ -38,9 +34,25 @@ function formatDateTime(value: Date | null) {
   return new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" }).format(value);
 }
 
+function formatAssignmentSource(source: ThreadCategoryAssignment["source"]) {
+  switch (source) {
+    case "MANUAL":
+      return "Manual";
+    case "AI":
+      return "AI";
+    case "APPROVED_RULE":
+      return "Approved rule";
+    case "RULE":
+    default:
+      return "Deterministic rule";
+  }
+}
+
 export function ThreadCategoryPanel(props: {
   threadId: string;
   category: EmailThreadCategory;
+  categories: EmailThreadCategory[];
+  assignments: ThreadCategoryAssignment[];
   categorySource: string | null;
   categoryUpdatedAt: Date | null;
   categoryConfidence: number | null;
@@ -55,14 +67,16 @@ export function ThreadCategoryPanel(props: {
     category: props.category,
     categorySource: props.categorySource,
     lastClassificationAttemptAt: props.lastClassificationAttemptAt,
+    assignments: props.assignments,
   });
-  const isManual = props.categorySource === "manual";
+  const isManual = props.assignments.some((assignment) => assignment.source === "MANUAL");
   const showClassificationMetadata =
     !isManual &&
     (props.lastClassificationAttemptAt != null ||
       props.categorySource != null ||
       props.categoryConfidence != null ||
-      props.categoryAiReason != null);
+      props.categoryAiReason != null ||
+      props.assignments.length > 0);
 
   useEffect(() => {
     if (state.completedAt === 0 || state.completedAt === lastCompleted.current) return;
@@ -80,10 +94,15 @@ export function ThreadCategoryPanel(props: {
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-neutral-500">Current crate</span>
-        <span className="inline-flex items-center rounded-md border border-neutral-300 bg-neutral-50 px-2.5 py-1 text-xs font-medium text-neutral-900">
-          {EMAIL_THREAD_CATEGORY_LABELS[props.category]}
-        </span>
+        <span className="text-xs text-neutral-500">Current crates</span>
+        {props.categories.map((category) => (
+          <span
+            key={category}
+            className="inline-flex items-center rounded-md border border-neutral-300 bg-neutral-50 px-2.5 py-1 text-xs font-medium text-neutral-900"
+          >
+            {EMAIL_THREAD_CATEGORY_LABELS[category]}
+          </span>
+        ))}
         {isManual ? (
           <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
             Manually categorized
@@ -91,7 +110,28 @@ export function ThreadCategoryPanel(props: {
         ) : null}
       </div>
 
-      <p className="mt-2 text-xs text-neutral-500">{EMAIL_THREAD_CATEGORY_DESCRIPTIONS[props.category]}</p>
+      {props.categories.length === 1 ? (
+        <p className="mt-2 text-xs text-neutral-500">{EMAIL_THREAD_CATEGORY_DESCRIPTIONS[props.categories[0]!]}</p>
+      ) : null}
+
+      {props.assignments.length > 0 ? (
+        <div className="mt-3 space-y-2">
+          {props.assignments.map((assignment) => (
+            <div
+              key={`${assignment.category}-${assignment.source}`}
+              className="rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2 text-xs"
+            >
+              <div className="font-medium text-neutral-900">
+                {EMAIL_THREAD_CATEGORY_LABELS[assignment.category]}
+              </div>
+              <div className="text-neutral-600">Source: {formatAssignmentSource(assignment.source)}</div>
+              {assignment.reason ? (
+                <div className="mt-1 whitespace-pre-wrap text-neutral-700">{assignment.reason}</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {isManual && props.categoryUpdatedAt ? (
         <p className="mt-2 text-[11px] text-neutral-400">
@@ -114,8 +154,8 @@ export function ThreadCategoryPanel(props: {
           ) : null}
           <dl className="space-y-1.5 text-xs">
             <div>
-              <dt className="text-neutral-500">Source</dt>
-              <dd className="text-neutral-800">{formatCategorySource(props.categorySource)}</dd>
+              <dt className="text-neutral-500">Primary source</dt>
+              <dd className="text-neutral-800">{legacyStringToAssignmentSourceLabel(props.categorySource)}</dd>
             </div>
             <div>
               <dt className="text-neutral-500">Confidence</dt>

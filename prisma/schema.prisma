@@ -63,7 +63,6 @@ model User {
   backgroundJobsTriggered     BackgroundJob[] @relation("BackgroundJobTriggeredBy")
   agentRunsCreated            AgentRun[]      @relation("AgentRunCreatedBy")
   connectedEmailAccounts         ConnectedEmailAccount[]
-  emailSenderCategoryMemories    EmailSenderCategoryMemory[]
   styleExamples                  AiStyleExample[]
 
   createdAt DateTime @default(now())
@@ -99,7 +98,6 @@ model Organization {
   connectedEmailAccounts      ConnectedEmailAccount[]
   emailThreads                EmailThread[]
   emailMessages               EmailMessage[]
-  emailSenderCategoryMemories EmailSenderCategoryMemory[]
   knowledgeSources       AiKnowledgeSource[]
   responderRules         AiResponderRule[]
   styleExamples          AiStyleExample[]
@@ -1050,8 +1048,6 @@ model ConnectedEmailAccount {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   connector                   User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   threads                     EmailThread[]
-  emailSenderCategoryMemories EmailSenderCategoryMemory[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1066,6 +1062,13 @@ enum EmailThreadCategory {
   STRATA
   TENANT_INQUIRY
   UNCATEGORIZED
+}
+
+enum EmailThreadCategoryAssignmentSource {
+  RULE
+  AI
+  MANUAL
+  APPROVED_RULE
 }
 
 model EmailThread {
@@ -1091,10 +1094,11 @@ model EmailThread {
   /// Future: correlate to Core / Maintenance / etc. without tangling domains in code.
   contextLinks Json?
 
-  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  connectedAccount ConnectedEmailAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
-  messages         EmailMessage[]
-  drafts           AiDraftResponse[]
+  organization        Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectedAccount    ConnectedEmailAccount           @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+  messages            EmailMessage[]
+  drafts              AiDraftResponse[]
+  categoryAssignments EmailThreadCategoryAssignment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1104,29 +1108,20 @@ model EmailThread {
   @@index([organizationId, category, lastMessageAt])
 }
 
-/// Remembers which inbox crate a sender usually belongs to (per org + mailbox).
-model EmailSenderCategoryMemory {
-  id                 String              @id @default(cuid())
-  organizationId     String
-  connectedAccountId String
-  senderEmail        String
-  senderName         String?
-  category           EmailThreadCategory
-  contextNote        String?             @db.Text
-  source             String
-  createdByUserId    String?
-  lastMatchedAt      DateTime?
-  matchCount         Int                 @default(0)
+/// Multi-label inbox crate assignments for a thread.
+model EmailThreadCategoryAssignment {
+  id         String                              @id @default(cuid())
+  threadId   String
+  category   EmailThreadCategory
+  source     EmailThreadCategoryAssignmentSource
+  reason     String?                             @db.Text
+  assignedAt DateTime                            @default(now())
 
-  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  connectedAccount ConnectedEmailAccount @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
-  createdBy        User?                 @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  thread EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([organizationId, connectedAccountId, senderEmail])
-  @@index([organizationId, connectedAccountId])
+  @@unique([threadId, category])
+  @@index([threadId])
+  @@index([category, assignedAt])
 }
 
 model EmailMessage {

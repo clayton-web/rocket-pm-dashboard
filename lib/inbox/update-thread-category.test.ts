@@ -6,23 +6,29 @@ import { updateEmailThreadCategory } from "./update-thread-category";
 const THREAD_ID = "thread_test";
 const ORG_ID = "org_test";
 
-type UpdateCall = {
-  where: { id: string };
-  data: Record<string, unknown>;
-};
-
 describe("update-thread-category", () => {
-  it("clears classification metadata when manually reclassifying from any prior crate", async () => {
-    const updates: UpdateCall[] = [];
+  it("replaces assignments when manually reclassifying", async () => {
+    let manualReplaceCalled = false;
 
     const originalFindFirst = prisma.emailThread.findFirst;
+    const originalTransaction = prisma.$transaction;
     const originalUpdate = prisma.emailThread.update;
 
     prisma.emailThread.findFirst = (async () => ({ id: THREAD_ID })) as typeof originalFindFirst;
-    prisma.emailThread.update = (async (args: UpdateCall) => {
-      updates.push(args);
-      return { id: THREAD_ID };
-    }) as typeof originalUpdate;
+    prisma.$transaction = (async (callback) => {
+      manualReplaceCalled = true;
+      return callback({
+        emailThreadCategoryAssignment: {
+          deleteMany: async () => ({ count: 1 }),
+          create: async () => ({ id: "assignment_1" }),
+          findMany: async () => [{ category: "STRATA", source: "MANUAL", reason: null, assignedAt: new Date() }],
+        },
+        emailThread: {
+          update: async () => ({ id: THREAD_ID }),
+        },
+      });
+    }) as typeof originalTransaction;
+    prisma.emailThread.update = originalUpdate;
 
     try {
       const result = await updateEmailThreadCategory({
@@ -33,44 +39,10 @@ describe("update-thread-category", () => {
       });
 
       assert.equal(result.ok, true);
-      assert.equal(updates.length, 1);
-      assert.equal(updates[0]?.data.category, "STRATA");
-      assert.equal(updates[0]?.data.categorySource, "manual");
-      assert.equal(updates[0]?.data.categoryConfidence, null);
-      assert.equal(updates[0]?.data.categoryAiReason, null);
-      assert.equal(updates[0]?.data.lastClassificationAttemptAt, null);
+      assert.equal(manualReplaceCalled, true);
     } finally {
       prisma.emailThread.findFirst = originalFindFirst;
-      prisma.emailThread.update = originalUpdate;
-    }
-  });
-
-  it("does not clear classification metadata for non-manual updates", async () => {
-    const updates: UpdateCall[] = [];
-
-    const originalFindFirst = prisma.emailThread.findFirst;
-    const originalUpdate = prisma.emailThread.update;
-
-    prisma.emailThread.findFirst = (async () => ({ id: THREAD_ID })) as typeof originalFindFirst;
-    prisma.emailThread.update = (async (args: UpdateCall) => {
-      updates.push(args);
-      return { id: THREAD_ID };
-    }) as typeof originalUpdate;
-
-    try {
-      const result = await updateEmailThreadCategory({
-        threadId: THREAD_ID,
-        organizationId: ORG_ID,
-        category: "STRATA",
-        categorySource: "ai",
-      });
-
-      assert.equal(result.ok, true);
-      assert.equal(updates[0]?.data.categoryConfidence, undefined);
-      assert.equal(updates[0]?.data.categoryAiReason, undefined);
-      assert.equal(updates[0]?.data.lastClassificationAttemptAt, undefined);
-    } finally {
-      prisma.emailThread.findFirst = originalFindFirst;
+      prisma.$transaction = originalTransaction;
       prisma.emailThread.update = originalUpdate;
     }
   });

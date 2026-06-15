@@ -35,7 +35,7 @@ export const EMAIL_THREAD_CATEGORY_DESCRIPTIONS: Record<EmailThreadCategory, str
 
 export const ALL_INBOX_CRATE_LABEL = "All Inbox";
 
-export type EmailThreadCategorySource = "manual" | "ai" | "rule";
+export type EmailThreadCategorySource = "manual" | "ai" | "rule" | "approved_rule";
 
 const CATEGORY_SET = new Set<string>(INBOX_CRATE_ORDER);
 
@@ -56,8 +56,9 @@ export function filterRowsByCrate(
   if (crate === ALL_INBOX_CRATE) {
     return [...rows].sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
   }
+
   return rows
-    .filter((row) => row.category === crate)
+    .filter((row) => row.categories.includes(crate))
     .sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
 }
 
@@ -76,12 +77,35 @@ export function computeCrateCounts(rows: InboxThreadDisplayRow[]): InboxCrateCou
   };
 
   for (const row of rows) {
-    counts[row.category] += 1;
+    for (const category of row.categories) {
+      counts[category] += 1;
+    }
   }
 
   return counts;
 }
 
+export function mapAssignmentGroupByToCrateCounts(
+  groups: ReadonlyArray<{ category: EmailThreadCategory; _count: { _all: number } }>,
+  totalThreads: number,
+): InboxCrateCounts {
+  const counts: InboxCrateCounts = {
+    LANDLORD_COMMUNICATION: 0,
+    TENANT_COMMUNICATION: 0,
+    STRATA: 0,
+    TENANT_INQUIRY: 0,
+    UNCATEGORIZED: 0,
+    all: totalThreads,
+  };
+
+  for (const group of groups) {
+    counts[group.category] = group._count._all;
+  }
+
+  return counts;
+}
+
+/** @deprecated Use mapAssignmentGroupByToCrateCounts for overlapping crate counts. */
 export function mapGroupByToCrateCounts(
   groups: ReadonlyArray<{ category: EmailThreadCategory; _count: { _all: number } }>,
 ): InboxCrateCounts {

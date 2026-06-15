@@ -17,6 +17,7 @@ const baseThread: InboxThreadRecord = {
   categoryConfidence: 0.42,
   categoryAiReason: "Low confidence: could be tenant or strata.",
   lastClassificationAttemptAt: new Date("2026-06-09T13:00:00.000Z"),
+  categoryAssignments: [],
 };
 
 describe("inbox-thread-display", () => {
@@ -31,30 +32,27 @@ describe("inbox-thread-display", () => {
     assert.equal(rows.length, 1);
     assert.equal(rows[0]?.needsClassificationReview, true);
     assert.deepEqual(rows[0]?.badges, ["classification_review"]);
-    assert.equal(rows[0]?.categoryConfidence, 0.42);
-    assert.equal(rows[0]?.categoryAiReason, "Low confidence: could be tenant or strata.");
+    assert.deepEqual(rows[0]?.categories, ["UNCATEGORIZED"]);
   });
 
-  it("prefers draft review badge over classification review badge", async () => {
+  it("exposes multiple category chips from assignments", async () => {
     const rows = await buildInboxThreadDisplayRows(
       "org_test",
-      [baseThread],
+      [
+        {
+          ...baseThread,
+          category: "TENANT_COMMUNICATION",
+          categoryAssignments: [
+            { category: "TENANT_COMMUNICATION", source: "RULE", reason: "Tenant match", assignedAt: new Date() },
+            { category: "STRATA", source: "RULE", reason: "BCS1234", assignedAt: new Date() },
+          ],
+        },
+      ],
       new Map<string, LatestMessageSnapshot>(),
-      new Map<string, LatestDraftSnapshot>([
-        [
-          baseThread.id,
-          {
-            id: "draft_1",
-            classification: { review_required: true },
-            createdAt: new Date("2026-06-09T14:00:00.000Z"),
-            reviewRequired: true,
-          },
-        ],
-      ]),
+      new Map<string, LatestDraftSnapshot>(),
     );
 
-    assert.deepEqual(rows[0]?.badges, ["review_required"]);
-    assert.equal(rows[0]?.needsClassificationReview, true);
+    assert.deepEqual(rows[0]?.categories, ["TENANT_COMMUNICATION", "STRATA"]);
   });
 
   it("does not flag manual uncategorized threads for classification review", async () => {
@@ -64,6 +62,7 @@ describe("inbox-thread-display", () => {
         {
           ...baseThread,
           categorySource: "manual",
+          categoryAssignments: [{ category: "STRATA", source: "MANUAL", reason: null, assignedAt: new Date() }],
         },
       ],
       new Map<string, LatestMessageSnapshot>(),

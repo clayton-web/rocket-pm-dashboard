@@ -44,6 +44,22 @@ describe("uncategorizedNonManualThreadWhere", () => {
       organizationId: "org_1",
       category: "UNCATEGORIZED",
       OR: [{ categorySource: null }, { categorySource: { not: "manual" } }],
+      NOT: {
+        categoryAssignments: {
+          some: { source: "MANUAL" },
+        },
+      },
+      AND: [
+        {
+          NOT: {
+            categoryAssignments: {
+              some: {
+                category: { not: "UNCATEGORIZED" },
+              },
+            },
+          },
+        },
+      ],
     });
   });
 });
