@@ -3,6 +3,7 @@ import { PropertyDetail, type PropertyDetailData } from "@/components/properties
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
 import { safeResolvePropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
+import { loadPropertyDocumentsForStaff } from "@/lib/property/property-documents-staff";
 import { propertyProfileFromRecord } from "@/lib/property/profile";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
 import { getPropertyById } from "@/lib/services/property.service";
@@ -48,6 +49,14 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       listUnitsForProperty(prisma, ctx, propertyId),
     ]);
 
+    let documents = null;
+    let documentsLoadError: string | null = null;
+    try {
+      documents = await loadPropertyDocumentsForStaff(prisma, ctx, propertyId);
+    } catch (e) {
+      documentsLoadError = e instanceof Error ? e.message : "Could not load documents.";
+    }
+
     const detail: PropertyDetailData = {
       id: property.id,
       name: property.name,
@@ -69,6 +78,8 @@ export default async function PropertyDetailPage({ params }: PageProps) {
         bedrooms: unit.bedrooms,
         isActive: unit.isActive,
       })),
+      documents,
+      documentsLoadError,
     };
 
     const canManageProperty = canManagePropertyUnits(ctx, propertyId);

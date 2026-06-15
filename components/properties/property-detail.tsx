@@ -1,6 +1,7 @@
 "use client";
 
 import { createUnitAction, hardDeletePropertyAction, updatePropertyOwnerStrataAction, updatePropertyProfileAction } from "@/app/(dashboard)/properties/actions";
+import { PropertyDocumentsSection } from "@/components/properties/property-documents-section";
 import {
   FormField,
   FormSection,
@@ -21,6 +22,7 @@ import {
   type PropertyProfileFields,
 } from "@/lib/property/profile";
 import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
+import type { PropertyDocumentsPageData } from "@/lib/property/property-documents-staff";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -57,6 +59,8 @@ export type PropertyDetailData = {
   strataNotes: string | null;
   profile: PropertyProfileFields;
   units: PropertyDetailUnit[];
+  documents: PropertyDocumentsPageData | null;
+  documentsLoadError: string | null;
 };
 
 function formatProfileSummary(profile: PropertyProfileFields): string {
@@ -627,6 +631,13 @@ function PropertyDetailBody({
         ownerPhone={detail.ownerPhone}
         strataNotes={detail.strataNotes}
         canEdit={canAddUnit}
+      />
+
+      <PropertyDocumentsSection
+        propertyId={detail.id}
+        data={detail.documents}
+        canEdit={canAddUnit}
+        loadError={detail.documentsLoadError}
       />
 
       {marketRentResearch && onlyDefaultUnit && entirePropertyUnit

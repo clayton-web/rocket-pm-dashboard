@@ -47,6 +47,21 @@ describe("normalizeDocumentStorageKey", () => {
   });
 });
 
+describe("buildPropertyDocumentStorageKey", () => {
+  it("builds org/property scoped storage keys", async () => {
+    const { buildPropertyDocumentStorageKey } = await import("@/lib/storage/document-storage-keys");
+    assert.equal(
+      buildPropertyDocumentStorageKey({
+        organizationId: "org_1",
+        propertyId: "prop_1",
+        documentId: "doc_1",
+        fileName: "Strata Rules.pdf",
+      }),
+      "org/org_1/property/prop_1/documents/doc_1-Strata-Rules.pdf",
+    );
+  });
+});
+
 describe("createLocalDocumentStorage", () => {
   it("writes and reads bytes round-trip", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "rocket-pm-docs-"));
