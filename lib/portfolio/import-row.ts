@@ -168,3 +168,17 @@ export function portfolioImportPlaceholderDate(): Date {
   d.setUTCHours(12, 0, 0, 0);
   return d;
 }
+
+/** Heuristic for dates written by portfolio CSV import (1st of month, UTC noon, at least one year ago). */
+export function isPortfolioImportPlaceholderDate(date: Date | null | undefined): boolean {
+  if (!date) return false;
+  const now = new Date();
+  return (
+    date.getUTCDate() === 1 &&
+    date.getUTCHours() === 12 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0 &&
+    date.getUTCFullYear() <= now.getUTCFullYear() - 1
+  );
+}

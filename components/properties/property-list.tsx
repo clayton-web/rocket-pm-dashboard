@@ -38,7 +38,11 @@ export function PropertyList({
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900">Properties</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Rental properties in your organization. Active properties with units appear on{" "}
+          Rental properties in your organization. Review completeness on{" "}
+          <Link href="/properties/health" className="font-medium underline">
+            Property Documents &amp; Health
+          </Link>
+          . Active properties with units appear on{" "}
           <Link href="/portal/viewing" className="font-medium underline">
             /portal/viewing
           </Link>{" "}

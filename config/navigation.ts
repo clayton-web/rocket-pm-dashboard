@@ -87,6 +87,15 @@ export const navigationItems: NavItem[] = [
     minimumRole: "ADMIN",
   },
   {
+    id: "nav-properties-health",
+    moduleId: "properties",
+    label: "Property health",
+    href: "/properties/health",
+    enabled: true,
+    section: "operations",
+    minimumRole: "ADMIN",
+  },
+  {
     id: "nav-leasing-dashboard",
     moduleId: "leasing",
     label: "Leasing",
