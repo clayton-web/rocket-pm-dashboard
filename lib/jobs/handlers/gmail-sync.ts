@@ -5,7 +5,7 @@ import {
   auditGmailSyncFailed,
   auditGmailSyncStarted,
 } from "@/lib/gmail/gmail-sync-audit";
-import { recordGmailSyncFailure, runGmailMailboxSync } from "@/lib/gmail/gmail-sync-core";
+import { recordGmailSyncFailure, runGmailMailboxSync, getSyncMaxThreadsForTriggerSource } from "@/lib/gmail/gmail-sync-core";
 import type { JobHandler } from "@/lib/jobs/handlers/types";
 import { getJobProcessorActorUserId } from "@/lib/jobs/policy";
 
@@ -37,15 +37,18 @@ export const handleGmailSync: JobHandler = async (ctx) => {
     );
   }
 
+  const maxResults = getSyncMaxThreadsForTriggerSource(ctx.job.triggerSource);
+
   await auditGmailSyncStarted({
     organizationId: ctx.job.organizationId,
     actorUserId,
     connectedAccountId: account.id,
     jobId: ctx.job.id,
+    maxThreads: maxResults,
   });
 
   try {
-    const result = await runGmailMailboxSync({ account });
+    const result = await runGmailMailboxSync({ account, maxResults });
 
     await auditGmailSyncCompleted({
       organizationId: ctx.job.organizationId,

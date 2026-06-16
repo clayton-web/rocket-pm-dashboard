@@ -16,6 +16,18 @@ export function getSyncMaxThreads(): number {
   return clampInt(raw, 1, 100);
 }
 
+export function getSyncUserMaxThreads(): number {
+  const raw = Number(process.env.GMAIL_SYNC_USER_MAX_THREADS ?? "5");
+  return clampInt(raw, 1, 100);
+}
+
+export function getSyncMaxThreadsForTriggerSource(triggerSource: string): number {
+  if (triggerSource === "USER") {
+    return getSyncUserMaxThreads();
+  }
+  return getSyncMaxThreads();
+}
+
 export function getSyncLabelIds(): string[] {
   const raw = process.env.GMAIL_SYNC_LABEL_IDS?.trim();
   if (!raw) {
@@ -49,11 +61,12 @@ export type GmailSyncResult = {
  */
 export async function runGmailMailboxSync(args: {
   account: ConnectedEmailAccount;
+  maxResults?: number;
 }): Promise<GmailSyncResult> {
   const { account } = args;
 
   const labelIds = getSyncLabelIds();
-  const maxResults = getSyncMaxThreads();
+  const maxResults = args.maxResults ?? getSyncMaxThreads();
 
   const listed = await gmailCallWithRetry(account.id, (token) =>
     listInboxThreads(token, { maxResults, labelIds }),

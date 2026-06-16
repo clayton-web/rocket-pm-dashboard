@@ -6,6 +6,10 @@ import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { enqueueGmailSyncJob } from "@/lib/gmail/enqueue-gmail-sync";
 import { restartGmailSyncJob } from "@/lib/gmail/restart-gmail-sync";
+import {
+  applyPromptSyncAfterEnqueue,
+  applyPromptSyncAfterRestart,
+} from "@/lib/gmail/trigger-sync-processing";
 import { assertCanUseMailbox } from "@/lib/gmail/sync-permissions";
 import { requireActiveOrganization } from "@/lib/org/active-organization";
 
@@ -49,6 +53,8 @@ export async function syncGmailMailboxAction(formData: FormData) {
       triggeredByUserId: session.user.id,
     });
 
+    applyPromptSyncAfterEnqueue(result);
+
     revalidatePath("/inbox");
     const query = result.alreadyQueued ? "sync=queued" : "sync=enqueued";
     redirect(`/inbox?mailbox=${encodeURIComponent(account.id)}&${query}`);
@@ -74,6 +80,8 @@ export async function restartGmailSyncAction(formData: FormData) {
       connectedAccountId: account.id,
       triggeredByUserId: session.user.id,
     });
+
+    applyPromptSyncAfterRestart(result);
 
     revalidatePath("/inbox");
 

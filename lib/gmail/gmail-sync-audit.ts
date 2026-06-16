@@ -31,6 +31,7 @@ export async function auditGmailSyncStarted(args: {
   actorUserId: string;
   connectedAccountId: string;
   jobId?: string;
+  maxThreads?: number;
 }): Promise<void> {
   await prisma.auditLog.create({
     data: {
@@ -41,7 +42,7 @@ export async function auditGmailSyncStarted(args: {
       resourceId: args.connectedAccountId,
       metadata: {
         labelIds: getSyncLabelIds(),
-        maxThreads: getSyncMaxThreads(),
+        maxThreads: args.maxThreads ?? getSyncMaxThreads(),
         ...(args.jobId ? { jobId: args.jobId } : {}),
       } satisfies AuditMetadata,
     },
