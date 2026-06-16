@@ -5,6 +5,7 @@ import type { LatestDraftSnapshot, LatestMessageSnapshot } from "@/lib/inbox/inb
 import {
   buildInboxThreadDisplayRows,
   deriveActionState,
+  deriveInboxRowMetaLine,
   derivePrimaryContextLabel,
   deriveStakeholderLabel,
 } from "./inbox-thread-display";
@@ -40,6 +41,8 @@ describe("inbox-thread-display", () => {
     assert.deepEqual(rows[0]?.categories, ["UNCATEGORIZED"]);
     assert.equal(rows[0]?.stakeholderLabel, "Unsorted");
     assert.equal(rows[0]?.primaryContextLabel, "Unsorted · Unlinked");
+    assert.equal(rows[0]?.senderLabel, "strata@example.com");
+    assert.equal(rows[0]?.metaLine, "Unlinked · Review");
   });
 
   it("exposes multiple category chips from assignments", async () => {
@@ -156,5 +159,45 @@ describe("inbox-thread-display", () => {
 
     assert.equal(rows[0]?.needsReply, true);
     assert.equal(rows[0]?.actionState, "reply_needed");
+  });
+
+  it("derives meta line with action and PM context", () => {
+    assert.equal(
+      deriveInboxRowMetaLine({
+        actionState: "reply_needed",
+        stakeholderLabel: "Tenant",
+        primaryContextLabel: "Oak Tower · Unit 4B",
+        subject: "Leak report",
+        unlinked: false,
+        badges: [],
+      }),
+      "Reply needed · Oak Tower · Unit 4B",
+    );
+  });
+
+  it("avoids redundant stakeholder label for unlinked threads", () => {
+    assert.equal(
+      deriveInboxRowMetaLine({
+        actionState: "new_reply_needed",
+        stakeholderLabel: "Unsorted",
+        primaryContextLabel: "Unsorted · Unlinked",
+        subject: "Strata notice",
+        unlinked: true,
+        badges: [],
+      }),
+      "New reply needed · Unlinked",
+    );
+  });
+
+  it("derives sender label from participant emails when inbound sender is missing", async () => {
+    const rows = await buildInboxThreadDisplayRows(
+      "org_test",
+      [baseThread],
+      new Map<string, LatestMessageSnapshot>(),
+      new Map<string, LatestDraftSnapshot>(),
+    );
+
+    assert.equal(rows[0]?.senderLabel, "strata@example.com");
+    assert.equal(rows[0]?.senderEmail, "strata@example.com");
   });
 });

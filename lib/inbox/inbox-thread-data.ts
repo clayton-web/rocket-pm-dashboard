@@ -54,6 +54,8 @@ export type LatestMessageSnapshot = {
   isOutbound: boolean;
   isUnread: boolean;
   sentAt: Date;
+  fromAddr: string;
+  latestInboundFromAddr: string | null;
 };
 
 export type LatestDraftSnapshot = {
@@ -204,16 +206,25 @@ export async function loadLatestMessagesByThreadId(
       isOutbound: true,
       isUnread: true,
       sentAt: true,
+      fromAddr: true,
     },
   });
 
   for (const message of messages) {
-    if (!map.has(message.threadId)) {
+    const existing = map.get(message.threadId);
+    if (!existing) {
       map.set(message.threadId, {
         isOutbound: message.isOutbound,
         isUnread: message.isUnread,
         sentAt: message.sentAt,
+        fromAddr: message.fromAddr,
+        latestInboundFromAddr: message.isOutbound ? null : message.fromAddr,
       });
+      continue;
+    }
+
+    if (!message.isOutbound && existing.latestInboundFromAddr === null) {
+      existing.latestInboundFromAddr = message.fromAddr;
     }
   }
 

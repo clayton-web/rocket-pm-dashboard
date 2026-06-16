@@ -1,5 +1,6 @@
 import { isPmContextLink, parseEmailThreadContextLinks, type PmContextLink } from "@/lib/ai/email-context-links";
 import { isClassificationReviewThread } from "@/lib/inbox/classification-review";
+import { deriveInboxSenderDisplay } from "@/lib/inbox/extract-thread-sender";
 import type { EmailThreadCategory } from "@prisma/client";
 import type { LatestDraftSnapshot, LatestMessageSnapshot, InboxThreadRecord } from "@/lib/inbox/inbox-thread-data";
 import { getEffectiveCategories, getPrimaryStakeholderCategory, STAKEHOLDER_SHORT_LABELS } from "@/lib/inbox/thread-category-assignments";
@@ -45,6 +46,9 @@ export type InboxThreadDisplayRow = {
   actionState: InboxThreadActionState;
   stakeholderLabel: string;
   primaryContextLabel: string;
+  senderLabel: string;
+  senderEmail: string | null;
+  metaLine: string | null;
 };
 
 function chipPrefix(kind: PmContextLink["kind"]): string {
@@ -122,6 +126,53 @@ export function deriveStakeholderLabel(categories: EmailThreadCategory[]): strin
   return STAKEHOLDER_SHORT_LABELS[primary];
 }
 
+function inboxActionStateLabel(state: InboxThreadActionState): string | null {
+  if (state === "draft_review") return "Draft review";
+  if (state === "new_reply_needed") return "New reply needed";
+  if (state === "reply_needed") return "Reply needed";
+  return null;
+}
+
+function inboxBadgeLabel(badge: InboxThreadBadge): string | null {
+  if (badge === "review_required") return "Draft review";
+  if (badge === "classification_review") return "Review";
+  if (badge === "draft_ready") return "Draft ready";
+  return null;
+}
+
+export function deriveInboxRowMetaLine(args: {
+  actionState: InboxThreadActionState;
+  stakeholderLabel: string;
+  primaryContextLabel: string;
+  subject: string | null;
+  unlinked: boolean;
+  badges: InboxThreadBadge[];
+}): string | null {
+  const parts: string[] = [];
+  const trimmedSubject = args.subject?.trim() ?? "";
+
+  const actionLabel = inboxActionStateLabel(args.actionState);
+  if (actionLabel) parts.push(actionLabel);
+
+  if (args.unlinked) {
+    parts.push("Unlinked");
+  } else {
+    const contextLabel =
+      args.primaryContextLabel !== trimmedSubject
+        ? args.primaryContextLabel
+        : args.stakeholderLabel;
+    if (contextLabel) parts.push(contextLabel);
+  }
+
+  for (const badge of args.badges) {
+    if (badge === "review_required" && args.actionState === "draft_review") continue;
+    const label = inboxBadgeLabel(badge);
+    if (label && !parts.includes(label)) parts.push(label);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export async function buildInboxThreadDisplayRows(
   organizationId: string,
   threads: InboxThreadRecord[],
@@ -163,6 +214,18 @@ export async function buildInboxThreadDisplayRows(
       subject: thread.subject,
       unlinked,
     });
+    const sender = deriveInboxSenderDisplay({
+      latestInboundFromAddr: latest?.latestInboundFromAddr ?? null,
+      participantEmails: thread.participantEmails,
+    });
+    const metaLine = deriveInboxRowMetaLine({
+      actionState,
+      stakeholderLabel,
+      primaryContextLabel,
+      subject: thread.subject,
+      unlinked,
+      badges: buildBadges(reviewRequired, needsClassificationReview, draft != null),
+    });
 
     return {
       id: thread.id,
@@ -189,6 +252,9 @@ export async function buildInboxThreadDisplayRows(
       actionState,
       stakeholderLabel,
       primaryContextLabel,
+      senderLabel: sender.senderLabel,
+      senderEmail: sender.senderEmail,
+      metaLine,
     };
   });
 }
