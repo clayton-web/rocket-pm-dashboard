@@ -24,6 +24,7 @@ Postgres-backed background jobs for Gmail sync and future email triage/draft age
 | `JOB_PROCESSOR_SECRET` or `CRON_SECRET` | Production (processor) | Bearer token or `x-cron-secret` header |
 | `JOB_PROCESSOR_ACTOR_USER_ID` | When cron drains without `triggeredByUserId` | Valid `User.id` for `AuditLog` |
 | `AGENT_AUTOMATION_ENABLED` | No (default off) | Must be `true` before any `agent.*` job type is allowed |
+| `BRIEFING_AUTOMATION_ENABLED` | No (default off) | Must be `true` before any `briefing.*` job type is allowed |
 | `GMAIL_SYNC_OVERDUE_HOURS` | No (default 24) | Inbox freshness "Sync overdue" threshold |
 
 See `.env.example` for templates.
@@ -32,6 +33,8 @@ See `.env.example` for templates.
 
 - `system.noop` — framework health check; no side effects
 - `gmail.sync` — pulls recent Gmail threads into the dashboard (production workload)
+- `briefing.schedule` — fan-out: eligible orgs → optional Gmail sync → enqueue `briefing.generate` (requires `BRIEFING_AUTOMATION_ENABLED`)
+- `briefing.generate` — EMAIL-only Daily Briefing pipeline (requires `BRIEFING_AUTOMATION_ENABLED`)
 
 Blocked until a later phase (even if `AGENT_AUTOMATION_ENABLED=true`):
 
@@ -76,6 +79,19 @@ If neither secret is configured, the route returns `503`. Unauthorized requests 
 > **Hobby plan:** Vercel limits cron to once per day; use a daily schedule (e.g. `0 * * * *`) or upgrade for 5-minute intervals.
 
 An empty queue is cheap; cron only drains work that was explicitly enqueued.
+
+## Daily Briefing schedule (external cron)
+
+Vercel Hobby allows only one cron per day; this repo uses it for job draining. Twice-daily briefing uses an external scheduler calling:
+
+```bash
+curl -X POST "$APP_PUBLIC_URL/api/internal/briefing/schedule?slot=MORNING" \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+Suggested UTC times during PDT: **14:00** (morning Vancouver 07:00), **21:00** (afternoon Vancouver 14:00). Then drain via `POST /api/internal/jobs/process`.
+
+Details: [daily-briefing-integration-plan.md](./daily-briefing-integration-plan.md), [daily-briefing-smoke-test.md](./daily-briefing-smoke-test.md).
 
 ## Future agent plug-in (Phase 3+)
 

@@ -43,6 +43,14 @@ describe("job policy", () => {
     );
   });
 
+  it("blocks briefing.generate when briefing automation is disabled", () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "false";
+    assert.throws(
+      () => assertJobTypeAllowedForPhase(JOB_TYPES.BRIEFING_GENERATE),
+      /BRIEFING_AUTOMATION_ENABLED/,
+    );
+  });
+
   it("verifies Bearer processor secret", () => {
     process.env.JOB_PROCESSOR_SECRET = "test-secret";
     const req = new Request("http://localhost/api/internal/jobs/process", {
@@ -102,5 +110,22 @@ describe("job policy — agent automation enabled", () => {
       () => assertJobTypeAllowedForPhase(JOB_TYPES.AGENT_DRAFT_GENERATE),
       /not enabled/,
     );
+  });
+});
+
+describe("job policy — briefing automation enabled", () => {
+  const prevBriefing = process.env.BRIEFING_AUTOMATION_ENABLED;
+
+  beforeEach(() => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+  });
+
+  afterEach(() => {
+    if (prevBriefing === undefined) delete process.env.BRIEFING_AUTOMATION_ENABLED;
+    else process.env.BRIEFING_AUTOMATION_ENABLED = prevBriefing;
+  });
+
+  it("allows briefing.generate when briefing automation is enabled", () => {
+    assert.doesNotThrow(() => assertJobTypeAllowedForPhase(JOB_TYPES.BRIEFING_GENERATE));
   });
 });

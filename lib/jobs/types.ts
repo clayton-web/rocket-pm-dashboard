@@ -8,6 +8,8 @@ export const JOB_TYPES = {
   GMAIL_SYNC: "gmail.sync",
   AGENT_TRIAGE: "agent.triage",
   AGENT_DRAFT_GENERATE: "agent.draft.generate",
+  BRIEFING_SCHEDULE: "briefing.schedule",
+  BRIEFING_GENERATE: "briefing.generate",
 } as const;
 
 export type JobType = (typeof JOB_TYPES)[keyof typeof JOB_TYPES];
@@ -22,7 +24,13 @@ export const PHASE1_ALLOWED_JOB_TYPES: ReadonlySet<string> = new Set([
   JOB_TYPES.SYSTEM_NOOP,
   JOB_TYPES.GMAIL_SYNC,
   JOB_TYPES.AGENT_TRIAGE,
+  JOB_TYPES.BRIEFING_SCHEDULE,
+  JOB_TYPES.BRIEFING_GENERATE,
 ]);
+
+export function isBriefingJobType(jobType: string): boolean {
+  return jobType.startsWith("briefing.");
+}
 
 export function isAgentJobType(jobType: string): boolean {
   return jobType.startsWith("agent.");

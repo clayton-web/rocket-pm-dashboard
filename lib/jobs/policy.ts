@@ -1,4 +1,8 @@
-import { isAgentJobType, PHASE1_ALLOWED_JOB_TYPES } from "@/lib/jobs/types";
+import {
+  isAgentJobType,
+  isBriefingJobType,
+  PHASE1_ALLOWED_JOB_TYPES,
+} from "@/lib/jobs/types";
 
 /**
  * When false (default), agent.* jobs cannot be enqueued or processed.
@@ -9,10 +13,24 @@ export function isAgentAutomationEnabled(): boolean {
   return raw === "true" || raw === "1";
 }
 
+/**
+ * When false (default), briefing.* jobs cannot be enqueued or processed.
+ */
+export function isBriefingAutomationEnabled(): boolean {
+  const raw = process.env.BRIEFING_AUTOMATION_ENABLED?.trim().toLowerCase();
+  return raw === "true" || raw === "1";
+}
+
 export function assertJobTypeAllowedForPhase(jobType: string): void {
   if (isAgentJobType(jobType) && !isAgentAutomationEnabled()) {
     throw new Error(
       `Job type "${jobType}" is blocked: AGENT_AUTOMATION_ENABLED is not true.`,
+    );
+  }
+
+  if (isBriefingJobType(jobType) && !isBriefingAutomationEnabled()) {
+    throw new Error(
+      `Job type "${jobType}" is blocked: BRIEFING_AUTOMATION_ENABLED is not true.`,
     );
   }
 

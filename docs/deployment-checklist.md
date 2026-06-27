@@ -114,6 +114,22 @@ Route: `POST /api/internal/jobs/process` (session bypass; Bearer secret required
 
 Details: [agent-job-framework.md](./agent-job-framework.md).
 
+## Daily Briefing MVP
+
+| Variable | When required |
+|----------|----------------|
+| `BRIEFING_AUTOMATION_ENABLED` | `true` to enable `briefing.schedule` / `briefing.generate` |
+| `GEMINI_API_KEY` | Briefing generation |
+| `EMAIL_ENABLED`, `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_PUBLIC_URL` | Staff briefing email delivery |
+| `JOB_PROCESSOR_SECRET` or `CRON_SECRET` | Manual drain + external briefing schedule cron |
+| `JOB_PROCESSOR_ACTOR_USER_ID` | Audit actor for cron-triggered briefing jobs |
+
+Per-org: enable via **`/briefing/settings`** (disabled by default). Do not enable production orgs until smoke test passes.
+
+External schedule cron: `POST /api/internal/briefing/schedule?slot=MORNING|AFTERNOON` (see [daily-briefing-integration-plan.md](./daily-briefing-integration-plan.md#14-mvp-operations-runbook)). Vercel Hobby does not support twice-daily crons — use GitHub Actions or similar.
+
+Smoke test: [daily-briefing-smoke-test.md](./daily-briefing-smoke-test.md).
+
 ## Related docs
 
 - [Agent job framework](./agent-job-framework.md)

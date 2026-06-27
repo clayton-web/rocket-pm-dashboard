@@ -4,10 +4,12 @@ import { listRegisteredJobTypes } from "@/lib/jobs/handlers/registry";
 import { JOB_TYPES } from "@/lib/jobs/types";
 
 describe("job handler registry", () => {
-  it("registers gmail.sync and agent.triage handlers", () => {
+  it("registers gmail.sync, agent.triage, and briefing handlers", () => {
     const types = listRegisteredJobTypes();
     assert.ok(types.includes(JOB_TYPES.GMAIL_SYNC));
     assert.ok(types.includes(JOB_TYPES.SYSTEM_NOOP));
     assert.ok(types.includes(JOB_TYPES.AGENT_TRIAGE));
+    assert.ok(types.includes(JOB_TYPES.BRIEFING_SCHEDULE));
+    assert.ok(types.includes(JOB_TYPES.BRIEFING_GENERATE));
   });
 });
