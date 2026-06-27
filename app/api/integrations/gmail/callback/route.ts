@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { buildAbsoluteAppUrl } from "@/lib/app-path";
 import prisma from "@/lib/db/prisma";
-import { getAppBaseUrl } from "@/lib/gmail/app-base-url";
 import { fetchGmailProfile } from "@/lib/gmail/gmail-profile";
 import { exchangeAuthorizationCode } from "@/lib/gmail/google-oauth";
 import { verifyGmailOAuthState } from "@/lib/gmail/oauth-state";
@@ -10,7 +10,7 @@ import { upsertConnectedGmailAccountFromOAuth } from "@/lib/gmail/persist-connec
 import { requireOrgAccess } from "@/lib/permissions/require-org-access";
 
 function redirectToEmail(searchParams: Record<string, string>) {
-  const url = new URL("/email", getAppBaseUrl());
+  const url = buildAbsoluteAppUrl("/email");
   for (const [key, value] of Object.entries(searchParams)) {
     url.searchParams.set(key, value);
   }
@@ -20,7 +20,7 @@ function redirectToEmail(searchParams: Record<string, string>) {
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.redirect(new URL("/login", getAppBaseUrl()));
+    return NextResponse.redirect(buildAbsoluteAppUrl("/login"));
   }
 
   const params = request.nextUrl.searchParams;

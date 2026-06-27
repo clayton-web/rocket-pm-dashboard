@@ -9,6 +9,7 @@ import {
 import type { MaintenanceTriageUrgency, MaintenanceWorkflowStatus } from "@/components/maintenance/types";
 import { InlineNotice } from "@/components/portal/ui";
 import { splitTriageSummaryForDisplay } from "@/lib/maintenance/split-triage";
+import { withBasePath } from "@/lib/app-path";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -66,7 +67,7 @@ export default function MaintenanceDetailPage() {
     setLoading(true);
     setError(null);
 
-    fetch(`/api/maintenance/${requestId}`)
+    fetch(withBasePath(`/api/maintenance/${requestId}`))
       .then(async (res) => {
         const payload: unknown = await res.json().catch(() => ({}));
         if (cancelled) return;
@@ -104,7 +105,7 @@ export default function MaintenanceDetailPage() {
       setActionError(null);
       setPatching(true);
       try {
-        const res = await fetch(`/api/maintenance/${requestId}`, {
+        const res = await fetch(withBasePath(`/api/maintenance/${requestId}`), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),

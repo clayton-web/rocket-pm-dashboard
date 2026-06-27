@@ -8,6 +8,7 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { PortalBackLink } from "@/components/portal/portal-nav";
+import { withBasePath } from "@/lib/app-path";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -53,7 +54,7 @@ export default function MaintenanceStatusPage() {
           setResult(null);
           setLoading(true);
           try {
-            const res = await fetch("/api/portal/maintenance/lookup", {
+            const res = await fetch(withBasePath("/api/portal/maintenance/lookup"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ requestId: requestId.trim(), email: email.trim() }),

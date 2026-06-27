@@ -1,3 +1,4 @@
+import { stripBasePath, withBasePath } from "@/lib/app-path";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
@@ -27,7 +28,7 @@ function isPublicLeasingApi(req: NextRequest): boolean {
 }
 
 export async function middleware(req: NextRequest) {
-  const pathname = req.nextUrl.pathname;
+  const pathname = stripBasePath(req.nextUrl.pathname);
   const isLogin = pathname.startsWith("/login");
   const isAuthApi = pathname.startsWith("/api/auth");
   const isHealth = pathname === "/api/health";
@@ -62,14 +63,14 @@ export async function middleware(req: NextRequest) {
 
   if (!token && !isLogin) {
     const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("callbackUrl", pathname);
+    url.pathname = withBasePath("/login");
+    url.searchParams.set("callbackUrl", withBasePath(pathname));
     return NextResponse.redirect(url);
   }
 
   if (token && isLogin) {
     const url = req.nextUrl.clone();
-    url.pathname = "/inbox";
+    url.pathname = withBasePath("/inbox");
     url.searchParams.delete("callbackUrl");
     return NextResponse.redirect(url);
   }

@@ -10,6 +10,7 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { PortalBackLink } from "@/components/portal/portal-nav";
+import { withBasePath } from "@/lib/app-path";
 import type { PublicProspectPrefillFields } from "@/lib/leasing/prospect-prefill";
 import { parseCreatedApplicationId } from "@/lib/validation/application";
 import Link from "next/link";
@@ -129,7 +130,7 @@ export default function RentalApplicationPage() {
   }, [step, selectedPropertyId, selectedUnitId, email, lookupContextKey, clearProspectMatch]);
 
   useEffect(() => {
-    fetch("/api/leasing/submit-options")
+    fetch(withBasePath("/api/leasing/submit-options"))
       .then(async (res) => {
         const payload: unknown = await res.json().catch(() => []);
         if (!res.ok || !Array.isArray(payload)) {
@@ -173,7 +174,7 @@ export default function RentalApplicationPage() {
         unitId: selectedUnitId,
         email: trimmedEmail,
       });
-      const res = await fetch(`/api/leasing/prospect-prefill?${params.toString()}`);
+      const res = await fetch(withBasePath(`/api/leasing/prospect-prefill?${params.toString()}`));
       const body: unknown = await res.json().catch(() => ({}));
       if (!res.ok) {
         setLookupError(apiErrorMessage(body, "Could not look up your information. Try again."));
@@ -237,7 +238,7 @@ export default function RentalApplicationPage() {
 
       setLoading(true);
       try {
-        const startRes = await fetch("/api/leasing/application", {
+        const startRes = await fetch(withBasePath("/api/leasing/application"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -265,7 +266,7 @@ export default function RentalApplicationPage() {
         const income = monthlyIncome.trim() ? Number(monthlyIncome) : NaN;
         const occupants = Number(occupantCount);
 
-        const patchRes = await fetch(`/api/leasing/application/${applicationId}`, {
+        const patchRes = await fetch(withBasePath(`/api/leasing/application/${applicationId}`), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -295,7 +296,7 @@ export default function RentalApplicationPage() {
           return;
         }
 
-        const submitRes = await fetch(`/api/leasing/application/${applicationId}/submit`, {
+        const submitRes = await fetch(withBasePath(`/api/leasing/application/${applicationId}/submit`), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

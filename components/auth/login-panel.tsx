@@ -1,5 +1,6 @@
 "use client";
 
+import { withBasePath } from "@/lib/app-path";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 
@@ -18,7 +19,7 @@ export function LoginPanel({ googleEnabled }: { googleEnabled: boolean }) {
         <button
           type="button"
           className="mt-6 w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-          onClick={() => signIn("google", { callbackUrl: "/inbox" })}
+          onClick={() => signIn("google", { callbackUrl: withBasePath("/inbox") })}
         >
           Continue with Google
         </button>
@@ -32,14 +33,14 @@ export function LoginPanel({ googleEnabled }: { googleEnabled: boolean }) {
           const result = await signIn("credentials", {
             email,
             password: password || undefined,
-            callbackUrl: "/inbox",
+            callbackUrl: withBasePath("/inbox"),
             redirect: false,
           });
           if (result?.error) {
             setError("Unable to sign in. Check email, password, and that the account is active.");
             return;
           }
-          window.location.assign("/inbox");
+          window.location.assign(withBasePath("/inbox"));
         }}
       >
         <label className="block text-xs font-medium text-neutral-700" htmlFor="email">

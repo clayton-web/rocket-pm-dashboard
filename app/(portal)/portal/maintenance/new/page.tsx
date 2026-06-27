@@ -12,6 +12,7 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { PortalBackLink } from "@/components/portal/portal-nav";
+import { withBasePath } from "@/lib/app-path";
 import { tradeFromIssueLabel } from "@/lib/maintenance/triage-map";
 import { parseCreatedMaintenanceRequestId } from "@/lib/validation/maintenance";
 import Link from "next/link";
@@ -44,7 +45,7 @@ export default function TenantMaintenanceNewPage() {
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/maintenance/submit-options")
+    fetch(withBasePath("/api/maintenance/submit-options"))
       .then(async (res) => {
         const payload: unknown = await res.json().catch(() => []);
         if (!res.ok || !Array.isArray(payload)) {
@@ -99,7 +100,7 @@ export default function TenantMaintenanceNewPage() {
 
       setLoading(true);
       try {
-        const res = await fetch("/api/maintenance", {
+        const res = await fetch(withBasePath("/api/maintenance"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),

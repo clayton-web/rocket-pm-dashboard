@@ -1,6 +1,7 @@
 "use client";
 
 import { PrimaryButton, SURFACE_PANEL } from "@/components/portal/ui";
+import { withBasePath } from "@/lib/app-path";
 import { markApplicationSentAction } from "@/app/(dashboard)/leasing/prospects/[prospectId]/actions";
 import type { ApplicationPortalHandoff } from "@/lib/leasing/application-portal-link";
 import Link from "next/link";
@@ -29,7 +30,7 @@ export function ApplicationPortalHandoffPanel({
     try {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const copyText = origin
-        ? handoff.copyText.replace(handoff.portalPath, `${origin}${handoff.portalPath}`)
+        ? handoff.copyText.replace(handoff.portalPath, `${origin}${withBasePath(handoff.portalPath)}`)
         : handoff.copyText;
       await navigator.clipboard.writeText(copyText);
       setCopied(true);

@@ -1,5 +1,6 @@
 "use client";
 
+import { withBasePath } from "@/lib/app-path";
 import { useState } from "react";
 import { FormField, PrimaryButton, SURFACE_CARD } from "@/components/portal/ui";
 
@@ -21,7 +22,7 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
     setDevCode(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/portal/auth/start", {
+      const res = await fetch(withBasePath("/api/portal/auth/start"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -51,7 +52,7 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/portal/auth/verify", {
+      const res = await fetch(withBasePath("/api/portal/auth/verify"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code, next: next ?? undefined }),
@@ -72,7 +73,7 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
         typeof (data as { redirectTo: unknown }).redirectTo === "string"
           ? (data as { redirectTo: string }).redirectTo
           : "/portal/dashboard";
-      window.location.assign(redirectTo);
+      window.location.assign(withBasePath(redirectTo));
     } finally {
       setLoading(false);
     }

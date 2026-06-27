@@ -9,6 +9,7 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { PortalBackLink } from "@/components/portal/portal-nav";
+import { withBasePath } from "@/lib/app-path";
 import {
   HOUSEHOLD_INCOME_RANGES,
   SMOKER_STATUSES,
@@ -76,7 +77,7 @@ export default function ViewingRequestPage() {
   const [submittedProspectId, setSubmittedProspectId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/leasing/submit-options")
+    fetch(withBasePath("/api/leasing/submit-options"))
       .then(async (res) => {
         const payload: unknown = await res.json().catch(() => []);
         if (!res.ok || !Array.isArray(payload)) {
@@ -139,7 +140,7 @@ export default function ViewingRequestPage() {
 
       setLoading(true);
       try {
-        const res = await fetch("/api/leasing/viewing-request", {
+        const res = await fetch(withBasePath("/api/leasing/viewing-request"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

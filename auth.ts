@@ -10,10 +10,12 @@ import {
   logGoogleSignInUpsertStart,
   logGoogleSignInUpsertSuccess,
 } from "@/lib/auth/google-signin-diagnostic-log";
+import { getAuthBasePath } from "@/lib/app-path";
 import prisma from "@/lib/db/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  basePath: getAuthBasePath(),
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [

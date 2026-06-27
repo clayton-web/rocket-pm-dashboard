@@ -2,7 +2,9 @@
 
 Manual verification after deploying to staging or production. Use a real staff account with a password hash (not dev email-only login).
 
-**Prerequisites:** deployment checklist complete, `GET /api/health` returns `ok: true`.
+**Prerequisites:** deployment checklist complete, `GET /dashboard/api/health` returns `ok: true`.
+
+**Base path:** The PM Dashboard is served under `/dashboard`. Prefix all routes below unless noted otherwise. Direct Vercel testing (before marketing rewrites): `https://rocket-pm-dashboard-app.vercel.app/dashboard/...`
 
 ---
 
@@ -67,9 +69,9 @@ Manual verification after deploying to staging or production. Use a real staff a
 
 | Endpoint | Expected |
 |----------|----------|
-| `GET /api/health` | `200`, `ok: true` |
-| `POST /api/maintenance` (public body) | `200` or validation `400`; not unauthenticated `401` |
-| `POST /api/portal/maintenance/lookup` | `200` / `404`; not `401` |
+| `GET /dashboard/api/health` | `200`, `ok: true` |
+| `POST /dashboard/api/maintenance` (public body) | `200` or validation `400`; not unauthenticated `401` |
+| `POST /dashboard/api/portal/maintenance/lookup` | `200` / `404`; not `401` |
 
 ## Failure triage
 

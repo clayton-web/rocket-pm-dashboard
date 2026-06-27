@@ -12,6 +12,7 @@ import {
   PrimaryButton,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import { withBasePath } from "@/lib/app-path";
 import { LeaseSigningForm } from "@/components/signing/lease-signing-form";
 import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-types";
 import { useRouter } from "next/navigation";
@@ -26,7 +27,7 @@ function formatDateTime(iso: string | null) {
 
 function absoluteSigningUrl(path: string) {
   if (typeof window === "undefined") return path;
-  return `${window.location.origin}${path}`;
+  return `${window.location.origin}${withBasePath(path)}`;
 }
 
 export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GmailConnectionsPanel } from "@/components/email/gmail-connections-panel";
+import { withBasePath } from "@/lib/app-path";
 
 type PageProps = {
   searchParams: Promise<{
@@ -41,7 +42,7 @@ export default async function EmailPage({ searchParams }: PageProps) {
 
       <div className="flex flex-wrap items-center gap-3">
         <a
-          href="/api/integrations/gmail/connect"
+          href={withBasePath("/api/integrations/gmail/connect")}
           className="inline-flex items-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
         >
           Connect Gmail

@@ -2,6 +2,7 @@
 
 import { LeaseSigningForm } from "@/components/signing/lease-signing-form";
 import { InlineNotice } from "@/components/portal/ui";
+import { withBasePath } from "@/lib/app-path";
 import { useRouter } from "next/navigation";
 
 type TenantLeaseSigningClientProps = {
@@ -30,7 +31,7 @@ export function TenantLeaseSigningClient({
     acknowledgedReview: boolean;
     signatureDataUrl: string;
   }) {
-    const response = await fetch(`/api/sign/lease/${encodeURIComponent(token)}`, {
+    const response = await fetch(withBasePath(`/api/sign/lease/${encodeURIComponent(token)}`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
