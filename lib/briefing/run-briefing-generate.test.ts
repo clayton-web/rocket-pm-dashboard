@@ -4,6 +4,8 @@ import { BriefingItemCategory, BriefingSlot, BriefingSourceType } from "@prisma/
 import prisma from "@/lib/db/prisma";
 import { BRIEFING_DATA_PROVENANCE } from "@/lib/briefing/briefing-sources";
 import { runBriefingGenerate } from "@/lib/briefing/run-briefing-generate";
+import { BRIEFING_SOURCE_MODULES } from "@/lib/briefing/sources/registry";
+import type { BriefingSourceModule } from "@/lib/briefing/sources/types";
 
 const ORG_ID = "org_briefing_test";
 const RUN_ID = "run_test_1";
@@ -394,5 +396,169 @@ describe("runBriefingGenerate", () => {
     );
 
     assert.equal(deliveryCalled, true);
+  });
+
+  it("uses modular orchestrator with EMAIL-only enabled modules", async () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+
+    const result = await withMockPrisma(
+      {
+        briefingSettings: {
+          findUnique: async () => baseSettings(),
+        },
+        organizationAiPolicy: {
+          findUnique: async () => basePolicy(),
+        },
+        organization: {
+          findUnique: async () => ({ id: ORG_ID, name: "Axford PM" }),
+        },
+        briefingRun: {
+          findFirst: async () => null,
+          findUnique: async () => null,
+        },
+        emailThread: {
+          findMany: async () => [],
+        },
+      },
+      () =>
+        runBriefingGenerate({
+          organizationId: ORG_ID,
+          slot: BriefingSlot.MORNING,
+          windowStart: new Date("2026-06-26T07:00:00.000Z"),
+          windowEnd: new Date("2026-06-26T14:00:00.000Z"),
+          dryRun: true,
+          sourceModules: BRIEFING_SOURCE_MODULES,
+        }),
+    );
+
+    assert.equal(result.status, "dry_run");
+    if (result.status === "dry_run") {
+      assert.equal(result.scannedCount, 0);
+      assert.equal(result.includedCount, 0);
+      assert.equal(result.skippedCount, 0);
+    }
+  });
+
+  it("does not send email for zero-item modular runs", async () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+    process.env.JOB_PROCESSOR_ACTOR_USER_ID = "user_test";
+
+    let deliveryCalled = false;
+
+    const result = await withMockPrisma(
+      {
+        briefingSettings: {
+          findUnique: async () => baseSettings(),
+        },
+        organizationAiPolicy: {
+          findUnique: async () => basePolicy(),
+        },
+        organization: {
+          findUnique: async () => ({ id: ORG_ID, name: "Axford PM" }),
+        },
+        briefingRun: {
+          findFirst: async () => null,
+          findUnique: async () => null,
+          create: async () => ({
+            id: RUN_ID,
+            status: "RUNNING",
+            windowStart: new Date("2026-06-26T07:00:00.000Z"),
+            windowEnd: new Date("2026-06-26T14:00:00.000Z"),
+          }),
+          update: async () => ({ id: RUN_ID }),
+        },
+        emailThread: {
+          findMany: async () => [],
+        },
+        briefingItem: {
+          deleteMany: async () => ({ count: 0 }),
+          createMany: async () => ({ count: 0 }),
+        },
+        auditLog: {
+          create: async () => ({}),
+        },
+      },
+      () =>
+        runBriefingGenerate({
+          organizationId: ORG_ID,
+          slot: BriefingSlot.MORNING,
+          windowStart: new Date("2026-06-26T07:00:00.000Z"),
+          windowEnd: new Date("2026-06-26T14:00:00.000Z"),
+          sourceModules: BRIEFING_SOURCE_MODULES,
+          deliverBriefingEmail: async () => {
+            deliveryCalled = true;
+          },
+        }),
+    );
+
+    assert.equal(result.status, "completed");
+    if (result.status === "completed") {
+      assert.equal(result.includedCount, 0);
+    }
+    assert.equal(deliveryCalled, false);
+  });
+
+  it("ignores enabled stub modules that are not in activeSourceTypes", async () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+
+    let stubCollectCalls = 0;
+    const rogueStub: BriefingSourceModule = {
+      sourceType: BriefingSourceType.MAINTENANCE,
+      moduleId: "rogue-maintenance",
+      async isAvailable() {
+        return true;
+      },
+      async collect() {
+        stubCollectCalls += 1;
+        return {
+          sourceType: BriefingSourceType.MAINTENANCE,
+          scannedCount: 50,
+          skippedCount: 0,
+          includedCount: 50,
+          geminiCallCount: 0,
+          warnings: [],
+          moduleExecutiveLine: null,
+          output: null,
+          context: null,
+        };
+      },
+    };
+
+    const result = await withMockPrisma(
+      {
+        briefingSettings: {
+          findUnique: async () => baseSettings(),
+        },
+        organizationAiPolicy: {
+          findUnique: async () => basePolicy(),
+        },
+        organization: {
+          findUnique: async () => ({ id: ORG_ID, name: "Axford PM" }),
+        },
+        briefingRun: {
+          findFirst: async () => null,
+          findUnique: async () => null,
+        },
+        emailThread: {
+          findMany: async () => [],
+        },
+      },
+      () =>
+        runBriefingGenerate({
+          organizationId: ORG_ID,
+          slot: BriefingSlot.MORNING,
+          windowStart: new Date("2026-06-26T07:00:00.000Z"),
+          windowEnd: new Date("2026-06-26T14:00:00.000Z"),
+          dryRun: true,
+          sourceModules: [BRIEFING_SOURCE_MODULES[0]!, rogueStub],
+        }),
+    );
+
+    assert.equal(stubCollectCalls, 0);
+    assert.equal(result.status, "dry_run");
+    if (result.status === "dry_run") {
+      assert.equal(result.scannedCount, 0);
+      assert.equal(result.includedCount, 0);
+    }
   });
 });

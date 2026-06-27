@@ -1,15 +1,11 @@
 import type { BriefingSlot } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
-import { generateBriefingFromContext } from "@/lib/ai/briefing/generate-briefing";
 import type { GenerateBriefingResult } from "@/lib/ai/briefing/generate-briefing";
 import {
   auditBriefingCompleted,
   auditBriefingFailed,
   auditBriefingStarted,
 } from "@/lib/briefing/briefing-audit";
-import { buildBriefingContext } from "@/lib/briefing/briefing-context";
-import { collectEmailBriefingCandidates } from "@/lib/briefing/collect-email-candidates";
-import { evaluateBriefingEmailFilters } from "@/lib/briefing/briefing-filters";
 import { loadBriefingOrgGateContext } from "@/lib/briefing/briefing-gates";
 import {
   BRIEFING_DEFAULT_LOOKBACK_HOURS,
@@ -18,12 +14,23 @@ import {
 } from "@/lib/briefing/briefing-types";
 import { calculateBriefingWindow } from "@/lib/briefing/briefing-window";
 import {
+  applyExecutiveSummaryToOutput,
+  composeExecutiveSummary,
+} from "@/lib/briefing/compose-executive-summary";
+import {
   completeBriefingRunZeroItems,
   ensureBriefingRun,
   findBriefingRunByWindow,
   markBriefingRunFailed,
   persistBriefingRunOutput,
 } from "@/lib/briefing/persist-briefing-run";
+import { mergeSourceResults } from "@/lib/briefing/sources/merge-source-results";
+import {
+  BRIEFING_SOURCE_MODULES,
+  resolveEnabledBriefingModules,
+  runBriefingSourceModules,
+} from "@/lib/briefing/sources/registry";
+import type { BriefingSourceModule, BriefingSourceRunContext } from "@/lib/briefing/sources/types";
 import {
   deliverBriefingRunEmailSafely,
   type SendBriefingEmailArgs,
@@ -40,6 +47,7 @@ export type RunBriefingGenerateInput = {
   dryRun?: boolean;
   generateBriefing?: (args: { context: BriefingContext }) => Promise<GenerateBriefingResult>;
   deliverBriefingEmail?: (args: SendBriefingEmailArgs) => Promise<void>;
+  sourceModules?: readonly BriefingSourceModule[];
 };
 
 export type RunBriefingGenerateResult =
@@ -69,6 +77,38 @@ function resolveLookbackHours(settingsLookback: number): number {
     return Math.floor(fromEnv);
   }
   return settingsLookback > 0 ? settingsLookback : BRIEFING_DEFAULT_LOOKBACK_HOURS;
+}
+
+function buildSourceRunContext(args: {
+  input: RunBriefingGenerateInput;
+  organization: { id: string; name: string };
+  window: BriefingWindow;
+  gateSettings: {
+    lookbackHours: number;
+    timezone: string;
+    morningLocalTime: string;
+    afternoonLocalTime: string;
+    activeSourceTypes: import("@prisma/client").BriefingSourceType[];
+  };
+  briefingRunId?: string;
+  dryRun?: boolean;
+}): BriefingSourceRunContext {
+  return {
+    organizationId: args.input.organizationId,
+    organization: { id: args.organization.id, name: args.organization.name },
+    slot: args.input.slot,
+    window: args.window,
+    settings: {
+      lookbackHours: args.gateSettings.lookbackHours,
+      timezone: args.gateSettings.timezone,
+      morningLocalTime: args.gateSettings.morningLocalTime,
+      afternoonLocalTime: args.gateSettings.afternoonLocalTime,
+      activeSourceTypes: args.gateSettings.activeSourceTypes,
+    },
+    briefingRunId: args.briefingRunId,
+    dryRun: args.dryRun,
+    generateBriefing: args.input.generateBriefing,
+  };
 }
 
 async function maybeDeliverBriefingEmail(args: {
@@ -144,27 +184,45 @@ export async function runBriefingGenerate(
     }
   }
 
-  const candidates = await collectEmailBriefingCandidates({
+  const modules = await resolveEnabledBriefingModules({
+    activeSourceTypes: gate.effectiveActiveSourceTypes,
     organizationId: input.organizationId,
-    windowStart: window.windowStart,
-    windowEnd: window.windowEnd,
+    modules: input.sourceModules ?? BRIEFING_SOURCE_MODULES,
   });
 
-  const filterResults = await evaluateBriefingEmailFilters(candidates);
-  const includedCount = filterResults.filter((result) => result.include).length;
-  const skippedCount = candidates.length - includedCount;
+  const buildModuleContext = (overrides: Partial<BriefingSourceRunContext> = {}): BriefingSourceRunContext =>
+    buildSourceRunContext({
+      input,
+      organization,
+      window,
+      gateSettings: {
+        lookbackHours: gate.settings.lookbackHours,
+        timezone: gate.settings.timezone,
+        morningLocalTime: gate.settings.morningLocalTime,
+        afternoonLocalTime: gate.settings.afternoonLocalTime,
+        activeSourceTypes: gate.effectiveActiveSourceTypes,
+      },
+      ...overrides,
+    });
 
   if (input.dryRun) {
+    const moduleResults = await runBriefingSourceModules(
+      modules,
+      buildModuleContext({ dryRun: true }),
+    );
+    const merged = mergeSourceResults(moduleResults);
+
     return {
       status: "dry_run",
       window,
-      scannedCount: candidates.length,
-      includedCount,
-      skippedCount,
+      scannedCount: merged.scannedCount,
+      includedCount: merged.includedCount,
+      skippedCount: merged.skippedCount,
     };
   }
 
   let briefingRunId: string | undefined;
+  let mergedForFailure: ReturnType<typeof mergeSourceResults> | undefined;
 
   try {
     const run = await ensureBriefingRun({
@@ -188,9 +246,9 @@ export async function runBriefingGenerate(
         status: "completed",
         briefingRunId: run.id,
         window,
-        scannedCount: existing?.threadsScanned ?? candidates.length,
+        scannedCount: existing?.threadsScanned ?? 0,
         includedCount: existing?.itemsIncluded ?? 0,
-        skippedCount: existing?.itemsSkipped ?? skippedCount,
+        skippedCount: existing?.itemsSkipped ?? 0,
         geminiCallCount: existing?.geminiCallCount ?? 0,
         alreadyCompleted: true,
       };
@@ -210,26 +268,18 @@ export async function runBriefingGenerate(
       windowEnd: window.windowEnd.toISOString(),
     });
 
-    const context = buildBriefingContext({
-      organization: { id: organization.id, name: organization.name },
-      settings: {
-        lookbackHours: gate.settings.lookbackHours,
-        timezone: gate.settings.timezone,
-        morningLocalTime: gate.settings.morningLocalTime,
-        afternoonLocalTime: gate.settings.afternoonLocalTime,
-        activeSourceTypes: gate.effectiveActiveSourceTypes,
-      },
-      slot: input.slot,
-      window,
-      candidates,
-      filterResults,
-    });
+    const moduleResults = await runBriefingSourceModules(
+      modules,
+      buildModuleContext({ briefingRunId: run.id, dryRun: false }),
+    );
+    const merged = mergeSourceResults(moduleResults);
+    mergedForFailure = merged;
 
-    if (context.counts.included === 0) {
+    if (merged.includedCount === 0) {
       await completeBriefingRunZeroItems({
         briefingRunId: run.id,
-        scannedCount: candidates.length,
-        skippedCount,
+        scannedCount: merged.scannedCount,
+        skippedCount: merged.skippedCount,
         slot: input.slot,
       });
 
@@ -238,7 +288,7 @@ export async function runBriefingGenerate(
         actorUserId,
         briefingRunId: run.id,
         itemsIncluded: 0,
-        itemsSkipped: skippedCount,
+        itemsSkipped: merged.skippedCount,
         geminiCallCount: 0,
       });
 
@@ -246,24 +296,35 @@ export async function runBriefingGenerate(
         status: "completed",
         briefingRunId: run.id,
         window,
-        scannedCount: candidates.length,
+        scannedCount: merged.scannedCount,
         includedCount: 0,
-        skippedCount,
+        skippedCount: merged.skippedCount,
         geminiCallCount: 0,
         alreadyCompleted: false,
       };
     }
 
-    const generate = input.generateBriefing ?? ((args) => generateBriefingFromContext(args));
-    const generated = await generate({ context });
+    if (!merged.output || !merged.context) {
+      throw new Error("Briefing modules reported items but produced no persistable output.");
+    }
+
+    const executiveSummary =
+      composeExecutiveSummary({ results: moduleResults, output: merged.output }) ??
+      merged.output.executiveSummary;
+
+    const output = applyExecutiveSummaryToOutput({
+      output: merged.output,
+      executiveSummary,
+    });
+
     const itemsPersisted = await persistBriefingRunOutput({
       briefingRunId: run.id,
       organizationId: input.organizationId,
-      output: generated.output,
-      context,
-      scannedCount: candidates.length,
-      skippedCount,
-      geminiCallCount: generated.geminiCallCount,
+      output,
+      context: merged.context,
+      scannedCount: merged.scannedCount,
+      skippedCount: merged.skippedCount,
+      geminiCallCount: merged.geminiCallCount,
     });
 
     await auditBriefingCompleted({
@@ -271,8 +332,8 @@ export async function runBriefingGenerate(
       actorUserId,
       briefingRunId: run.id,
       itemsIncluded: itemsPersisted,
-      itemsSkipped: skippedCount,
-      geminiCallCount: generated.geminiCallCount,
+      itemsSkipped: merged.skippedCount,
+      geminiCallCount: merged.geminiCallCount,
     });
 
     await maybeDeliverBriefingEmail({
@@ -287,10 +348,10 @@ export async function runBriefingGenerate(
       status: "completed",
       briefingRunId: run.id,
       window,
-      scannedCount: candidates.length,
+      scannedCount: merged.scannedCount,
       includedCount: itemsPersisted,
-      skippedCount,
-      geminiCallCount: generated.geminiCallCount,
+      skippedCount: merged.skippedCount,
+      geminiCallCount: merged.geminiCallCount,
       alreadyCompleted: false,
     };
   } catch (error) {
@@ -299,8 +360,8 @@ export async function runBriefingGenerate(
       await markBriefingRunFailed({
         briefingRunId,
         errorMessage: message,
-        scannedCount: candidates.length,
-        skippedCount,
+        scannedCount: mergedForFailure?.scannedCount,
+        skippedCount: mergedForFailure?.skippedCount,
       });
     }
     await auditBriefingFailed({
