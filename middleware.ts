@@ -1,4 +1,8 @@
-import { stripBasePath, withBasePath } from "@/lib/app-path";
+import {
+  authenticatedStaffLoginRedirect,
+  unauthenticatedStaffRedirect,
+} from "@/lib/auth/staff-middleware-redirect";
+import { stripBasePath } from "@/lib/app-path";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
@@ -8,14 +12,14 @@ function isPublicPortalApi(pathname: string): boolean {
 }
 
 function isPublicMaintenanceApi(req: NextRequest): boolean {
-  const pathname = req.nextUrl.pathname;
+  const pathname = stripBasePath(req.nextUrl.pathname);
   if (pathname === "/api/maintenance/submit-options") return true;
   if (pathname === "/api/maintenance" && req.method === "POST") return true;
   return false;
 }
 
 function isPublicLeasingApi(req: NextRequest): boolean {
-  const pathname = req.nextUrl.pathname;
+  const pathname = stripBasePath(req.nextUrl.pathname);
   if (pathname === "/api/leasing/submit-options") return true;
   if (pathname === "/api/leasing/prospect-prefill" && req.method === "GET") return true;
   if (pathname === "/api/leasing/viewing-request" && req.method === "POST") return true;
@@ -62,15 +66,17 @@ export async function middleware(req: NextRequest) {
   });
 
   if (!token && !isLogin) {
+    const redirect = unauthenticatedStaffRedirect(pathname);
     const url = req.nextUrl.clone();
-    url.pathname = withBasePath("/login");
-    url.searchParams.set("callbackUrl", withBasePath(pathname));
+    url.pathname = redirect.pathname;
+    url.searchParams.set("callbackUrl", redirect.callbackUrl);
     return NextResponse.redirect(url);
   }
 
   if (token && isLogin) {
+    const redirect = authenticatedStaffLoginRedirect();
     const url = req.nextUrl.clone();
-    url.pathname = withBasePath("/inbox");
+    url.pathname = redirect.pathname;
     url.searchParams.delete("callbackUrl");
     return NextResponse.redirect(url);
   }
