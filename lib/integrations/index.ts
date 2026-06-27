@@ -5,3 +5,5 @@ export { rocketInspectionsClient } from "./rocket-inspections/client";
 export type { MaintenanceClient } from "./maintenance/client";
 export { maintenanceClient } from "./maintenance/client";
 export type { IntegrationResult, RemoteEntityRef } from "./types";
+export { testBuildiumConnection } from "./buildium/test-connection";
+export type { BuildiumTestConnectionResult } from "./buildium/test-connection";

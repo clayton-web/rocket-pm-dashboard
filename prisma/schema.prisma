@@ -110,6 +110,7 @@ model Organization {
   briefingSettings        BriefingSettings?
   briefingRuns            BriefingRun[]
   briefingItems           BriefingItem[]
+  buildiumConnection      BuildiumConnection?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1022,6 +1023,54 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([actorUserId, createdAt])
+}
+
+// --- Buildium (read-first integration; Phase 1: connection + test only) ---
+
+enum BuildiumConnectionStatus {
+  DISCONNECTED
+  CONNECTED
+  NEEDS_REAUTH
+  ERROR
+}
+
+enum BuildiumEnvironment {
+  PRODUCTION
+  SANDBOX
+}
+
+enum BuildiumSyncStatus {
+  NEVER_SYNCED
+  SYNCED
+  PARTIAL
+  ERROR
+  STALE
+}
+
+model BuildiumConnection {
+  id             String @id @default(cuid())
+  organizationId String @unique
+
+  status      BuildiumConnectionStatus @default(DISCONNECTED)
+  environment BuildiumEnvironment    @default(PRODUCTION)
+
+  clientId        String
+  clientSecretEnc String @db.Text
+
+  lastTestedAt   DateTime?
+  lastSyncedAt   DateTime?
+  lastSyncStatus BuildiumSyncStatus?
+  lastSyncError  String?              @db.Text
+
+  /// Optional subset of Buildium property ids to sync (Phase 2+).
+  syncPropertyIds Int[] @default([])
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
 }
 
 // --- Email (Gmail) — Phase 1: connect + tokens; Phase 2+: sync ---

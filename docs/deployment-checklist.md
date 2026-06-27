@@ -13,7 +13,7 @@ Use this before deploying the unified Rocket PM app. Copy `.env.example` to your
 | `GOOGLE_GMAIL_CLIENT_ID` | Yes* | *Required if Gmail connect/sync/drafts are used. |
 | `GOOGLE_GMAIL_CLIENT_SECRET` | Yes* | Same OAuth client as redirect URI below. |
 | `GOOGLE_GMAIL_REDIRECT_URI` | Optional | Defaults to `{NEXTAUTH_URL}/api/integrations/gmail/callback` when unset. |
-| `GMAIL_TOKEN_ENCRYPTION_KEY` | Yes* | *Required in production before storing Gmail refresh tokens (`openssl rand -base64 32`). |
+| `GMAIL_TOKEN_ENCRYPTION_KEY` | Yes* | *Required in production before storing Gmail refresh tokens or Buildium API secrets (`openssl rand -base64 32`). |
 | `GEMINI_API_KEY` | Yes* | *Required if AI responder drafts are used. |
 | `MAINTENANCE_PUBLIC_ORG_SLUG` | Recommended | Org slug for public `POST /api/maintenance` (default: `axford`). |
 | `DOCUMENT_STORAGE_BACKEND` | **Yes (prod)** | Must be `s3` in production. `local` is dev-only. |
@@ -42,6 +42,8 @@ The server refuses to start in production if dangerous dev flags are set or if `
 | `GMAIL_SYNC_MAX_THREADS` | Cap per manual sync (1–100). |
 | `GMAIL_SYNC_LABEL_IDS` | Comma-separated Gmail label ids. |
 | `GMAIL_OAUTH_STATE_SECRET` | Defaults to auth secret. |
+| `BUILDIUM_READ_ONLY` | Recommended | Keep `true` (default) until Buildium write integration is explicitly approved. |
+| `BUILDIUM_BASE_URL` | Optional | Override API host for local sandbox testing; org setting selects production vs sandbox. |
 | `SEED_STAFF_PASSWORD` | **Local seed only** — never set in production runtime. |
 | `LOCAL_DOCUMENT_STORAGE_ROOT` | **Dev only** — default `.data/documents` when `DOCUMENT_STORAGE_BACKEND=local`. |
 | `TENANT_AUTH_DEV_SHOW_CODE` | **Never in production** — exposes OTP in API JSON. |
@@ -56,7 +58,7 @@ The server refuses to start in production if dangerous dev flags are set or if `
 1. [ ] PostgreSQL provisioned; run `npx prisma migrate deploy` (or `db push` only for ephemeral staging).
 2. [ ] All required secrets set in the hosting provider (not in git).
 3. [ ] `DEV_CREDENTIALS_LOGIN=false` and `NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN=false` on production build.
-4. [ ] `GMAIL_TOKEN_ENCRYPTION_KEY` set before any user connects Gmail.
+4. [ ] `GMAIL_TOKEN_ENCRYPTION_KEY` set before any user connects Gmail or saves Buildium credentials.
 5. [ ] Gmail OAuth client redirect URI matches `{NEXTAUTH_URL}/api/integrations/gmail/callback`.
 6. [ ] Do **not** run `npm run db:seed` in production (seed blocked unless `ALLOW_PRODUCTION_SEED=true` for intentional staging resets).
 7. [ ] Staff users have `passwordHash` set (no email-only dev login in production).
