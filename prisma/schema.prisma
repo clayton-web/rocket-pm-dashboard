@@ -64,7 +64,8 @@ model User {
   agentRunsCreated            AgentRun[]               @relation("AgentRunCreatedBy")
   connectedEmailAccounts      ConnectedEmailAccount[]
   styleExamples               AiStyleExample[]
-  briefingRunsReviewed        BriefingRun[]            @relation("BriefingRunReviewedBy")
+  briefingRunsReviewed                 BriefingRun[]                    @relation("BriefingRunReviewedBy")
+  emailThreadBriefingAttentionsResolved EmailThreadBriefingAttention[] @relation("EmailThreadBriefingAttentionResolvedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -109,8 +110,9 @@ model Organization {
   rentalAdAssistantDrafts RentalAdAssistantDraft[]
   briefingSettings        BriefingSettings?
   briefingRuns            BriefingRun[]
-  briefingItems           BriefingItem[]
-  buildiumConnection      BuildiumConnection?
+  briefingItems                 BriefingItem[]
+  emailThreadBriefingAttentions EmailThreadBriefingAttention[]
+  buildiumConnection            BuildiumConnection?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1153,6 +1155,7 @@ model EmailThread {
   drafts              AiDraftResponse[]
   categoryAssignments EmailThreadCategoryAssignment[]
   briefingItems       BriefingItem[]
+  briefingAttentions  EmailThreadBriefingAttention[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1452,6 +1455,24 @@ enum BriefingItemUrgency {
   URGENT
 }
 
+enum BriefingAttentionStatus {
+  ACTIVE
+  REPLIED
+  FORWARDED
+  REVIEWED
+  RESOLVED
+  ARCHIVED
+}
+
+enum BriefingAttentionLabel {
+  NEW
+  STILL_ACTIVE
+  REPLIED
+  FORWARDED
+  REVIEWED
+  RESOLVED
+}
+
 model BriefingSettings {
   id             String @id @default(cuid())
   organizationId String @unique
@@ -1541,10 +1562,18 @@ model BriefingItem {
   dueDate   DateTime?
   sortOrder Int       @default(0)
 
-  briefingRun  BriefingRun   @relation(fields: [briefingRunId], references: [id], onDelete: Cascade)
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  emailThread  EmailThread?  @relation(fields: [emailThreadId], references: [id], onDelete: SetNull)
-  emailMessage EmailMessage? @relation(fields: [emailMessageId], references: [id], onDelete: SetNull)
+  /// Per-run presentation label (future PRs: NEW vs STILL_ACTIVE carry-forward).
+  attentionLabel BriefingAttentionLabel @default(NEW)
+  /// Optional grouping for email subsections (e.g. NEW_IN_WINDOW, STILL_NEEDS_ATTENTION).
+  attentionSection String?
+  /// Link to durable thread attention registry row when surfaced from carry-forward.
+  emailThreadBriefingAttentionId String?
+
+  briefingRun                    BriefingRun                     @relation(fields: [briefingRunId], references: [id], onDelete: Cascade)
+  organization                   Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailThread                    EmailThread?                    @relation(fields: [emailThreadId], references: [id], onDelete: SetNull)
+  emailMessage                   EmailMessage?                   @relation(fields: [emailMessageId], references: [id], onDelete: SetNull)
+  emailThreadBriefingAttention   EmailThreadBriefingAttention?   @relation(fields: [emailThreadBriefingAttentionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1552,5 +1581,48 @@ model BriefingItem {
   @@index([briefingRunId, urgency, sortOrder])
   @@index([briefingRunId, category])
   @@index([organizationId, sourceType])
+  @@index([emailThreadId])
+  @@index([emailThreadBriefingAttentionId])
+}
+
+/// Durable registry of email threads that need staff attention across briefing runs.
+model EmailThreadBriefingAttention {
+  id             String @id @default(cuid())
+  organizationId String
+  emailThreadId  String
+
+  status BriefingAttentionStatus @default(ACTIVE)
+
+  /// When this thread first appeared in a briefing.
+  firstSurfacedAt DateTime
+  /// Last briefing run that included this thread.
+  lastSurfacedRunId String?
+  lastSurfacedAt    DateTime?
+
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  resolutionReason String?
+
+  /// Cached display from last Gemini item (no raw email bodies).
+  summaryTitle String
+  category     BriefingItemCategory
+  urgency      BriefingItemUrgency
+  subject      String?
+  summaryJson  Json?
+
+  /// Outbound message count at first surface — reply detection baseline.
+  surfacedAtOutboundCount Int       @default(0)
+  lastOutboundAt          DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailThread  EmailThread  @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  resolvedBy   User?        @relation("EmailThreadBriefingAttentionResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  briefingItems BriefingItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, emailThreadId])
+  @@index([organizationId, status])
   @@index([emailThreadId])
 }
