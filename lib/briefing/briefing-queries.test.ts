@@ -4,12 +4,18 @@ import { BriefingItemCategory, BriefingItemUrgency, BriefingSourceType } from "@
 import {
   getBriefingOverview,
   getBriefingRunDetail,
+  groupBriefingItemsByAttentionSection,
   groupBriefingItemsByCategory,
   shouldShowEmailMentionLabel,
   sortBriefingItemsForDisplay,
   type BriefingItemView,
 } from "@/lib/briefing/briefing-queries";
 import { BRIEFING_DATA_PROVENANCE } from "@/lib/briefing/briefing-sources";
+import { BRIEFING_ATTENTION_SECTION } from "@/lib/briefing/sources/email/briefing-attention-constants";
+import {
+  BRIEFING_NEXT_ACTION,
+  BRIEFING_WAITING_ON,
+} from "@/lib/briefing/sources/email/operations-intelligence";
 import prisma from "@/lib/db/prisma";
 
 function item(partial: Partial<BriefingItemView> & Pick<BriefingItemView, "id">): BriefingItemView {
@@ -22,6 +28,14 @@ function item(partial: Partial<BriefingItemView> & Pick<BriefingItemView, "id">)
     emailThreadId: partial.emailThreadId ?? null,
     dueDate: partial.dueDate ?? null,
     sortOrder: partial.sortOrder ?? 0,
+    attentionSection:
+      partial.attentionSection ?? BRIEFING_ATTENTION_SECTION.NEW_IN_WINDOW,
+    waitingOn: partial.waitingOn ?? BRIEFING_WAITING_ON.PROPERTY_MANAGER,
+    waitingOnLabel: partial.waitingOnLabel ?? "Property Manager",
+    nextAction: partial.nextAction ?? BRIEFING_NEXT_ACTION.REPLY,
+    nextActionLabel: partial.nextActionLabel ?? "Reply",
+    ageLabel: partial.ageLabel ?? "Today",
+    priorityLabel: partial.priorityLabel ?? "Normal",
     summary: partial.summary ?? {},
     showEmailMentionLabel:
       partial.showEmailMentionLabel ??
@@ -68,6 +82,24 @@ describe("briefing display helpers", () => {
     ]);
     assert.equal(groups[0]?.category, BriefingItemCategory.RENT_DEPOSIT);
     assert.equal(groups[0]?.items[0]?.id, "2");
+  });
+
+  it("groups items by attention section with New Items first", () => {
+    const groups = groupBriefingItemsByAttentionSection([
+      item({
+        id: "carry",
+        attentionSection: BRIEFING_ATTENTION_SECTION.STILL_NEEDS_ATTENTION,
+      }),
+      item({
+        id: "new",
+        attentionSection: BRIEFING_ATTENTION_SECTION.NEW_IN_WINDOW,
+      }),
+    ]);
+
+    assert.equal(groups[0]?.sectionLabel, "New Items");
+    assert.equal(groups[0]?.items[0]?.id, "new");
+    assert.equal(groups[1]?.sectionLabel, "Still Needs Attention");
+    assert.equal(groups[1]?.items[0]?.id, "carry");
   });
 });
 

@@ -109,6 +109,8 @@ export type BriefingContextThreadItem = {
   dataProvenance: BriefingDataProvenance;
   lastMessageAt: string | null;
   isUnread: boolean;
+  /** True when the newest message in the thread is inbound (not staff-sent). */
+  latestMessageIsInbound: boolean;
 };
 
 export type BriefingContext = {

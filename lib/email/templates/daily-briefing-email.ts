@@ -1,8 +1,7 @@
 import type { BriefingItemView } from "@/lib/briefing/briefing-queries";
 import {
-  BRIEFING_CATEGORY_LABELS,
   BRIEFING_SLOT_LABELS,
-  groupBriefingItemsByCategory,
+  groupBriefingItemsByAttentionSection,
 } from "@/lib/briefing/briefing-queries";
 import type { BriefingSlot } from "@prisma/client";
 
@@ -35,23 +34,17 @@ function formatWindow(start: Date, end: Date): string {
   return `${formatter.format(start)} → ${formatter.format(end)}`;
 }
 
-function formatDueDate(value: Date | null): string | null {
-  if (!value) return null;
-  return new Intl.DateTimeFormat("en-CA", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(value);
-}
-
-function buildItemTextLines(
+function buildOperationsItemTextLines(
   item: BriefingItemView,
   runUrl: string,
   inboxThreadUrl: (threadId: string) => string,
 ): string[] {
   const lines = [
-    item.summaryTitle,
-    `Urgency: ${item.urgency}`,
-    `Category: ${BRIEFING_CATEGORY_LABELS[item.category]}`,
+    `Issue: ${item.summaryTitle}`,
+    `Waiting On: ${item.waitingOnLabel}`,
+    `Next Action: ${item.nextActionLabel}`,
+    `Age: ${item.ageLabel}`,
+    `Priority: ${item.priorityLabel}`,
   ];
 
   if (item.subject) {
@@ -77,11 +70,6 @@ function buildItemTextLines(
     lines.push(`Suggested reply notes: ${item.summary.suggestedReplyNotes}`);
   }
 
-  const dueLabel = formatDueDate(item.dueDate);
-  if (dueLabel) {
-    lines.push(`Due: ${dueLabel}`);
-  }
-
   lines.push(`View run: ${runUrl}`);
 
   if (item.emailThreadId) {
@@ -99,11 +87,18 @@ function escapeHtml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
-function buildItemHtml(item: BriefingItemView, runUrl: string, inboxThreadUrl: string | null): string {
+function buildOperationsItemHtml(
+  item: BriefingItemView,
+  runUrl: string,
+  inboxThreadUrl: string | null,
+): string {
   const parts = [
     `<h3>${escapeHtml(item.summaryTitle)}</h3>`,
-    `<p><strong>Urgency:</strong> ${escapeHtml(item.urgency)}<br>`,
-    `<strong>Category:</strong> ${escapeHtml(BRIEFING_CATEGORY_LABELS[item.category])}</p>`,
+    `<p><strong>Issue:</strong> ${escapeHtml(item.summaryTitle)}<br>`,
+    `<strong>Waiting On:</strong> ${escapeHtml(item.waitingOnLabel)}<br>`,
+    `<strong>Next Action:</strong> ${escapeHtml(item.nextActionLabel)}<br>`,
+    `<strong>Age:</strong> ${escapeHtml(item.ageLabel)}<br>`,
+    `<strong>Priority:</strong> ${escapeHtml(item.priorityLabel)}</p>`,
   ];
 
   if (item.subject) {
@@ -134,11 +129,6 @@ function buildItemHtml(item: BriefingItemView, runUrl: string, inboxThreadUrl: s
     );
   }
 
-  const dueLabel = formatDueDate(item.dueDate);
-  if (dueLabel) {
-    parts.push(`<p><strong>Due:</strong> ${escapeHtml(dueLabel)}</p>`);
-  }
-
   parts.push(`<p><a href="${runUrl}">View briefing run</a></p>`);
 
   if (inboxThreadUrl) {
@@ -152,7 +142,7 @@ export function buildDailyBriefingEmail(input: DailyBriefingEmailInput): DailyBr
   const slotLabel = BRIEFING_SLOT_LABELS[input.slot];
   const subject = `${slotLabel} Daily Briefing — ${input.orgName}`;
   const windowLabel = formatWindow(input.windowStart, input.windowEnd);
-  const groups = groupBriefingItemsByCategory(input.items);
+  const groups = groupBriefingItemsByAttentionSection(input.items);
 
   const textLines = [
     "Daily Briefing",
@@ -166,9 +156,12 @@ export function buildDailyBriefingEmail(input: DailyBriefingEmailInput): DailyBr
   }
 
   for (const group of groups) {
-    textLines.push(BRIEFING_CATEGORY_LABELS[group.category], "");
+    textLines.push(group.sectionLabel, "");
     for (const item of group.items) {
-      textLines.push(...buildItemTextLines(item, input.runUrl, input.inboxThreadUrl), "");
+      textLines.push(
+        ...buildOperationsItemTextLines(item, input.runUrl, input.inboxThreadUrl),
+        "",
+      );
     }
   }
 
@@ -187,10 +180,10 @@ export function buildDailyBriefingEmail(input: DailyBriefingEmailInput): DailyBr
   }
 
   for (const group of groups) {
-    htmlParts.push(`<h2>${escapeHtml(BRIEFING_CATEGORY_LABELS[group.category])}</h2>`);
+    htmlParts.push(`<h2>${escapeHtml(group.sectionLabel)}</h2>`);
     for (const item of group.items) {
       const inboxUrl = item.emailThreadId ? input.inboxThreadUrl(item.emailThreadId) : null;
-      htmlParts.push(buildItemHtml(item, input.runUrl, inboxUrl));
+      htmlParts.push(buildOperationsItemHtml(item, input.runUrl, inboxUrl));
     }
   }
 

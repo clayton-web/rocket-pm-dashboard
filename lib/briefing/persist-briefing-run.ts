@@ -17,6 +17,12 @@ import {
 } from "@/lib/briefing/briefing-sources";
 import { BRIEFING_ATTENTION_SECTION } from "@/lib/briefing/sources/email/briefing-attention-constants";
 import type { BriefingEmailItemPersistMeta } from "@/lib/briefing/sources/types";
+import {
+  buildOperationsIntelligenceInputFromContextThread,
+  buildOperationsIntelligenceInputWithoutThread,
+  enrichBriefingEmailSummaryJson,
+  parseFirstSurfacedAtFromSummary,
+} from "@/lib/briefing/sources/email/enrich-email-operations-summary";
 
 function truncateSubject(subject: string | null | undefined): string | null {
   if (subject == null) return null;
@@ -205,15 +211,48 @@ export async function persistBriefingRunOutput(args: {
             subject: thread?.subject ?? null,
           };
 
-    const summaryJson: Prisma.InputJsonValue = (meta.summaryJson ?? {
-      keyFacts: item.keyFacts,
-      requiredAction: item.requiredAction ?? null,
-      suggestedReplyNotes: item.suggestedReplyNotes ?? null,
-      confidence: item.confidence ?? null,
-      dataProvenance: BRIEFING_DATA_PROVENANCE.EMAIL_MENTION,
-      isPropertyManagementRelated: item.isPropertyManagementRelated,
-      sender: thread?.sender ?? null,
-      senderEmail: thread?.senderEmail ?? null,
+    const baseSummary: Record<string, unknown> = meta.summaryJson
+      ? { ...meta.summaryJson }
+      : {
+          keyFacts: item.keyFacts,
+          requiredAction: item.requiredAction ?? null,
+          suggestedReplyNotes: item.suggestedReplyNotes ?? null,
+          confidence: item.confidence ?? null,
+          dataProvenance: BRIEFING_DATA_PROVENANCE.EMAIL_MENTION,
+          isPropertyManagementRelated: item.isPropertyManagementRelated,
+          sender: thread?.sender ?? null,
+          senderEmail: thread?.senderEmail ?? null,
+        };
+
+    const referenceDate = new Date(args.context.window.end);
+    const firstSurfacedAt =
+      parseFirstSurfacedAtFromSummary(baseSummary) ?? referenceDate;
+
+    const operationsInput = thread
+      ? buildOperationsIntelligenceInputFromContextThread({
+          thread,
+          category: item.category as BriefingItemCategory,
+          urgency: item.urgency as BriefingItemUrgency,
+          attentionSection: meta.attentionSection,
+          requiredAction: item.requiredAction ?? null,
+        })
+      : buildOperationsIntelligenceInputWithoutThread({
+          category: item.category as BriefingItemCategory,
+          urgency: item.urgency as BriefingItemUrgency,
+          attentionSection: meta.attentionSection,
+          subject: meta.subject ?? item.summaryTitle,
+          senderEmail:
+            typeof baseSummary.senderEmail === "string" ? baseSummary.senderEmail : null,
+          requiredAction: item.requiredAction ?? null,
+          latestMessageIsInbound:
+            meta.attentionSection === BRIEFING_ATTENTION_SECTION.STILL_NEEDS_ATTENTION,
+        });
+
+    const summaryJson: Prisma.InputJsonValue = enrichBriefingEmailSummaryJson({
+      summaryJson: baseSummary,
+      operationsInput,
+      firstSurfacedAt,
+      referenceDate,
     }) as Prisma.InputJsonValue;
 
     return {

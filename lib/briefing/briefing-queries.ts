@@ -8,6 +8,16 @@ import {
 } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { BRIEFING_DATA_PROVENANCE } from "@/lib/briefing/briefing-sources";
+import { BRIEFING_ATTENTION_SECTION } from "@/lib/briefing/sources/email/briefing-attention-constants";
+import {
+  BRIEFING_NEXT_ACTION_LABELS,
+  BRIEFING_PRIORITY_LABELS,
+  BRIEFING_WAITING_ON_LABELS,
+  parseOperationsSummaryJson,
+  resolveOperationsForBriefingItemView,
+  type BriefingNextAction,
+  type BriefingWaitingOn,
+} from "@/lib/briefing/sources/email/operations-intelligence";
 
 export type BriefingItemSummaryJson = {
   keyFacts?: string[];
@@ -18,6 +28,11 @@ export type BriefingItemSummaryJson = {
   isPropertyManagementRelated?: boolean;
   sender?: string | null;
   senderEmail?: string | null;
+  waitingOn?: BriefingWaitingOn;
+  nextAction?: BriefingNextAction;
+  firstSurfacedAt?: string;
+  ageDays?: number;
+  ageLabel?: string;
 };
 
 export type BriefingItemView = {
@@ -32,6 +47,13 @@ export type BriefingItemView = {
   sortOrder: number;
   summary: BriefingItemSummaryJson;
   showEmailMentionLabel: boolean;
+  attentionSection: string;
+  waitingOn: BriefingWaitingOn;
+  waitingOnLabel: string;
+  nextAction: BriefingNextAction;
+  nextActionLabel: string;
+  ageLabel: string;
+  priorityLabel: string;
 };
 
 export type BriefingRunSummary = {
@@ -79,6 +101,7 @@ export function parseBriefingItemSummaryJson(value: Prisma.JsonValue | null): Br
     return {};
   }
   const raw = value as Record<string, unknown>;
+  const operations = parseOperationsSummaryJson(raw);
   return {
     keyFacts: Array.isArray(raw.keyFacts)
       ? raw.keyFacts.filter((fact): fact is string => typeof fact === "string")
@@ -95,6 +118,7 @@ export function parseBriefingItemSummaryJson(value: Prisma.JsonValue | null): Br
         : undefined,
     sender: typeof raw.sender === "string" ? raw.sender : null,
     senderEmail: typeof raw.senderEmail === "string" ? raw.senderEmail : null,
+    ...operations,
   };
 }
 
@@ -155,6 +179,42 @@ export function groupBriefingItemsByCategory(
     .map(([category, groupItems]) => ({ category, items: groupItems }));
 }
 
+export function groupBriefingItemsByAttentionSection(
+  items: BriefingItemView[],
+): Array<{ section: string; sectionLabel: string; items: BriefingItemView[] }> {
+  const sorted = sortBriefingItemsForDisplay(items);
+  const sectionOrder = [
+    BRIEFING_ATTENTION_SECTION.NEW_IN_WINDOW,
+    BRIEFING_ATTENTION_SECTION.STILL_NEEDS_ATTENTION,
+  ] as const;
+
+  const groups = new Map<string, BriefingItemView[]>();
+  for (const item of sorted) {
+    const list = groups.get(item.attentionSection) ?? [];
+    list.push(item);
+    groups.set(item.attentionSection, list);
+  }
+
+  const orderedSections = [
+    ...sectionOrder.filter((section) => groups.has(section)),
+    ...[...groups.keys()].filter(
+      (section) => !sectionOrder.includes(section as (typeof sectionOrder)[number]),
+    ),
+  ];
+
+  return orderedSections.map((section) => ({
+    section,
+    sectionLabel: resolveAttentionSectionLabel(section),
+    items: groups.get(section) ?? [],
+  }));
+}
+
+export function resolveAttentionSectionLabel(section: string): string {
+  if (section === BRIEFING_ATTENTION_SECTION.NEW_IN_WINDOW) return "New Items";
+  if (section === BRIEFING_ATTENTION_SECTION.STILL_NEEDS_ATTENTION) return "Still Needs Attention";
+  return section;
+}
+
 function mapItem(row: {
   id: string;
   summaryTitle: string;
@@ -166,8 +226,19 @@ function mapItem(row: {
   dueDate: Date | null;
   sortOrder: number;
   summaryJson: Prisma.JsonValue | null;
-}): BriefingItemView {
+  attentionSection: string | null;
+}, referenceDate?: Date): BriefingItemView {
   const summary = parseBriefingItemSummaryJson(row.summaryJson);
+  const attentionSection =
+    row.attentionSection ?? BRIEFING_ATTENTION_SECTION.NEW_IN_WINDOW;
+  const operations = resolveOperationsForBriefingItemView({
+    summary,
+    category: row.category,
+    urgency: row.urgency,
+    attentionSection,
+    referenceDate,
+  });
+
   return {
     id: row.id,
     summaryTitle: row.summaryTitle,
@@ -183,6 +254,13 @@ function mapItem(row: {
       category: row.category,
       dataProvenance: summary.dataProvenance,
     }),
+    attentionSection,
+    waitingOn: operations.waitingOn,
+    waitingOnLabel: BRIEFING_WAITING_ON_LABELS[operations.waitingOn],
+    nextAction: operations.nextAction,
+    nextActionLabel: BRIEFING_NEXT_ACTION_LABELS[operations.nextAction],
+    ageLabel: operations.ageLabel,
+    priorityLabel: BRIEFING_PRIORITY_LABELS[row.urgency],
   };
 }
 
@@ -211,6 +289,7 @@ function mapRun(row: {
     dueDate: Date | null;
     sortOrder: number;
     summaryJson: Prisma.JsonValue | null;
+    attentionSection: string | null;
   }>;
 }): BriefingRunSummary {
   return {
@@ -227,7 +306,7 @@ function mapRun(row: {
     errorMessage: row.errorMessage,
     reviewedAt: row.reviewedAt,
     createdAt: row.createdAt,
-    items: row.items.map(mapItem),
+    items: row.items.map((item) => mapItem(item, row.windowEnd)),
   };
 }
 

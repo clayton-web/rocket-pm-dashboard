@@ -163,6 +163,41 @@ describe("buildBriefingContext", () => {
     });
 
     assert.ok(context.threads.length <= BRIEFING_MAX_THREADS_IN_CONTEXT);
-    assert.ok(context.threads.length >= BRIEFING_MAX_THREADS_IN_CONTEXT - 5);
+    assert.equal(context.threads.length, context.counts.included);
+  });
+
+  it("records whether the latest message is inbound", () => {
+    const inboundThread = candidate("inbound");
+    const outboundThread = candidate("outbound", {
+      messages: [
+        {
+          id: "msg_out",
+          providerMessageId: "provider_msg_out",
+          fromAddr: "staff@example.com",
+          isOutbound: true,
+          sentAt: new Date("2026-06-26T13:00:00.000Z"),
+          bodyText: null,
+        },
+        {
+          id: "msg_in",
+          providerMessageId: "provider_msg_in",
+          fromAddr: "tenant@example.com",
+          isOutbound: false,
+          sentAt: new Date("2026-06-26T12:00:00.000Z"),
+          bodyText: null,
+        },
+      ],
+    });
+
+    const context = buildBriefingContext({
+      ...baseInput,
+      candidates: [inboundThread, outboundThread],
+      filterResults: [includedFilter("inbound", 10), includedFilter("outbound", 20)],
+    });
+
+    const inbound = context.threads.find((thread) => thread.threadId === "inbound");
+    const outbound = context.threads.find((thread) => thread.threadId === "outbound");
+    assert.equal(inbound?.latestMessageIsInbound, true);
+    assert.equal(outbound?.latestMessageIsInbound, false);
   });
 });

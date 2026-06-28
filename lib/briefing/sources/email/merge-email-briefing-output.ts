@@ -80,6 +80,7 @@ export function buildCarryForwardPersistMeta(
       isPropertyManagementRelated: true,
       sender: summary.sender,
       senderEmail: summary.senderEmail,
+      firstSurfacedAt: row.firstSurfacedAt.toISOString(),
     },
   };
 }

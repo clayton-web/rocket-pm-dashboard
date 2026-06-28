@@ -42,6 +42,11 @@ function resolveNewestInboundMessage(thread: BriefingEmailThreadCandidate) {
   return inbound[0] ?? null;
 }
 
+function resolveLatestMessageIsInbound(thread: BriefingEmailThreadCandidate): boolean {
+  const latest = [...thread.messages].sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime())[0];
+  return latest != null && !latest.isOutbound;
+}
+
 function buildContextThreadItem(args: {
   thread: BriefingEmailThreadCandidate;
   filter: BriefingEmailFilterResult;
@@ -68,6 +73,7 @@ function buildContextThreadItem(args: {
     dataProvenance: BRIEFING_DATA_PROVENANCE.EMAIL_MENTION,
     lastMessageAt: args.thread.lastMessageAt?.toISOString() ?? null,
     isUnread: args.thread.isUnread,
+    latestMessageIsInbound: resolveLatestMessageIsInbound(args.thread),
   };
 }
 
