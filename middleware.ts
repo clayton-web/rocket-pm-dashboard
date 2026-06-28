@@ -36,8 +36,10 @@ export async function middleware(req: NextRequest) {
   const isLogin = pathname.startsWith("/login");
   const isAuthApi = pathname.startsWith("/api/auth");
   const isHealth = pathname === "/api/health";
-  const isInternalJobProcessor =
-    pathname === "/api/internal/jobs/process" || pathname === "/api/internal/gemini-probe";
+  const isInternalCronRoute =
+    pathname === "/api/internal/jobs/process" ||
+    pathname === "/api/internal/gemini-probe" ||
+    pathname === "/api/internal/briefing/schedule";
   const isPortal = pathname.startsWith("/portal");
   const isSignLease = pathname.startsWith("/sign/lease");
   const isSignLeaseApi = pathname.startsWith("/api/sign/lease");
@@ -48,7 +50,7 @@ export async function middleware(req: NextRequest) {
   if (
     isAuthApi ||
     isHealth ||
-    isInternalJobProcessor ||
+    isInternalCronRoute ||
     isPortal ||
     isSignLease ||
     isSignLeaseApi ||
