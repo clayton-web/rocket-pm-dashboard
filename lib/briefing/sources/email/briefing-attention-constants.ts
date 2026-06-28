@@ -1,0 +1,7 @@
+export const BRIEFING_ATTENTION_SECTION = {
+  NEW_IN_WINDOW: "NEW_IN_WINDOW",
+  STILL_NEEDS_ATTENTION: "STILL_NEEDS_ATTENTION",
+} as const;
+
+export type BriefingAttentionSection =
+  (typeof BRIEFING_ATTENTION_SECTION)[keyof typeof BRIEFING_ATTENTION_SECTION];

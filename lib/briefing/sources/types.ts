@@ -1,4 +1,7 @@
-import type { BriefingSourceType } from "@prisma/client";
+import type {
+  BriefingAttentionLabel,
+  BriefingSourceType,
+} from "@prisma/client";
 import type { GenerateBriefingResult } from "@/lib/ai/briefing/generate-briefing";
 import type { NormalizedBriefingOutput } from "@/lib/ai/briefing/briefing-output.schema";
 import type {
@@ -9,6 +12,14 @@ import type {
 } from "@/lib/briefing/briefing-types";
 import type { BriefingSlot } from "@prisma/client";
 
+export type BriefingEmailItemPersistMeta = {
+  attentionLabel: BriefingAttentionLabel;
+  attentionSection: string;
+  emailThreadBriefingAttentionId?: string | null;
+  subject?: string | null;
+  summaryJson?: Record<string, unknown>;
+};
+
 export type BriefingSourceRunContext = {
   organizationId: string;
   organization: BriefingOrgSnapshot;
@@ -18,6 +29,18 @@ export type BriefingSourceRunContext = {
   briefingRunId?: string;
   dryRun?: boolean;
   generateBriefing?: (args: { context: BriefingContext }) => Promise<GenerateBriefingResult>;
+};
+
+export type MergedBriefingSourceResults = {
+  scannedCount: number;
+  skippedCount: number;
+  includedCount: number;
+  geminiCallCount: number;
+  warnings: string[];
+  activeSourceTypes: BriefingSourceType[];
+  output: NormalizedBriefingOutput | null;
+  context: BriefingContext | null;
+  emailItemPersistMetaByThreadId: Record<string, BriefingEmailItemPersistMeta>;
 };
 
 export type BriefingSourceResult = {
@@ -32,17 +55,7 @@ export type BriefingSourceResult = {
   output: NormalizedBriefingOutput | null;
   /** Email module populates for persist — stubs leave null. */
   context: BriefingContext | null;
-};
-
-export type MergedBriefingSourceResults = {
-  scannedCount: number;
-  skippedCount: number;
-  includedCount: number;
-  geminiCallCount: number;
-  warnings: string[];
-  activeSourceTypes: BriefingSourceType[];
-  output: NormalizedBriefingOutput | null;
-  context: BriefingContext | null;
+  emailItemPersistMetaByThreadId?: Record<string, BriefingEmailItemPersistMeta>;
 };
 
 export type BriefingSourceModule = {

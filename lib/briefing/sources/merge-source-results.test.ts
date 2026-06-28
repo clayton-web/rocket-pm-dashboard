@@ -96,5 +96,24 @@ describe("mergeSourceResults", () => {
     assert.equal(merged.includedCount, 0);
     assert.equal(merged.output, null);
     assert.equal(merged.context, null);
+    assert.deepEqual(merged.emailItemPersistMetaByThreadId, {});
+  });
+
+  it("merges emailItemPersistMetaByThreadId from contributing modules", () => {
+    const merged = mergeSourceResults([
+      result({
+        sourceType: BriefingSourceType.EMAIL,
+        emailItemPersistMetaByThreadId: {
+          thread_1: {
+            attentionLabel: "NEW" as const,
+            attentionSection: "NEW_IN_WINDOW",
+            emailThreadBriefingAttentionId: "attn_1",
+          },
+        },
+      }),
+      result({ sourceType: BriefingSourceType.MAINTENANCE }),
+    ]);
+
+    assert.equal(merged.emailItemPersistMetaByThreadId.thread_1?.emailThreadBriefingAttentionId, "attn_1");
   });
 });

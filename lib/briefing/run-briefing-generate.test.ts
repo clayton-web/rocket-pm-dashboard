@@ -38,7 +38,20 @@ function basePolicy(overrides: Record<string, unknown> = {}) {
 function withMockPrisma<T>(mocks: Record<string, unknown>, run: () => Promise<T>): Promise<T> {
   const original = { ...prisma };
 
-  Object.assign(prisma, mocks);
+  Object.assign(prisma, {
+    emailThreadBriefingAttention: {
+      findMany: async () => [],
+      upsert: async (args: { create: Record<string, unknown> }) => ({
+        id: "attn_test_1",
+        ...args.create,
+      }),
+      update: async (args: { data: Record<string, unknown> }) => ({
+        id: "attn_test_1",
+        ...args.data,
+      }),
+    },
+    ...mocks,
+  });
 
   return run().finally(() => {
     Object.assign(prisma, original);
@@ -496,6 +509,134 @@ describe("runBriefingGenerate", () => {
       assert.equal(result.includedCount, 0);
     }
     assert.equal(deliveryCalled, false);
+  });
+
+  it("completes carry-forward-only briefing with includedCount > 0 and sends email", async () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+    process.env.JOB_PROCESSOR_ACTOR_USER_ID = "user_test";
+
+    let deliveryCalled = false;
+    const itemCreates: unknown[] = [];
+
+    const activeRow = {
+      id: "attn_carry_1",
+      organizationId: ORG_ID,
+      emailThreadId: "thread_carry",
+      status: "ACTIVE",
+      firstSurfacedAt: new Date("2026-06-25T07:00:00.000Z"),
+      lastSurfacedAt: new Date("2026-06-25T14:00:00.000Z"),
+      lastSurfacedRunId: "run_prior",
+      surfacedAtOutboundCount: 0,
+      summaryTitle: "Prior leak",
+      category: BriefingItemCategory.TENANT,
+      urgency: "HIGH",
+      subject: "Leaking sink",
+      summaryJson: {
+        keyFacts: ["Still leaking"],
+        requiredAction: "Schedule plumber",
+        dataProvenance: BRIEFING_DATA_PROVENANCE.EMAIL_MENTION,
+        isPropertyManagementRelated: true,
+      },
+      lastOutboundAt: null,
+      resolvedAt: null,
+      resolvedByUserId: null,
+      resolutionReason: null,
+      createdAt: new Date("2026-06-25T07:00:00.000Z"),
+      updatedAt: new Date("2026-06-25T14:00:00.000Z"),
+    };
+
+    const result = await withMockPrisma(
+      {
+        briefingSettings: {
+          findUnique: async () => baseSettings(),
+        },
+        organizationAiPolicy: {
+          findUnique: async () => basePolicy(),
+        },
+        organization: {
+          findUnique: async () => ({ id: ORG_ID, name: "Axford PM" }),
+        },
+        briefingRun: {
+          findFirst: async () => null,
+          findUnique: async () => null,
+          create: async () => ({
+            id: RUN_ID,
+            status: "RUNNING",
+            windowStart: new Date("2026-06-26T07:00:00.000Z"),
+            windowEnd: new Date("2026-06-26T14:00:00.000Z"),
+          }),
+          update: async () => ({ id: RUN_ID }),
+        },
+        emailThreadBriefingAttention: {
+          findMany: async () => [activeRow],
+          update: async (args: { data: Record<string, unknown> }) => ({
+            id: activeRow.id,
+            ...args.data,
+          }),
+        },
+        emailThread: {
+          findMany: async (args: { where?: Record<string, unknown> }) => {
+            const where = args.where as { id?: { in?: string[] } } | undefined;
+            if (where?.id?.in?.includes("thread_carry")) {
+              return [
+                {
+                  id: "thread_carry",
+                  providerThreadId: "gmail_carry",
+                  subject: "Leaking sink",
+                  messages: [
+                    {
+                      isOutbound: false,
+                      sentAt: new Date("2026-06-26T12:00:00.000Z"),
+                    },
+                  ],
+                },
+              ];
+            }
+            return [];
+          },
+        },
+        property: { findFirst: async () => null },
+        tenancyContact: { findFirst: async () => null },
+        prospect: { findFirst: async () => null },
+        application: { findFirst: async () => null },
+        briefingItem: {
+          deleteMany: async () => ({ count: 0 }),
+          createMany: async (args: { data: unknown[] }) => {
+            itemCreates.push(...args.data);
+            return { count: args.data.length };
+          },
+        },
+        auditLog: {
+          create: async () => ({}),
+        },
+      },
+      () =>
+        runBriefingGenerate({
+          organizationId: ORG_ID,
+          slot: BriefingSlot.MORNING,
+          windowStart: new Date("2026-06-26T07:00:00.000Z"),
+          windowEnd: new Date("2026-06-26T14:00:00.000Z"),
+          deliverBriefingEmail: async () => {
+            deliveryCalled = true;
+          },
+        }),
+    );
+
+    assert.equal(result.status, "completed");
+    if (result.status === "completed") {
+      assert.equal(result.includedCount, 1);
+      assert.equal(result.geminiCallCount, 0);
+    }
+    assert.equal(itemCreates.length, 1);
+    const item = itemCreates[0] as {
+      attentionLabel: string;
+      attentionSection: string;
+      emailThreadBriefingAttentionId: string;
+    };
+    assert.equal(item.attentionLabel, "STILL_ACTIVE");
+    assert.equal(item.attentionSection, "STILL_NEEDS_ATTENTION");
+    assert.equal(item.emailThreadBriefingAttentionId, "attn_carry_1");
+    assert.equal(deliveryCalled, true);
   });
 
   it("ignores enabled stub modules that are not in activeSourceTypes", async () => {

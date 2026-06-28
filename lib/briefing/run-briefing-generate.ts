@@ -304,9 +304,25 @@ export async function runBriefingGenerate(
       };
     }
 
-    if (!merged.output || !merged.context) {
+    if (!merged.output) {
       throw new Error("Briefing modules reported items but produced no persistable output.");
     }
+
+    const persistContext =
+      merged.context ??
+      ({
+        promptVersion: "daily-briefing-v1",
+        organization: { id: organization.id, name: organization.name },
+        slot: input.slot,
+        window: {
+          start: window.windowStart.toISOString(),
+          end: window.windowEnd.toISOString(),
+        },
+        activeSourceTypes: gate.effectiveActiveSourceTypes,
+        scopeNote: "",
+        counts: { scanned: merged.scannedCount, included: 0, skipped: merged.skippedCount },
+        threads: [],
+      } satisfies import("@/lib/briefing/briefing-types").BriefingContext);
 
     const executiveSummary =
       composeExecutiveSummary({ results: moduleResults, output: merged.output }) ??
@@ -321,10 +337,11 @@ export async function runBriefingGenerate(
       briefingRunId: run.id,
       organizationId: input.organizationId,
       output,
-      context: merged.context,
+      context: persistContext,
       scannedCount: merged.scannedCount,
       skippedCount: merged.skippedCount,
       geminiCallCount: merged.geminiCallCount,
+      emailItemPersistMetaByThreadId: merged.emailItemPersistMetaByThreadId,
     });
 
     await auditBriefingCompleted({

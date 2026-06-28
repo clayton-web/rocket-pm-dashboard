@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { BriefingAttentionLabel } from "@prisma/client";
 import {
   BriefingItemCategory,
   BriefingItemUrgency,
@@ -14,6 +15,8 @@ import {
   BRIEFING_DATA_PROVENANCE,
   BRIEFING_MVP_SCOPE_NOTE,
 } from "@/lib/briefing/briefing-sources";
+import { BRIEFING_ATTENTION_SECTION } from "@/lib/briefing/sources/email/briefing-attention-constants";
+import type { BriefingEmailItemPersistMeta } from "@/lib/briefing/sources/types";
 
 function truncateSubject(subject: string | null | undefined): string | null {
   if (subject == null) return null;
@@ -183,12 +186,35 @@ export async function persistBriefingRunOutput(args: {
   scannedCount: number;
   skippedCount: number;
   geminiCallCount: number;
+  emailItemPersistMetaByThreadId?: Record<string, BriefingEmailItemPersistMeta>;
 }): Promise<number> {
   const flattened = flattenBriefingOutputItems(args.output);
   const threadById = new Map(args.context.threads.map((thread) => [thread.threadId, thread]));
+  const persistMeta = args.emailItemPersistMetaByThreadId ?? {};
 
   const itemRows = flattened.map((item, index) => {
     const thread = item.sourceThreadId ? threadById.get(item.sourceThreadId) : undefined;
+    const threadId = thread?.threadId ?? item.sourceThreadId ?? null;
+    const meta =
+      threadId && persistMeta[threadId]
+        ? persistMeta[threadId]
+        : {
+            attentionLabel: BriefingAttentionLabel.NEW,
+            attentionSection: BRIEFING_ATTENTION_SECTION.NEW_IN_WINDOW,
+            emailThreadBriefingAttentionId: null,
+            subject: thread?.subject ?? null,
+          };
+
+    const summaryJson: Prisma.InputJsonValue = (meta.summaryJson ?? {
+      keyFacts: item.keyFacts,
+      requiredAction: item.requiredAction ?? null,
+      suggestedReplyNotes: item.suggestedReplyNotes ?? null,
+      confidence: item.confidence ?? null,
+      dataProvenance: BRIEFING_DATA_PROVENANCE.EMAIL_MENTION,
+      isPropertyManagementRelated: item.isPropertyManagementRelated,
+      sender: thread?.sender ?? null,
+      senderEmail: thread?.senderEmail ?? null,
+    }) as Prisma.InputJsonValue;
 
     return {
       briefingRunId: args.briefingRunId,
@@ -196,26 +222,20 @@ export async function persistBriefingRunOutput(args: {
       sourceType: BriefingSourceType.EMAIL,
       category: item.category as BriefingItemCategory,
       urgency: item.urgency as BriefingItemUrgency,
-      subject: truncateSubject(thread?.subject ?? null),
+      subject: truncateSubject(meta.subject ?? thread?.subject ?? null),
       summaryTitle: item.summaryTitle,
-      summaryJson: {
-        keyFacts: item.keyFacts,
-        requiredAction: item.requiredAction ?? null,
-        suggestedReplyNotes: item.suggestedReplyNotes ?? null,
-        confidence: item.confidence ?? null,
-        dataProvenance: BRIEFING_DATA_PROVENANCE.EMAIL_MENTION,
-        isPropertyManagementRelated: item.isPropertyManagementRelated,
-        sender: thread?.sender ?? null,
-        senderEmail: thread?.senderEmail ?? null,
-      } satisfies Prisma.InputJsonValue,
-      emailThreadId: thread?.threadId ?? item.sourceThreadId ?? null,
+      summaryJson,
+      emailThreadId: threadId,
       emailMessageId: thread?.newestMessageId ?? null,
       providerThreadId: thread?.providerThreadId ?? null,
       providerMessageId: thread?.providerMessageId ?? null,
-      sourceRecordId: thread?.threadId ?? item.sourceThreadId ?? null,
+      sourceRecordId: threadId,
       sourceRecordType: "EMAIL_THREAD",
       dueDate: parseDueDate(item.dueDate),
       sortOrder: index,
+      attentionLabel: meta.attentionLabel,
+      attentionSection: meta.attentionSection,
+      emailThreadBriefingAttentionId: meta.emailThreadBriefingAttentionId ?? null,
     };
   });
 

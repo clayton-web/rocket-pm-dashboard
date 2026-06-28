@@ -14,6 +14,8 @@ export function mergeSourceResults(results: BriefingSourceResult[]): MergedBrief
 
   let output: NormalizedBriefingOutput | null = null;
   let context: MergedBriefingSourceResults["context"] = null;
+  const emailItemPersistMetaByThreadId: MergedBriefingSourceResults["emailItemPersistMetaByThreadId"] =
+    {};
 
   for (const result of results) {
     scannedCount += result.scannedCount;
@@ -29,6 +31,9 @@ export function mergeSourceResults(results: BriefingSourceResult[]): MergedBrief
     if (result.context) {
       context = result.context;
     }
+    if (result.emailItemPersistMetaByThreadId) {
+      Object.assign(emailItemPersistMetaByThreadId, result.emailItemPersistMetaByThreadId);
+    }
   }
 
   return {
@@ -40,5 +45,6 @@ export function mergeSourceResults(results: BriefingSourceResult[]): MergedBrief
     activeSourceTypes,
     output,
     context,
+    emailItemPersistMetaByThreadId,
   };
 }
