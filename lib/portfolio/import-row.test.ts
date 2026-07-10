@@ -95,7 +95,7 @@ describe("portfolio import placeholder dates", () => {
       true,
     );
     assert.equal(
-      isPortfolioImportPlaceholderDate(portfolioImportPlaceholderDate(), referenceDate),
+      isPortfolioImportPlaceholderDate(portfolioImportPlaceholderDate(referenceDate), referenceDate),
       true,
     );
     assert.equal(

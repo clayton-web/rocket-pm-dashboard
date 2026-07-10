@@ -67,6 +67,8 @@ export type ProspectStaffDetail = {
   propertyName: string;
   unitId: string | null;
   unitLabel: string | null;
+  rentalListingId: string | null;
+  rentalListingHeadline: string | null;
   email: string;
   firstName: string | null;
   lastName: string | null;
@@ -138,15 +140,22 @@ export async function getProspectDetailForStaff(
 ): Promise<ProspectStaffDetail> {
   const prospect = await getProspectById(prisma, ctx, prospectId);
 
-  const [property, unit, showings, linkedApplications, assignableStaff] = await Promise.all([
+  const [property, unit, listing, showings, linkedApplications, assignableStaff] =
+    await Promise.all([
     prisma.property.findUnique({
       where: { id: prospect.propertyId },
-      select: propertyDisplaySelect,
+      select: { ...propertyDisplaySelect, serviceRelationship: true },
     }),
     prospect.unitId
       ? prisma.unit.findUnique({
           where: { id: prospect.unitId },
           select: { unitNumber: true },
+        })
+      : Promise.resolve(null),
+    prospect.rentalListingId
+      ? prisma.rentalListing.findUnique({
+          where: { id: prospect.rentalListingId },
+          select: { id: true, headline: true },
         })
       : Promise.resolve(null),
     listShowingsForProspect(prisma, ctx, prospectId),
@@ -158,6 +167,7 @@ export async function getProspectDetailForStaff(
         status: true,
         submittedAt: true,
         tenancy: { select: { id: true } },
+        tenantPlacement: { select: { id: true } },
       },
     }),
     listAssignableStaffForProperty(prospect.propertyId),
@@ -186,6 +196,8 @@ export async function getProspectDetailForStaff(
     submittedAt: app.submittedAt,
     hasTenancy: app.tenancy != null,
     tenancyId: app.tenancy?.id ?? null,
+    hasPlacement: app.tenantPlacement != null,
+    placementId: app.tenantPlacement?.id ?? null,
   }));
 
   const pipeline = deriveProspectPipelineStage({
@@ -198,11 +210,15 @@ export async function getProspectDetailForStaff(
     applications: pipelineApplications,
   });
 
-  const pipelineNextAction = deriveProspectPipelineNextAction(pipeline, {
-    status: prospect.status,
-    qualifiedAt: prospect.qualifiedAt,
-    applicationSentAt: prospect.applicationSentAt,
-  });
+  const pipelineNextAction = deriveProspectPipelineNextAction(
+    pipeline,
+    {
+      status: prospect.status,
+      qualifiedAt: prospect.qualifiedAt,
+      applicationSentAt: prospect.applicationSentAt,
+    },
+    { placementOnly: property.serviceRelationship === "PLACEMENT_ONLY" },
+  );
 
   return {
     id: prospect.id,
@@ -222,6 +238,8 @@ export async function getProspectDetailForStaff(
     propertyName: formatPropertyAddress(property),
     unitId: prospect.unitId,
     unitLabel,
+    rentalListingId: listing?.id ?? prospect.rentalListingId,
+    rentalListingHeadline: listing?.headline ?? null,
     email: prospect.email,
     firstName: prospect.firstName,
     lastName: prospect.lastName,

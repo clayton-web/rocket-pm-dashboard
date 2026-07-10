@@ -125,6 +125,15 @@ export function ProspectPipelineStrip(props: {
           </Link>
         ) : null}
 
+        {props.nextAction === "complete_placement" && props.primaryApplicationId ? (
+          <Link
+            href={`/leasing/applications/${props.primaryApplicationId}`}
+            className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
+          >
+            Complete Tenant Placement
+          </Link>
+        ) : null}
+
         {props.nextAction === "view_tenancy" && props.tenancyId ? (
           <Link
             href={`/leasing/tenancies/${props.tenancyId}`}

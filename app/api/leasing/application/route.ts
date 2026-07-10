@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       unitId: parsed.unitId,
       email: parsed.email,
       prospectId: parsed.prospectId ?? null,
+      rentalListingId: parsed.rentalListingId ?? null,
       firstName: parsed.firstName ?? null,
       lastName: parsed.lastName ?? null,
       phone: parsed.phone ?? null,

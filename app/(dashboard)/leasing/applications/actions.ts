@@ -4,25 +4,44 @@ import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/db/prisma";
 import { requireStaffContextFromSession, StaffAuthError } from "@/lib/auth/staff-from-session";
-import { getApplicationById, setApplicationReviewStatus } from "@/lib/services/application.service";
-import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
+import {
+  PlacementOnlyConversionBlockedError,
+  getApplicationConversionPolicy,
+  assertCanConvertApplicationToManagedTenancy,
+} from "@/lib/leasing/application-conversion-policy";
 import {
   buildEmergencyContactFromApplication,
   buildInitialLeaseSetupFromApplication,
 } from "@/lib/leasing/application-to-tenancy";
+import {
+  closeRentalListingForLeasingOutcome,
+  resolveListingForOutcomeClose,
+} from "@/lib/leasing/leasing-outcome-listing";
+import { getApplicationById, setApplicationReviewStatus } from "@/lib/services/application.service";
+import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
 import { createTenancyFromApprovedApplication } from "@/lib/services/tenancy.service";
 import { createTenancyContact } from "@/lib/services/tenancyContact.service";
-
+import {
+  ListingSelectionRequiredError,
+  completeTenantPlacement,
+  parsePlacementDateOnly,
+  PlacementCompletionNotAllowedError,
+} from "@/lib/services/tenant-placement.service";
 import {
   convertFormDatesToServiceInput,
   parseConvertTenancyFormInput,
 } from "@/lib/validation/tenancy-conversion";
+import { parseCompletePlacementFormInput } from "@/lib/validation/tenant-placement";
 
 export type ReviewApplicationResult = { ok: true } | { ok: false; error: string };
 
 export type ConvertTenancyResult =
   | { ok: true; tenancyId: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; listingCandidates?: { id: string; headline: string | null; status: string }[] };
+
+export type CompletePlacementResult =
+  | { ok: true; placementId: string }
+  | { ok: false; error: string; listingCandidates?: { id: string; headline: string | null; status: string }[] };
 
 const REVIEW_STATUSES = new Set(["under_review", "approved", "declined"]);
 
@@ -91,17 +110,25 @@ export async function convertApprovedApplicationAction(
     const ctx = await requireStaffContextFromSession();
     const application = await getApplicationById(prisma, ctx, trimmedId);
 
-    if (application.status !== "approved") {
-      return { ok: false, error: "Application must be approved before creating a tenancy" };
+    const property = await prisma.property.findFirst({
+      where: { id: application.propertyId, organizationId: ctx.organizationId },
+      select: { id: true, serviceRelationship: true },
+    });
+    if (!property) {
+      return { ok: false, error: "Property not found" };
     }
 
     const existingTenancy = await prisma.tenancy.findUnique({
       where: { applicationId: application.id },
       select: { id: true },
     });
-    if (existingTenancy) {
-      return { ok: false, error: "A tenancy already exists for this application" };
-    }
+
+    const policy = getApplicationConversionPolicy({
+      applicationStatus: application.status,
+      hasTenancy: existingTenancy != null,
+      serviceRelationship: property.serviceRelationship,
+    });
+    assertCanConvertApplicationToManagedTenancy(policy);
 
     const firstName = application.firstName?.trim() ?? "";
     const lastName = application.lastName?.trim() ?? "";
@@ -127,6 +154,13 @@ export async function convertApprovedApplicationAction(
       }
     }
 
+    const formListingId =
+      typeof formData === "object" &&
+      formData !== null &&
+      typeof (formData as { rentalListingId?: unknown }).rentalListingId === "string"
+        ? (formData as { rentalListingId: string }).rentalListingId.trim()
+        : null;
+
     const tenancy = await prisma.$transaction(async (tx) => {
       const db = tx as PrismaClient;
       const dup = await db.tenancy.findUnique({
@@ -137,6 +171,18 @@ export async function convertApprovedApplicationAction(
         throw new Error("A tenancy already exists for this application");
       }
 
+      const listingResolution = await resolveListingForOutcomeClose(db, {
+        propertyId: application.propertyId,
+        unitId: application.unitId,
+        applicationRentalListingId: application.rentalListingId,
+        explicitRentalListingId: formListingId,
+      });
+      if (listingResolution.kind === "needs_selection") {
+        throw new ListingSelectionRequiredError(listingResolution.candidates);
+      }
+
+      // Reloads property.serviceRelationship from DB and enforces policy again;
+      // PRE_MANAGEMENT → MANAGED happens inside createTenancyFromApprovedApplication.
       const row = await createTenancyFromApprovedApplication(db, ctx, {
         applicationId: application.id,
         status: "pending_move_in",
@@ -158,11 +204,20 @@ export async function convertApprovedApplicationAction(
         await createTenancyContact(db, ctx, row.id, emergencyContact);
       }
 
+      if (listingResolution.kind === "close") {
+        await closeRentalListingForLeasingOutcome(db, ctx, listingResolution.listing.id, {
+          reason: "managed_tenancy_conversion",
+          applicationId: application.id,
+        });
+      }
+
       return row;
     });
 
     revalidatePath("/leasing/applications");
     revalidatePath(`/leasing/applications/${trimmedId}`);
+    revalidatePath(`/properties/${application.propertyId}`);
+    revalidatePath(`/leasing/tenancies/${tenancy.id}`);
     return { ok: true, tenancyId: tenancy.id };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -174,7 +229,67 @@ export async function convertApprovedApplicationAction(
     if (e instanceof ForbiddenError) {
       return { ok: false, error: e.message };
     }
+    if (e instanceof PlacementOnlyConversionBlockedError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ListingSelectionRequiredError) {
+      return { ok: false, error: e.message, listingCandidates: e.candidates };
+    }
     const message = e instanceof Error ? e.message : "Could not create tenancy";
+    return { ok: false, error: message };
+  }
+}
+
+export async function completeTenantPlacementAction(
+  applicationId: string,
+  formData: unknown,
+): Promise<CompletePlacementResult> {
+  const trimmedId = applicationId.trim();
+  if (!trimmedId) {
+    return { ok: false, error: "Invalid application id" };
+  }
+
+  const parsedForm = parseCompletePlacementFormInput(formData);
+  if ("error" in parsedForm) {
+    return { ok: false, error: parsedForm.error };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    const placement = await completeTenantPlacement(prisma, ctx, {
+      applicationId: trimmedId,
+      leaseStartDate: parsePlacementDateOnly(parsedForm.leaseStartDate, "Lease start date"),
+      leaseEndDate: parsedForm.leaseEndDate
+        ? parsePlacementDateOnly(parsedForm.leaseEndDate, "Lease end date")
+        : null,
+      monthlyRent: parsedForm.monthlyRent,
+      landlordHandoffNotes: parsedForm.landlordHandoffNotes,
+      internalNotes: parsedForm.internalNotes,
+      rentalListingId: parsedForm.rentalListingId,
+    });
+
+    const application = await getApplicationById(prisma, ctx, trimmedId);
+    revalidatePath("/leasing/applications");
+    revalidatePath(`/leasing/applications/${trimmedId}`);
+    revalidatePath(`/properties/${application.propertyId}`);
+    return { ok: true, placementId: placement.id };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof PlacementCompletionNotAllowedError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ListingSelectionRequiredError) {
+      return { ok: false, error: e.message, listingCandidates: e.candidates };
+    }
+    const message = e instanceof Error ? e.message : "Could not complete placement";
     return { ok: false, error: message };
   }
 }

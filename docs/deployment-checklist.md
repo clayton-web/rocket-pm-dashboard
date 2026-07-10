@@ -55,15 +55,17 @@ The server refuses to start in production if dangerous dev flags are set or if `
 
 ## Pre-deploy steps
 
-1. [ ] PostgreSQL provisioned; run `npx prisma migrate deploy` (or `db push` only for ephemeral staging).
-2. [ ] All required secrets set in the hosting provider (not in git).
-3. [ ] `DEV_CREDENTIALS_LOGIN=false` and `NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN=false` on production build.
-4. [ ] `GMAIL_TOKEN_ENCRYPTION_KEY` set before any user connects Gmail or saves Buildium credentials.
-5. [ ] Gmail OAuth client redirect URI matches `{NEXTAUTH_URL}/api/integrations/gmail/callback`.
-6. [ ] Do **not** run `npm run db:seed` in production (seed blocked unless `ALLOW_PRODUCTION_SEED=true` for intentional staging resets).
-7. [ ] Staff users have `passwordHash` set (no email-only dev login in production).
-8. [ ] S3-compatible document bucket provisioned (private, encrypted, versioning on). See [leasing-production-readiness.md](./leasing-production-readiness.md).
-9. [ ] `DOCUMENT_STORAGE_BACKEND=s3` and S3 credentials set; run `scripts/migrate-documents-to-s3.ts` if migrating existing local files.
+1. [ ] PostgreSQL provisioned; run `npx prisma migrate deploy` against `DIRECT_URL` **before** promoting new application code that depends on pending migrations (Vercel does not auto-migrate).
+2. [ ] For the leasing release, confirm these migrations are applied in order: `20260710000000_rental_listing_foundation`, `20260710010000_property_service_relationship`, `20260710020000_listing_attribution_and_tenant_placement`. See [rental-listings.md](./rental-listings.md).
+3. [ ] All required secrets set in the hosting provider (not in git).
+4. [ ] `DEV_CREDENTIALS_LOGIN=false` and `NEXT_PUBLIC_DEV_CREDENTIALS_LOGIN=false` on production build.
+5. [ ] `GMAIL_TOKEN_ENCRYPTION_KEY` set before any user connects Gmail or saves Buildium credentials.
+6. [ ] Gmail OAuth client redirect URI matches `{NEXTAUTH_URL}/api/integrations/gmail/callback`.
+7. [ ] Do **not** run `npm run db:seed` in production (seed blocked unless `ALLOW_PRODUCTION_SEED=true` for intentional staging resets).
+8. [ ] Staff users have `passwordHash` set (no email-only dev login in production).
+9. [ ] S3-compatible document bucket provisioned (private, encrypted, versioning on). See [leasing-production-readiness.md](./leasing-production-readiness.md).
+10. [ ] `DOCUMENT_STORAGE_BACKEND=s3` and S3 credentials set; run `scripts/migrate-documents-to-s3.ts` if migrating existing local files.
+11. [ ] Leave `RENTAL_LISTING_PUBLIC_FALLBACK` unset or `true` until every advertised unit has a listing (default-on).
 
 ## Post-deploy verification
 

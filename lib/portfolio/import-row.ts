@@ -161,12 +161,10 @@ export function validatePortfolioRow(
   };
 }
 
-export function portfolioImportPlaceholderDate(): Date {
-  const d = new Date();
-  d.setUTCFullYear(d.getUTCFullYear() - 1);
-  d.setUTCMonth(d.getUTCMonth(), 1);
-  d.setUTCHours(12, 0, 0, 0);
-  return d;
+/** Noon UTC on the placeholder calendar day (see {@link getPortfolioImportPlaceholderDateKey}). */
+export function portfolioImportPlaceholderDate(referenceDate: Date = new Date()): Date {
+  const key = getPortfolioImportPlaceholderDateKey(referenceDate);
+  return new Date(`${key}T12:00:00.000Z`);
 }
 
 /** Sentinel calendar date used when PDF portfolio imports lack lease/move-in dates. */

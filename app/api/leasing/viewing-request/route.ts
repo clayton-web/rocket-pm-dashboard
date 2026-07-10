@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     const row = await submitPublicViewingRequest(prisma, {
       propertyId: parsed.propertyId,
       unitId: parsed.unitId ?? null,
+      rentalListingId: parsed.rentalListingId ?? null,
       email: parsed.email,
       firstName: parsed.firstName,
       lastName: parsed.lastName,
@@ -56,7 +57,13 @@ export async function POST(request: Request) {
     if (e instanceof NotFoundError) {
       return NextResponse.json({ error: e.message }, { status: 400 });
     }
-    if (e instanceof Error && e.message === "Email is required") {
+    if (
+      e instanceof Error &&
+      (e.message === "Email is required" ||
+        e.message.includes("Rental listing") ||
+        e.message.includes("rental listing") ||
+        e.message.includes("Unit is required when submitting from a rental listing"))
+    ) {
       return NextResponse.json({ error: e.message }, { status: 400 });
     }
     console.error("[POST /api/leasing/viewing-request]", e);

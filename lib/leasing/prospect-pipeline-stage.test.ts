@@ -106,6 +106,24 @@ describe("deriveProspectPipelineStage", () => {
     assert.equal(result.tenancyId, "ten_1");
   });
 
+  it("returns placed when the primary application has a tenant placement", () => {
+    const result = deriveProspectPipelineStage({
+      prospect: baseProspect,
+      showings: [],
+      applications: [
+        {
+          id: "app_1",
+          status: "approved",
+          hasTenancy: false,
+          hasPlacement: true,
+          placementId: "place_1",
+        },
+      ],
+    });
+    assert.equal(result.stage, "placed");
+    assert.equal(result.placementId, "place_1");
+  });
+
   it("returns archived for archived prospects regardless of related records", () => {
     const result = deriveProspectPipelineStage({
       prospect: { ...baseProspect, status: "archived" },
@@ -142,5 +160,17 @@ describe("deriveProspectPipelineNextAction", () => {
       applications: [{ id: "app_1", status: "approved", hasTenancy: false }],
     });
     assert.equal(deriveProspectPipelineNextAction(pipeline, baseProspect), "convert_application");
+  });
+
+  it("suggests complete placement when approved on a placement-only property", () => {
+    const pipeline = deriveProspectPipelineStage({
+      prospect: baseProspect,
+      showings: [],
+      applications: [{ id: "app_1", status: "approved", hasTenancy: false }],
+    });
+    assert.equal(
+      deriveProspectPipelineNextAction(pipeline, baseProspect, { placementOnly: true }),
+      "complete_placement",
+    );
   });
 });

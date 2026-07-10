@@ -73,6 +73,8 @@ function createMockPrisma(args: {
     notice: { count: async () => countFor("notice") },
     maintenanceRequest: { count: async () => countFor("maintenanceRequest") },
     checklist: { count: async () => countFor("checklist") },
+    rentalListing: { count: async () => countFor("rentalListing") },
+    tenantPlacement: { count: async () => countFor("tenantPlacement") },
     userPropertyAssignment: {
       findFirst: async () => ({ id: "assign_1" }),
     },
@@ -96,6 +98,18 @@ describe("listPropertyHardDeleteBlockers", () => {
     const prisma = createMockPrisma({ organizationId: ORG_ID, counts: { tenancy: 1 } });
     const blockers = await listPropertyHardDeleteBlockers(prisma as unknown as PrismaClient, PROPERTY_ID);
     assert.ok(blockers.includes("tenancy"));
+  });
+
+  it("blocks when rental listing exists", async () => {
+    const prisma = createMockPrisma({ organizationId: ORG_ID, counts: { rentalListing: 1 } });
+    const blockers = await listPropertyHardDeleteBlockers(prisma as unknown as PrismaClient, PROPERTY_ID);
+    assert.ok(blockers.includes("rentalListing"));
+  });
+
+  it("blocks when tenant placement exists", async () => {
+    const prisma = createMockPrisma({ organizationId: ORG_ID, counts: { tenantPlacement: 1 } });
+    const blockers = await listPropertyHardDeleteBlockers(prisma as unknown as PrismaClient, PROPERTY_ID);
+    assert.ok(blockers.includes("tenantPlacement"));
   });
 
   it("blocks when application exists", async () => {

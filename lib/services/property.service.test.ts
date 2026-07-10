@@ -43,10 +43,15 @@ function createMockPrisma() {
       }): Promise<Property> => ({
         id: "prop_test",
         isActive: true,
+        serviceRelationship: (data as { serviceRelationship?: Property["serviceRelationship"] })
+          .serviceRelationship ?? "MANAGED",
         propertyType: data.propertyType ?? null,
         bedrooms: data.bedrooms ?? null,
         bathrooms: data.bathrooms ?? null,
         approxSqft: data.approxSqft ?? null,
+        ownerEmail: null,
+        ownerPhone: null,
+        strataNotes: null,
         createdAt: new Date("2026-01-01"),
         updatedAt: new Date("2026-01-01"),
         ...data,
@@ -101,6 +106,7 @@ describe("createProperty", () => {
       city: "Vancouver",
       province: "BC",
       postalCode: "V6B 1A1",
+      serviceRelationship: "MANAGED",
       propertyType: "condo",
       bedrooms: 2,
       bathrooms: 1.5,
@@ -108,11 +114,28 @@ describe("createProperty", () => {
     });
 
     assert.equal(property.streetLine1, "123 Main Street");
+    assert.equal(property.serviceRelationship, "MANAGED");
     assert.equal(property.propertyType, "condo");
     assert.equal(property.bedrooms, 2);
     assert.equal(property.approxSqft, 850);
     assert.equal(prisma.unitCreates.length, 1);
     assert.equal(prisma.unitCreates[0]?.data.propertyId, "prop_test");
     assert.equal(prisma.unitCreates[0]?.data.unitNumber, ENTIRE_PROPERTY_UNIT_NUMBER);
+  });
+
+  it("persists placement-only and pre-management relationships", async () => {
+    for (const serviceRelationship of ["PLACEMENT_ONLY", "PRE_MANAGEMENT"] as const) {
+      const prisma = createMockPrisma();
+      const property = await createProperty(prisma as unknown as PrismaClient, adminContext(), {
+        organizationId: ORG_ID,
+        name: "456 Oak",
+        streetLine1: "456 Oak",
+        city: "Vancouver",
+        province: "BC",
+        postalCode: "V6B 1A1",
+        serviceRelationship,
+      });
+      assert.equal(property.serviceRelationship, serviceRelationship);
+    }
   });
 });

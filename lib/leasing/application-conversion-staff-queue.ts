@@ -1,14 +1,24 @@
 import prisma from "@/lib/db/prisma";
+import { getApplicationConversionPolicy } from "@/lib/leasing/application-conversion-policy";
+import type { ApplicationQueueRow } from "@/lib/leasing/application-staff-queue";
 import { formatPropertyAddress, formatUnitLabelOrDash } from "@/lib/property/display";
+import { isPropertyServiceRelationship } from "@/lib/property/service-relationship";
 import { ForbiddenError } from "@/lib/services/errors";
 import { listApplicationsForProperty, listPropertiesForUser } from "@/lib/services";
 import type { StaffContext } from "@/lib/services/staff-context";
-import type { ApplicationQueueRow } from "@/lib/leasing/application-staff-queue";
 
 export type ApplicationConversionQueueRow = ApplicationQueueRow & {
   decisionAt: string | null;
+  serviceRelationship: string;
+  conversionStateLabel: string;
+  canConvertToManagedTenancy: boolean;
+  canCompletePlacement: boolean;
 };
 
+/**
+ * Approved applications awaiting managed conversion or placement completion.
+ * Excludes applications that already have a tenancy or completed placement.
+ */
 export async function listApprovedApplicationsReadyToConvertForStaff(
   ctx: StaffContext,
 ): Promise<ApplicationConversionQueueRow[]> {
@@ -29,12 +39,20 @@ export async function listApprovedApplicationsReadyToConvertForStaff(
     const approved = applications.filter((a) => a.status === "approved");
     if (approved.length === 0) continue;
 
-    const converted = await prisma.tenancy.findMany({
-      where: { applicationId: { in: approved.map((a) => a.id) } },
-      select: { applicationId: true },
-    });
+    const appIds = approved.map((a) => a.id);
+    const [converted, placements] = await Promise.all([
+      prisma.tenancy.findMany({
+        where: { applicationId: { in: appIds } },
+        select: { applicationId: true },
+      }),
+      prisma.tenantPlacement.findMany({
+        where: { applicationId: { in: appIds } },
+        select: { applicationId: true },
+      }),
+    ]);
     const convertedIds = new Set(converted.map((t) => t.applicationId));
-    const ready = approved.filter((a) => !convertedIds.has(a.id));
+    const placedIds = new Set(placements.map((p) => p.applicationId));
+    const ready = approved.filter((a) => !convertedIds.has(a.id) && !placedIds.has(a.id));
     if (ready.length === 0) continue;
 
     const unitIds = [...new Set(ready.map((a) => a.unitId))];
@@ -44,7 +62,16 @@ export async function listApprovedApplicationsReadyToConvertForStaff(
     });
     const unitById = new Map(units.map((u) => [u.id, u.unitNumber]));
 
+    const serviceRelationship = isPropertyServiceRelationship(property.serviceRelationship)
+      ? property.serviceRelationship
+      : "MANAGED";
+
     for (const app of ready) {
+      const policy = getApplicationConversionPolicy({
+        applicationStatus: app.status,
+        hasTenancy: false,
+        serviceRelationship,
+      });
       const unitNumber = unitById.get(app.unitId);
       rows.push({
         id: app.id,
@@ -59,6 +86,10 @@ export async function listApprovedApplicationsReadyToConvertForStaff(
         email: app.email,
         phone: app.phone,
         desiredMoveInDate: app.desiredMoveInDate?.toISOString().slice(0, 10) ?? null,
+        serviceRelationship,
+        conversionStateLabel: policy.staffStateLabel,
+        canConvertToManagedTenancy: policy.allowed,
+        canCompletePlacement: policy.recommendedAction === "await_placement_completion",
       });
     }
   }

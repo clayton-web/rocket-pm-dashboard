@@ -392,7 +392,7 @@ describe("portfolio health helpers", () => {
 describe("isPortfolioImportPlaceholderDate", () => {
   it("matches noon and midnight UTC timestamps for the placeholder calendar date", () => {
     const referenceDate = new Date("2026-06-15T12:00:00.000Z");
-    const placeholder = portfolioImportPlaceholderDate();
+    const placeholder = portfolioImportPlaceholderDate(referenceDate);
     const placeholderKey = placeholder.toISOString().slice(0, 10);
 
     assert.equal(isPortfolioImportPlaceholderDate(placeholder, referenceDate), true);

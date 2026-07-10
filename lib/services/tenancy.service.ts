@@ -1,5 +1,9 @@
 import type { Prisma, PrismaClient, RetentionStatus, Tenancy, TenancyStatus } from "@prisma/client";
 import {
+  assertCanConvertApplicationToManagedTenancy,
+  getApplicationConversionPolicy,
+} from "@/lib/leasing/application-conversion-policy";
+import {
   assertValidRentDueDay,
   deriveRentDueDayFromLeaseStart,
 } from "@/lib/leasing/notice-rules";
@@ -72,6 +76,9 @@ async function getTenancyOrThrow(prisma: PrismaClient, id: string): Promise<Tena
 /**
  * Property manager or org admin/owner in the active org. Application must be `approved`; property/unit copied from
  * application; one tenancy per application.
+ *
+ * Enforces {@link getApplicationConversionPolicy}: PLACEMENT_ONLY is blocked; PRE_MANAGEMENT
+ * transitions to MANAGED in the same call (caller should wrap in a transaction with contacts).
  */
 export async function createTenancyFromApprovedApplication(
   prisma: PrismaClient,
@@ -82,11 +89,14 @@ export async function createTenancyFromApprovedApplication(
 
   const application = await prisma.application.findUnique({
     where: { id: input.applicationId },
+    include: {
+      property: { select: { id: true, serviceRelationship: true, organizationId: true } },
+    },
   });
   if (!application) throw new NotFoundError("Application not found");
 
-  if (application.status !== "approved") {
-    throw new Error("Application must be approved before creating a tenancy");
+  if (application.property.organizationId !== principal.organizationId) {
+    throw new NotFoundError("Application not found");
   }
 
   await requirePropertyManagerAccess(prisma, principal, application.propertyId);
@@ -94,7 +104,13 @@ export async function createTenancyFromApprovedApplication(
   const existing = await prisma.tenancy.findUnique({
     where: { applicationId: application.id },
   });
-  if (existing) throw new Error("A tenancy already exists for this application");
+
+  const policy = getApplicationConversionPolicy({
+    applicationStatus: application.status,
+    hasTenancy: existing != null,
+    serviceRelationship: application.property.serviceRelationship,
+  });
+  assertCanConvertApplicationToManagedTenancy(policy);
 
   if (input.monthlyRent < 0 || input.securityDeposit < 0) {
     throw new Error("Rent and deposit amounts must be non-negative");
@@ -135,6 +151,36 @@ export async function createTenancyFromApprovedApplication(
       "rentDueDay",
     ]),
   });
+
+  if (policy.transitionPropertyToManaged) {
+    const before = await prisma.property.findUnique({
+      where: { id: application.propertyId },
+      select: { serviceRelationship: true },
+    });
+    if (before?.serviceRelationship === "PRE_MANAGEMENT") {
+      await prisma.property.update({
+        where: { id: application.propertyId },
+        data: { serviceRelationship: "MANAGED" },
+      });
+      await logPropertyActivity(
+        prisma,
+        principal,
+        application.propertyId,
+        "Property",
+        application.propertyId,
+        "property.service_relationship_updated",
+        {
+          oldValues: { serviceRelationship: "PRE_MANAGEMENT" },
+          newValues: {
+            serviceRelationship: "MANAGED",
+            reason: "pre_management_tenancy_conversion",
+            applicationId: application.id,
+          },
+        },
+      );
+    }
+  }
+
   return row;
 }
 

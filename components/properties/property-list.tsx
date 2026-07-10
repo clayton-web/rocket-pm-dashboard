@@ -42,15 +42,12 @@ export function PropertyList({
           <Link href="/properties/health" className="font-medium underline">
             Property Documents &amp; Health
           </Link>
-          . Active properties with units appear on{" "}
+          . Operational Active status, service relationship (managed / pre-management / placement
+          only), and published rental listings are separate. Units appear on{" "}
           <Link href="/portal/viewing" className="font-medium underline">
             /portal/viewing
           </Link>{" "}
-          and{" "}
-          <Link href="/portal/application" className="font-medium underline">
-            /portal/application
-          </Link>
-          .
+          when published, or via a temporary per-unit fallback for units with no listing history.
         </p>
       </div>
 

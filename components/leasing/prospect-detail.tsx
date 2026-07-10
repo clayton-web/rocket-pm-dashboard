@@ -157,6 +157,11 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
             <DetailRow label="Submitted">{formatDateTime(detail.createdAt)}</DetailRow>
             <DetailRow label="Property">{detail.propertyName}</DetailRow>
             <DetailRow label="Unit">{detail.unitLabel ?? "No specific unit selected"}</DetailRow>
+            <DetailRow label="Listing">
+              {detail.rentalListingHeadline ??
+                detail.rentalListingId ??
+                "None (legacy / unattributed)"}
+            </DetailRow>
             <DetailRow label="Email">{detail.email}</DetailRow>
             <DetailRow label="Phone">{detail.phone ?? "—"}</DetailRow>
             <DetailRow label="Occupants">

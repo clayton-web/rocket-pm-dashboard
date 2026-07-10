@@ -80,7 +80,7 @@ export function ApplicationQueueList(props: ApplicationQueueListProps) {
         <p className="mt-1 text-sm text-neutral-600">
           {isConversion ? (
             <>
-              Approved applications waiting for tenancy conversion.{" "}
+              Approved applications awaiting tenancy conversion or placement completion.{" "}
               <Link href="/leasing/applications" className="font-medium underline">
                 View review queue
               </Link>
@@ -169,12 +169,14 @@ export function ApplicationQueueList(props: ApplicationQueueListProps) {
                       <span
                         className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${
                           isConversion
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                            ? (app as ApplicationConversionQueueRow).canConvertToManagedTenancy
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                              : "border-amber-200 bg-amber-50 text-amber-950"
                             : "border-neutral-300 bg-white text-neutral-800"
                         }`}
                       >
                         {isConversion
-                          ? "Ready to convert"
+                          ? (app as ApplicationConversionQueueRow).conversionStateLabel
                           : formatApplicationQueueStatus(app.status)}
                       </span>
                       <time className="text-xs text-neutral-500" dateTime={timestamp.dateTime}>

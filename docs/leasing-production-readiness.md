@@ -108,9 +108,28 @@ Open redirect protection on portal login `next` parameter — see `lib/portal/po
 
 ---
 
+## Rental listings
+
+- Public availability is modeled by `RentalListing` (`DRAFT` / `PUBLISHED` / `PAUSED` / `CLOSED`). See [rental-listings.md](./rental-listings.md).
+- `Property.isActive` / `Unit.isActive` are operational record flags, not public-listing controls and not service relationship.
+- `Property.serviceRelationship` (`MANAGED` / `PRE_MANAGEMENT` / `PLACEMENT_ONLY`) describes Axford’s engagement; it does not gate listing publish.
+- Temporary **per-unit** public fallback (`RENTAL_LISTING_PUBLIC_FALLBACK`, default on): published listings always appear; active units with zero listing history may also appear. Units with any listing status never use legacy fallback.
+
+## Managed tenancy conversion and placement completion
+
+- `MANAGED` / `PRE_MANAGEMENT` approved applications convert to a managed `Tenancy` (portal contacts, onboarding, maintenance lifecycle).
+- Successful **PRE_MANAGEMENT** conversion sets the property to `MANAGED` in the same database transaction as tenancy creation.
+- **PLACEMENT_ONLY** applications use `TenantPlacement` completion (no tenancy/portal). Staff must not flip service relationship merely to bypass the guard.
+- Listing attribution: `Prospect.rentalListingId` / `Application.rentalListingId` (nullable for legacy).
+- Successful managed conversion or placement completion closes the related listing (attributed or unambiguous open listing only).
+- Policy: `lib/leasing/application-conversion-policy.ts`. Placement: `lib/services/tenant-placement.service.ts`.
+
 ## Out of scope (future work)
 
 - Payment / rent ledger
 - Automated move-in/move-out workflows beyond status tracking
 - Co-tenant portal accounts and multi-signer execution
 - E-signature provider integration (current: in-app canvas signatures)
+- Final public-query cutover removing the legacy active-unit fallback
+- Listing photos, leasing transactional email, application invite tokens
+- Placement fees / accounting

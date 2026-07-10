@@ -1,5 +1,8 @@
 import prisma from "@/lib/db/prisma";
-import { deriveProspectPipelineStage } from "@/lib/leasing/prospect-pipeline-stage";
+import {
+  deriveProspectPipelineStage,
+  isProspectAttentionComplete,
+} from "@/lib/leasing/prospect-pipeline-stage";
 import { formatHouseholdIncomeRange } from "@/lib/leasing/prospect-intake";
 import { formatPropertyAddress, formatUnitLabel } from "@/lib/property/display";
 import { ForbiddenError } from "@/lib/services/errors";
@@ -94,6 +97,7 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
         status: true,
         submittedAt: true,
         tenancy: { select: { id: true } },
+        tenantPlacement: { select: { id: true } },
       },
     }),
   ]);
@@ -107,7 +111,15 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
 
   const applicationsByProspect = new Map<
     string,
-    { id: string; status: string; submittedAt: Date | null; hasTenancy: boolean; tenancyId: string | null }[]
+    {
+      id: string;
+      status: string;
+      submittedAt: Date | null;
+      hasTenancy: boolean;
+      tenancyId: string | null;
+      hasPlacement: boolean;
+      placementId: string | null;
+    }[]
   >();
   for (const application of applications) {
     if (!application.prospectId) continue;
@@ -118,6 +130,8 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
       submittedAt: application.submittedAt,
       hasTenancy: application.tenancy != null,
       tenancyId: application.tenancy?.id ?? null,
+      hasPlacement: application.tenantPlacement != null,
+      placementId: application.tenantPlacement?.id ?? null,
     });
     applicationsByProspect.set(application.prospectId, list);
   }
@@ -148,6 +162,10 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
     row.pipelineStageLabel = pipeline.stageLabel;
   }
 
-  rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return rows;
+  const attentionRows = rows.filter(
+    (row) => !isProspectAttentionComplete(row.pipelineStage as Parameters<typeof isProspectAttentionComplete>[0]),
+  );
+
+  attentionRows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return attentionRows;
 }

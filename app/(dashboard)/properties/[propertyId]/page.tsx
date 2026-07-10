@@ -3,9 +3,12 @@ import { PropertyDetail, type PropertyDetailData } from "@/components/properties
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import prisma from "@/lib/db/prisma";
 import { safeResolvePropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
+import { loadRentalListingsForPropertyStaff } from "@/lib/leasing/rental-listing-staff";
 import { loadPropertyDocumentsForStaff } from "@/lib/property/property-documents-staff";
+import { loadPropertyPlacementsForStaff } from "@/lib/property/property-placements-staff";
 import { loadPropertyTenanciesForStaff } from "@/lib/property/property-tenancies-staff";
 import { propertyProfileFromRecord } from "@/lib/property/profile";
+import { isPropertyServiceRelationship } from "@/lib/property/service-relationship";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
 import { getPropertyById } from "@/lib/services/property.service";
 import { listUnitsForProperty } from "@/lib/services/unit.service";
@@ -74,6 +77,30 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       tenanciesLoadError = e instanceof Error ? e.message : "Could not load tenancies.";
     }
 
+    let rentalListings = null;
+    let rentalListingsLoadError: string | null = null;
+    try {
+      rentalListings = await loadRentalListingsForPropertyStaff(prisma, ctx, propertyId, unitInputs);
+    } catch (e) {
+      rentalListingsLoadError = e instanceof Error ? e.message : "Could not load rental listings.";
+    }
+
+    let placements: Awaited<ReturnType<typeof loadPropertyPlacementsForStaff>> | null = null;
+    let placementsLoadError: string | null = null;
+    try {
+      placements = await loadPropertyPlacementsForStaff(prisma, ctx, propertyId, unitInputs);
+    } catch (e) {
+      if (e instanceof ForbiddenError) {
+        placements = [];
+      } else {
+        placementsLoadError = e instanceof Error ? e.message : "Could not load placements.";
+      }
+    }
+
+    const serviceRelationship = isPropertyServiceRelationship(property.serviceRelationship)
+      ? property.serviceRelationship
+      : "MANAGED";
+
     const detail: PropertyDetailData = {
       id: property.id,
       name: property.name,
@@ -84,6 +111,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       postalCode: property.postalCode,
       country: property.country,
       isActive: property.isActive,
+      serviceRelationship,
       ownerEmail: property.ownerEmail,
       ownerPhone: property.ownerPhone,
       strataNotes: property.strataNotes,
@@ -93,6 +121,10 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       documentsLoadError,
       tenancies,
       tenanciesLoadError,
+      rentalListings,
+      rentalListingsLoadError,
+      placements,
+      placementsLoadError,
     };
 
     const canManageProperty = canManagePropertyUnits(ctx, propertyId);

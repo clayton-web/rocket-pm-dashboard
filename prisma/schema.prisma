@@ -51,21 +51,24 @@ model User {
   /// Rocket Logic staff: may list/switch orgs; queries still scoped by active organizationId.
   platformAccessLevel PlatformAccessLevel @default(NONE)
 
-  memberships                 OrganizationMembership[]
-  propertyAssignments         UserPropertyAssignment[]
-  showingsAssigned            Showing[]                @relation("ShowingAssignedTo")
-  showingsCreated             Showing[]                @relation("ShowingCreatedBy")
-  applicationsReviewed        Application[]            @relation("ApplicationReviewedBy")
-  clientProfilesCreated       ClientProfile[]          @relation("ClientProfileCreatedBy")
-  activityLogEntries          ActivityLog[]            @relation("ActivityLogActor")
-  maintenanceRequestsAssigned MaintenanceRequest[]     @relation("MaintenanceRequestAssignedTo")
-  auditLogs                   AuditLog[]
-  backgroundJobsTriggered     BackgroundJob[]          @relation("BackgroundJobTriggeredBy")
-  agentRunsCreated            AgentRun[]               @relation("AgentRunCreatedBy")
-  connectedEmailAccounts      ConnectedEmailAccount[]
-  styleExamples               AiStyleExample[]
-  briefingRunsReviewed                 BriefingRun[]                    @relation("BriefingRunReviewedBy")
+  memberships                           OrganizationMembership[]
+  propertyAssignments                   UserPropertyAssignment[]
+  showingsAssigned                      Showing[]                      @relation("ShowingAssignedTo")
+  showingsCreated                       Showing[]                      @relation("ShowingCreatedBy")
+  applicationsReviewed                  Application[]                  @relation("ApplicationReviewedBy")
+  clientProfilesCreated                 ClientProfile[]                @relation("ClientProfileCreatedBy")
+  activityLogEntries                    ActivityLog[]                  @relation("ActivityLogActor")
+  maintenanceRequestsAssigned           MaintenanceRequest[]           @relation("MaintenanceRequestAssignedTo")
+  auditLogs                             AuditLog[]
+  backgroundJobsTriggered               BackgroundJob[]                @relation("BackgroundJobTriggeredBy")
+  agentRunsCreated                      AgentRun[]                     @relation("AgentRunCreatedBy")
+  connectedEmailAccounts                ConnectedEmailAccount[]
+  styleExamples                         AiStyleExample[]
+  briefingRunsReviewed                  BriefingRun[]                  @relation("BriefingRunReviewedBy")
   emailThreadBriefingAttentionsResolved EmailThreadBriefingAttention[] @relation("EmailThreadBriefingAttentionResolvedBy")
+  rentalListingsCreated                 RentalListing[]                @relation("RentalListingCreatedBy")
+  rentalListingsUpdated                 RentalListing[]                @relation("RentalListingUpdatedBy")
+  tenantPlacementsCompleted             TenantPlacement[]              @relation("TenantPlacementCompletedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -94,22 +97,24 @@ model Organization {
   memberships OrganizationMembership[]
   properties  Property[]
 
-  maintenanceRequests     MaintenanceRequest[]
-  maintenanceAttachments  MaintenanceAttachment[]
-  auditLogs               AuditLog[]
-  connectedEmailAccounts  ConnectedEmailAccount[]
-  emailThreads            EmailThread[]
-  emailMessages           EmailMessage[]
-  knowledgeSources        AiKnowledgeSource[]
-  responderRules          AiResponderRule[]
-  styleExamples           AiStyleExample[]
-  draftResponses          AiDraftResponse[]
-  backgroundJobs          BackgroundJob[]
-  agentRuns               AgentRun[]
-  aiPolicy                OrganizationAiPolicy?
-  rentalAdAssistantDrafts RentalAdAssistantDraft[]
-  briefingSettings        BriefingSettings?
-  briefingRuns            BriefingRun[]
+  maintenanceRequests           MaintenanceRequest[]
+  maintenanceAttachments        MaintenanceAttachment[]
+  auditLogs                     AuditLog[]
+  connectedEmailAccounts        ConnectedEmailAccount[]
+  emailThreads                  EmailThread[]
+  emailMessages                 EmailMessage[]
+  knowledgeSources              AiKnowledgeSource[]
+  responderRules                AiResponderRule[]
+  styleExamples                 AiStyleExample[]
+  draftResponses                AiDraftResponse[]
+  backgroundJobs                BackgroundJob[]
+  agentRuns                     AgentRun[]
+  aiPolicy                      OrganizationAiPolicy?
+  rentalAdAssistantDrafts       RentalAdAssistantDraft[]
+  rentalListings                RentalListing[]
+  tenantPlacements              TenantPlacement[]
+  briefingSettings              BriefingSettings?
+  briefingRuns                  BriefingRun[]
   briefingItems                 BriefingItem[]
   emailThreadBriefingAttentions EmailThreadBriefingAttention[]
   buildiumConnection            BuildiumConnection?
@@ -149,6 +154,16 @@ model OrganizationMembership {
 
 // --- Property graph (Path A / PR3): org-scoped properties, units, staff assignments ---
 
+/// Organization's business relationship to the property (not operational isActive, not listing visibility).
+enum PropertyServiceRelationship {
+  /// Ongoing property management.
+  MANAGED
+  /// Leasing now; intended to become managed after tenant placement.
+  PRE_MANAGEMENT
+  /// Advertise and place a tenant only — not retained for ongoing management.
+  PLACEMENT_ONLY
+}
+
 model Property {
   id          String  @id @default(cuid())
   name        String
@@ -159,6 +174,9 @@ model Property {
   postalCode  String
   country     String  @default("CA")
   isActive    Boolean @default(true)
+
+  /// Business relationship: managed / pre-management / placement-only. Independent of isActive and listings.
+  serviceRelationship PropertyServiceRelationship @default(MANAGED)
 
   /// Rental profile — not official rent or lease data.
   propertyType String?
@@ -190,12 +208,15 @@ model Property {
   activityLogs            ActivityLog[]
   maintenanceRequests     MaintenanceRequest[]
   rentalAdAssistantDrafts RentalAdAssistantDraft[]
+  rentalListings          RentalListing[]
+  tenantPlacements        TenantPlacement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([city])
   @@index([organizationId])
+  @@index([serviceRelationship])
 }
 
 model Unit {
@@ -215,12 +236,118 @@ model Unit {
   generalDocuments       Document[]              @relation("DocumentUnit")
   maintenanceRequests    MaintenanceRequest[]
   rentalAdAssistantDraft RentalAdAssistantDraft?
+  rentalListings         RentalListing[]
+  tenantPlacements       TenantPlacement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([propertyId, unitNumber])
   @@index([propertyId])
+}
+
+/// Public rental advertisement for a unit. Separate from Property/Unit.isActive (portfolio flags).
+/// One open listing (DRAFT/PUBLISHED/PAUSED) per unit is enforced in service transactions —
+/// Prisma cannot express a partial unique index for open statuses only.
+enum RentalListingStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CLOSED
+}
+
+model RentalListing {
+  id             String              @id @default(cuid())
+  organizationId String
+  propertyId     String
+  unitId         String
+  status         RentalListingStatus @default(DRAFT)
+
+  /// Listing-specific advertised rent — not Tenancy.monthlyRent.
+  monthlyRent         Decimal?  @db.Decimal(12, 2)
+  availableDate       DateTime? @db.Date
+  bedrooms            Int?
+  bathrooms           Decimal?  @db.Decimal(4, 1)
+  approxSqft          Int?
+  headline            String?
+  description         String?   @db.Text
+  petPolicy           String?   @db.Text
+  parkingDetails      String?   @db.Text
+  utilitiesDetails    String?   @db.Text
+  viewingInstructions String?   @db.Text
+
+  publishedAt DateTime?
+  pausedAt    DateTime?
+  closedAt    DateTime?
+
+  createdByUserId String?
+  updatedByUserId String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  property     Property     @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit         Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("RentalListingCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy    User?        @relation("RentalListingUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  prospects        Prospect[]
+  applications     Application[]
+  tenantPlacements TenantPlacement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([status])
+  @@index([organizationId, status])
+  @@index([unitId, status])
+  @@index([organizationId, status, publishedAt])
+}
+
+/// Placement-only leasing outcome — distinct from managed Tenancy (no portal / PM lifecycle).
+enum TenantPlacementStatus {
+  completed
+  cancelled
+}
+
+model TenantPlacement {
+  id              String  @id @default(cuid())
+  organizationId  String
+  propertyId      String
+  unitId          String
+  applicationId   String  @unique
+  rentalListingId String?
+
+  status TenantPlacementStatus @default(completed)
+
+  leaseStartDate DateTime  @db.Date
+  leaseEndDate   DateTime? @db.Date
+  monthlyRent    Decimal   @db.Decimal(12, 2)
+  completedAt    DateTime  @default(now())
+
+  landlordHandoffNotes String? @db.Text
+  internalNotes        String? @db.Text
+
+  completedByUserId   String?
+  rentalListingClosed Boolean @default(false)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  property      Property       @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unit          Unit           @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  rentalListing RentalListing? @relation(fields: [rentalListingId], references: [id], onDelete: SetNull)
+  completedBy   User?          @relation("TenantPlacementCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([propertyId])
+  @@index([unitId])
+  @@index([rentalListingId])
+  @@index([status])
+  @@index([completedAt])
 }
 
 /// Draft-only workspace for the Rental Ad Assistant (not official property or rent data).
@@ -338,9 +465,11 @@ enum TenancyContactType {
 }
 
 model Prospect {
-  id         String  @id @default(cuid())
-  propertyId String
-  unitId     String?
+  id              String  @id @default(cuid())
+  propertyId      String
+  unitId          String?
+  /// Published listing that generated this viewing request; null for legacy fallback intake.
+  rentalListingId String?
 
   email     String
   firstName String?
@@ -362,10 +491,11 @@ model Prospect {
   qualifiedAt       DateTime?
   applicationSentAt DateTime?
 
-  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  unit         Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  showings     Showing[]
-  applications Application[]
+  property      Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit          Unit?          @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  rentalListing RentalListing? @relation(fields: [rentalListingId], references: [id], onDelete: SetNull)
+  showings      Showing[]
+  applications  Application[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -373,6 +503,7 @@ model Prospect {
   @@index([propertyId])
   @@index([email])
   @@index([propertyId, email])
+  @@index([rentalListingId])
 }
 
 model Showing {
@@ -408,10 +539,12 @@ model Showing {
 }
 
 model Application {
-  id         String  @id @default(cuid())
-  propertyId String
-  unitId     String
-  prospectId String?
+  id              String  @id @default(cuid())
+  propertyId      String
+  unitId          String
+  prospectId      String?
+  /// Listing context at application start; null for legacy / unattributed applications.
+  rentalListingId String?
 
   email String
 
@@ -450,15 +583,17 @@ model Application {
   reviewedByUserId String?
   decisionAt       DateTime?
 
-  property   Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  unit       Unit      @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  prospect   Prospect? @relation(fields: [prospectId], references: [id], onDelete: SetNull)
-  reviewedBy User?     @relation("ApplicationReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  property      Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unit          Unit           @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  prospect      Prospect?      @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  rentalListing RentalListing? @relation(fields: [rentalListingId], references: [id], onDelete: SetNull)
+  reviewedBy    User?          @relation("ApplicationReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   documents         ApplicationDocument[]
   generalDocuments  Document[]            @relation("DocumentApplication")
   signatureRequests SignatureRequest[]    @relation("SignatureRequestApplication")
   tenancy           Tenancy?
+  tenantPlacement   TenantPlacement?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -468,6 +603,7 @@ model Application {
   @@index([email])
   @@index([propertyId, email])
   @@index([prospectId])
+  @@index([rentalListingId])
   @@index([status])
   @@index([submittedAt])
 }
@@ -1054,7 +1190,7 @@ model BuildiumConnection {
   organizationId String @unique
 
   status      BuildiumConnectionStatus @default(DISCONNECTED)
-  environment BuildiumEnvironment    @default(PRODUCTION)
+  environment BuildiumEnvironment      @default(PRODUCTION)
 
   clientId        String
   clientSecretEnc String @db.Text
@@ -1062,7 +1198,7 @@ model BuildiumConnection {
   lastTestedAt   DateTime?
   lastSyncedAt   DateTime?
   lastSyncStatus BuildiumSyncStatus?
-  lastSyncError  String?              @db.Text
+  lastSyncError  String?             @db.Text
 
   /// Optional subset of Buildium property ids to sync (Phase 2+).
   syncPropertyIds Int[] @default([])
@@ -1563,17 +1699,17 @@ model BriefingItem {
   sortOrder Int       @default(0)
 
   /// Per-run presentation label (future PRs: NEW vs STILL_ACTIVE carry-forward).
-  attentionLabel BriefingAttentionLabel @default(NEW)
+  attentionLabel                 BriefingAttentionLabel @default(NEW)
   /// Optional grouping for email subsections (e.g. NEW_IN_WINDOW, STILL_NEEDS_ATTENTION).
-  attentionSection String?
+  attentionSection               String?
   /// Link to durable thread attention registry row when surfaced from carry-forward.
   emailThreadBriefingAttentionId String?
 
-  briefingRun                    BriefingRun                     @relation(fields: [briefingRunId], references: [id], onDelete: Cascade)
-  organization                   Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  emailThread                    EmailThread?                    @relation(fields: [emailThreadId], references: [id], onDelete: SetNull)
-  emailMessage                   EmailMessage?                   @relation(fields: [emailMessageId], references: [id], onDelete: SetNull)
-  emailThreadBriefingAttention   EmailThreadBriefingAttention?   @relation(fields: [emailThreadBriefingAttentionId], references: [id], onDelete: SetNull)
+  briefingRun                  BriefingRun                   @relation(fields: [briefingRunId], references: [id], onDelete: Cascade)
+  organization                 Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailThread                  EmailThread?                  @relation(fields: [emailThreadId], references: [id], onDelete: SetNull)
+  emailMessage                 EmailMessage?                 @relation(fields: [emailMessageId], references: [id], onDelete: SetNull)
+  emailThreadBriefingAttention EmailThreadBriefingAttention? @relation(fields: [emailThreadBriefingAttentionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1594,7 +1730,7 @@ model EmailThreadBriefingAttention {
   status BriefingAttentionStatus @default(ACTIVE)
 
   /// When this thread first appeared in a briefing.
-  firstSurfacedAt DateTime
+  firstSurfacedAt   DateTime
   /// Last briefing run that included this thread.
   lastSurfacedRunId String?
   lastSurfacedAt    DateTime?
@@ -1614,9 +1750,9 @@ model EmailThreadBriefingAttention {
   surfacedAtOutboundCount Int       @default(0)
   lastOutboundAt          DateTime?
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  emailThread  EmailThread  @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
-  resolvedBy   User?        @relation("EmailThreadBriefingAttentionResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  emailThread   EmailThread    @relation(fields: [emailThreadId], references: [id], onDelete: Cascade)
+  resolvedBy    User?          @relation("EmailThreadBriefingAttentionResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
   briefingItems BriefingItem[]
 
   createdAt DateTime @default(now())

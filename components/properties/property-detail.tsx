@@ -1,7 +1,17 @@
 "use client";
 
-import { createUnitAction, hardDeletePropertyAction, updatePropertyOwnerStrataAction, updatePropertyProfileAction } from "@/app/(dashboard)/properties/actions";
+import {
+  createUnitAction,
+  hardDeletePropertyAction,
+  updatePropertyOwnerStrataAction,
+  updatePropertyProfileAction,
+  updatePropertyServiceRelationshipAction,
+} from "@/app/(dashboard)/properties/actions";
 import { PropertyDocumentsSection } from "@/components/properties/property-documents-section";
+import {
+  RentalListingsSection,
+  type RentalListingsPropertyStaffData,
+} from "@/components/properties/rental-listings-section";
 import { PropertyTenanciesSection } from "@/components/properties/property-tenancies-section";
 import {
   FormField,
@@ -22,8 +32,16 @@ import {
   formatPropertyProfileTypeLabel,
   type PropertyProfileFields,
 } from "@/lib/property/profile";
+import {
+  PROPERTY_SERVICE_RELATIONSHIPS,
+  PROPERTY_SERVICE_RELATIONSHIP_HELPERS,
+  PROPERTY_SERVICE_RELATIONSHIP_LABELS,
+  formatPropertyServiceRelationship,
+  type PropertyServiceRelationshipValue,
+} from "@/lib/property/service-relationship";
 import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
 import type { PropertyDocumentsPageData } from "@/lib/property/property-documents-staff";
+import type { PropertyPlacementHistoryRow } from "@/lib/property/property-placements-staff";
 import type { PropertyTenanciesPageData } from "@/lib/property/property-tenancies-staff";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -56,6 +74,7 @@ export type PropertyDetailData = {
   postalCode: string;
   country: string;
   isActive: boolean;
+  serviceRelationship: PropertyServiceRelationshipValue;
   ownerEmail: string | null;
   ownerPhone: string | null;
   strataNotes: string | null;
@@ -65,7 +84,62 @@ export type PropertyDetailData = {
   documentsLoadError: string | null;
   tenancies: PropertyTenanciesPageData | null;
   tenanciesLoadError: string | null;
+  rentalListings: RentalListingsPropertyStaffData | null;
+  rentalListingsLoadError: string | null;
+  placements: PropertyPlacementHistoryRow[] | null;
+  placementsLoadError: string | null;
 };
+
+function PropertyPlacementsSection({
+  placements,
+  loadError,
+}: {
+  placements: PropertyPlacementHistoryRow[] | null;
+  loadError: string | null;
+}) {
+  if (loadError) {
+    return (
+      <div className={`${SURFACE_CARD} mb-4 px-4 py-4`}>
+        <h2 className="text-sm font-semibold text-neutral-900">Placement history</h2>
+        <InlineNotice className="mt-2">{loadError}</InlineNotice>
+      </div>
+    );
+  }
+  if (!placements || placements.length === 0) return null;
+
+  return (
+    <div className={`${SURFACE_CARD} mb-4 px-4 py-4`}>
+      <h2 className="text-sm font-semibold text-neutral-900">Placement history</h2>
+      <p className="mt-1 text-xs text-neutral-500">
+        Completed tenant-placement engagements (not managed tenancies).
+      </p>
+      <ul className="mt-3 flex list-none flex-col gap-2 p-0">
+        {placements.map((row) => (
+          <li key={row.id} className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-700`}>
+            <p className="font-medium text-neutral-900">
+              {row.applicantName} · Unit {row.unitLabel}
+            </p>
+            <p className="mt-1 text-xs text-neutral-600">
+              Completed {new Date(row.completedAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
+              {" · "}Lease start {row.leaseStartDate}
+              {" · "}${row.monthlyRent}/mo
+              {row.listingHeadline ? ` · ${row.listingHeadline}` : ""}
+              {row.listingClosed ? " · Listing closed" : ""}
+            </p>
+            <p className="mt-1">
+              <Link
+                href={`/leasing/applications/${row.applicationId}`}
+                className="text-xs font-medium underline"
+              >
+                View application
+              </Link>
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function formatProfileSummary(profile: PropertyProfileFields): string {
   const parts: string[] = [];
@@ -75,6 +149,140 @@ function formatProfileSummary(profile: PropertyProfileFields): string {
   if (profile.bathrooms != null) parts.push(`${profile.bathrooms} bath`);
   if (profile.approxSqft != null) parts.push(`${profile.approxSqft.toLocaleString("en-CA")} sqft`);
   return parts.length > 0 ? parts.join(" · ") : "No profile details saved yet";
+}
+
+function PropertyStatusSection({
+  propertyId,
+  isActive,
+  serviceRelationship,
+  canEdit,
+}: {
+  propertyId: string;
+  isActive: boolean;
+  serviceRelationship: PropertyServiceRelationshipValue;
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const serviceRelationshipId = useId();
+  const [showEdit, setShowEdit] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [value, setValue] = useState(serviceRelationship);
+
+  function onSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await updatePropertyServiceRelationshipAction(propertyId, {
+        serviceRelationship: value,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setShowEdit(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className={`${SURFACE_CARD} mb-4 px-4 py-4`}>
+      <p className="text-sm text-neutral-700">
+        <span className="text-neutral-500">Operational status · </span>
+        {isActive ? "Active" : "Inactive"}
+      </p>
+      <p className="mt-2 text-sm text-neutral-700">
+        <span className="text-neutral-500">Service relationship · </span>
+        {formatPropertyServiceRelationship(serviceRelationship)}
+      </p>
+      <p className="mt-2 text-xs text-neutral-500">
+        Active means the property record is available in the system. Service relationship describes
+        Axford&apos;s engagement (managed, leasing then manage, or placement only). Public advertising
+        is controlled separately by a published rental listing below — not by Active status.
+      </p>
+      {serviceRelationship === "PRE_MANAGEMENT" ? (
+        <p className="mt-2 text-xs text-neutral-600">
+          Pre-management: leasing now with the intention to begin ongoing management after placement.
+          Converting an approved application to a managed tenancy sets this property to Managed in the
+          same step.
+        </p>
+      ) : null}
+      {serviceRelationship === "PLACEMENT_ONLY" ? (
+        <p className="mt-2 text-xs text-neutral-600">
+          Placement only: advertise and place a tenant; do not treat this as an ongoing managed
+          property after placement. Leasing history is retained.
+        </p>
+      ) : null}
+      {canEdit ? (
+        <div className="mt-3">
+          {!showEdit ? (
+            <button
+              type="button"
+              onClick={() => {
+                setValue(serviceRelationship);
+                setShowEdit(true);
+              }}
+              className="text-sm font-medium text-neutral-800 underline"
+            >
+              Edit service relationship
+            </button>
+          ) : (
+            <form className="mt-3 flex flex-col gap-3 border-t border-neutral-200 pt-3" onSubmit={onSave}>
+              {error ? <InlineNotice>{error}</InlineNotice> : null}
+              <FormField
+                label="Service relationship"
+                htmlFor={serviceRelationshipId}
+                helper={PROPERTY_SERVICE_RELATIONSHIP_HELPERS[value]}
+              >
+                <select
+                  id={serviceRelationshipId}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value as PropertyServiceRelationshipValue)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                >
+                  {PROPERTY_SERVICE_RELATIONSHIPS.map((option) => (
+                    <option key={option} value={option}>
+                      {PROPERTY_SERVICE_RELATIONSHIP_LABELS[option]}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+              {serviceRelationship === "PLACEMENT_ONLY" &&
+              (value === "MANAGED" || value === "PRE_MANAGEMENT") ? (
+                <InlineNotice>
+                  Changing away from Tenant Placement Only enables managed tenancy conversion and
+                  ongoing management workflows. Do not change this merely to bypass the placement
+                  conversion guard. Confirm this matches the real business relationship.
+                </InlineNotice>
+              ) : null}
+              <div className="flex flex-wrap gap-3">
+                <PrimaryButton type="submit" disabled={pending} className="!w-auto px-5">
+                  {pending
+                    ? "Saving…"
+                    : serviceRelationship === "PLACEMENT_ONLY" &&
+                        (value === "MANAGED" || value === "PRE_MANAGEMENT")
+                      ? "Confirm relationship change"
+                      : "Save"}
+                </PrimaryButton>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => {
+                    setShowEdit(false);
+                    setError(null);
+                    setValue(serviceRelationship);
+                  }}
+                  className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function PropertyProfileSection({
@@ -616,12 +824,12 @@ function PropertyDetailBody({
         <p className="mt-1 text-sm text-neutral-600">{formatCityLine(detail)}</p>
       </div>
 
-      <div className={`${SURFACE_CARD} mb-4 px-4 py-4`}>
-        <p className="text-sm text-neutral-700">
-          <span className="text-neutral-500">Status · </span>
-          {detail.isActive ? "Active" : "Inactive"}
-        </p>
-      </div>
+      <PropertyStatusSection
+        propertyId={detail.id}
+        isActive={detail.isActive}
+        serviceRelationship={detail.serviceRelationship}
+        canEdit={canAddUnit}
+      />
 
       <PropertyProfileSection
         propertyId={detail.id}
@@ -637,9 +845,21 @@ function PropertyDetailBody({
         canEdit={canAddUnit}
       />
 
+      <RentalListingsSection
+        propertyId={detail.id}
+        data={detail.rentalListings}
+        canManage={canAddUnit}
+        loadError={detail.rentalListingsLoadError}
+      />
+
       <PropertyTenanciesSection
         data={detail.tenancies}
         loadError={detail.tenanciesLoadError}
+      />
+
+      <PropertyPlacementsSection
+        placements={detail.placements}
+        loadError={detail.placementsLoadError}
       />
 
       <PropertyDocumentsSection

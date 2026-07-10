@@ -18,10 +18,19 @@ import { parseCreatedProspectId } from "@/lib/validation/leasing";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
+type LeasingSubmitOptionUnit = {
+  unitId: string;
+  unitNumber: string;
+  rentalListingId?: string;
+  monthlyRent?: string | null;
+  headline?: string | null;
+  isPublishedListing?: boolean;
+};
+
 type LeasingSubmitOption = {
   propertyId: string;
   propertyName: string;
-  units: { unitId: string; unitNumber: string }[];
+  units: LeasingSubmitOptionUnit[];
 };
 
 const INCOME_LABELS: Record<(typeof HOUSEHOLD_INCOME_RANGES)[number], string> = {
@@ -98,6 +107,11 @@ export default function ViewingRequestPage() {
     [options, selectedPropertyId],
   );
 
+  const selectedUnit = useMemo(
+    () => selectedProperty?.units.find((u) => u.unitId === selectedUnitId) ?? null,
+    [selectedProperty, selectedUnitId],
+  );
+
   const onSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -146,6 +160,7 @@ export default function ViewingRequestPage() {
           body: JSON.stringify({
             propertyId: selectedPropertyId,
             unitId: selectedUnitId || undefined,
+            rentalListingId: selectedUnit?.rentalListingId || undefined,
             email: trimmedEmail,
             firstName: firstName.trim(),
             lastName: lastName.trim(),
@@ -196,6 +211,7 @@ export default function ViewingRequestPage() {
       phone,
       preferredViewingNotes,
       selectedPropertyId,
+      selectedUnit,
       selectedUnitId,
       smokerStatus,
     ],

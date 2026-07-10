@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient, type Property } from "@prisma/client";
+import { Prisma, type PrismaClient, type Property, type PropertyServiceRelationship } from "@prisma/client";
 import { entirePropertyUnitCreateInput } from "@/lib/property/entire-property-unit";
 import type { StaffContext } from "./staff-context";
 import { createUnit } from "./unit.service";
@@ -24,6 +24,8 @@ export type CreatePropertyInput = {
   province?: string;
   postalCode: string;
   country?: string;
+  /** Business relationship — independent of isActive and listing visibility. */
+  serviceRelationship: PropertyServiceRelationship;
   propertyType?: string | null;
   bedrooms?: number | null;
   bathrooms?: number | null;
@@ -41,6 +43,7 @@ export type UpdatePropertyInput = Partial<
     | "postalCode"
     | "country"
     | "isActive"
+    | "serviceRelationship"
     | "propertyType"
     | "bedrooms"
     | "approxSqft"
@@ -59,6 +62,7 @@ const PROPERTY_AUDIT_FIELDS = [
   "postalCode",
   "country",
   "isActive",
+  "serviceRelationship",
   "propertyType",
   "bedrooms",
   "approxSqft",
@@ -110,6 +114,7 @@ export async function createProperty(
         province: input.province?.trim() || "BC",
         postalCode: trimRequired(input.postalCode, "postalCode"),
         country: input.country?.trim() || "CA",
+        serviceRelationship: input.serviceRelationship,
         ...profileCreateData(input),
       },
     });
@@ -140,6 +145,7 @@ export async function updateProperty(
   if (input.postalCode !== undefined) data.postalCode = trimRequired(String(input.postalCode), "postalCode");
   if (input.country !== undefined) data.country = String(input.country).trim() || "CA";
   if (input.isActive !== undefined) data.isActive = input.isActive;
+  if (input.serviceRelationship !== undefined) data.serviceRelationship = input.serviceRelationship;
   if (input.propertyType !== undefined) data.propertyType = input.propertyType;
   if (input.bedrooms !== undefined) data.bedrooms = input.bedrooms;
   if (input.bathrooms !== undefined) {
@@ -189,6 +195,16 @@ export async function updatePropertyOwnerStrata(
   },
 ): Promise<Property> {
   return updateProperty(prisma, principal, propertyId, input);
+}
+
+/** PM / org admin — update business relationship (managed / pre-management / placement-only). */
+export async function updatePropertyServiceRelationship(
+  prisma: PrismaClient,
+  principal: StaffContext,
+  propertyId: string,
+  serviceRelationship: PropertyServiceRelationship,
+): Promise<Property> {
+  return updateProperty(prisma, principal, propertyId, { serviceRelationship });
 }
 
 /** Org admin/owner or any assignment (PM/field) on the property in the active org. */

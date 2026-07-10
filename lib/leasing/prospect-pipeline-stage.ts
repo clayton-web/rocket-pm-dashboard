@@ -9,6 +9,7 @@ export const PROSPECT_PIPELINE_STAGE_ORDER = [
   "approved",
   "declined",
   "tenant",
+  "placed",
 ] as const;
 
 export type ProspectPipelineStage =
@@ -29,6 +30,8 @@ export type ProspectPipelineApplication = {
   status: ApplicationStatus | string;
   submittedAt?: Date | string | null;
   hasTenancy?: boolean;
+  hasPlacement?: boolean;
+  placementId?: string | null;
 };
 
 export type DerivedProspectPipeline = {
@@ -36,6 +39,7 @@ export type DerivedProspectPipeline = {
   stageLabel: string;
   primaryApplicationId: string | null;
   tenancyId: string | null;
+  placementId: string | null;
 };
 
 export const PROSPECT_PIPELINE_STAGE_LABELS: Record<ProspectPipelineStage, string> = {
@@ -47,6 +51,7 @@ export const PROSPECT_PIPELINE_STAGE_LABELS: Record<ProspectPipelineStage, strin
   approved: "Approved",
   declined: "Declined",
   tenant: "Tenant",
+  placed: "Placement completed",
   archived: "Archived",
 };
 
@@ -69,6 +74,8 @@ function pickPrimaryApplication(
   return [...applications].sort((a, b) => {
     if (a.hasTenancy && !b.hasTenancy) return -1;
     if (!a.hasTenancy && b.hasTenancy) return 1;
+    if (a.hasPlacement && !b.hasPlacement) return -1;
+    if (!a.hasPlacement && b.hasPlacement) return 1;
     const rankDiff = (APPLICATION_RANK[b.status] ?? 0) - (APPLICATION_RANK[a.status] ?? 0);
     if (rankDiff !== 0) return rankDiff;
     const aSubmitted = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
@@ -91,13 +98,14 @@ function isApplicationReceived(status: string): boolean {
  * Precedence (most advanced wins):
  * 1. archived — prospect.status is archived
  * 2. tenant — primary linked application has a tenancy
- * 3. approved — primary application approved (no tenancy yet)
- * 4. declined — primary application declined or withdrawn
- * 5. application_received — primary application submitted or under review
- * 6. application_sent — applicationSentAt set and application not yet received
- * 7. viewing_booked — any showing with status scheduled
- * 8. qualified — qualifiedAt set
- * 9. viewing_request — default intake
+ * 3. placed — primary linked application has a TenantPlacement
+ * 4. approved — primary application approved (no outcome yet)
+ * 5. declined — primary application declined or withdrawn
+ * 6. application_received — primary application submitted or under review
+ * 7. application_sent — applicationSentAt set and application not yet received
+ * 8. viewing_booked — any showing with status scheduled
+ * 9. qualified — qualifiedAt set
+ * 10. viewing_request — default intake
  */
 export function deriveProspectPipelineStage(args: {
   prospect: ProspectPipelineProspect;
@@ -112,12 +120,14 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.archived,
       primaryApplicationId: null,
       tenancyId: null,
+      placementId: null,
     };
   }
 
   const primary = pickPrimaryApplication(args.applications);
   const primaryApplicationId = primary?.id ?? null;
   const tenancyId = primary?.tenancyId ?? null;
+  const placementId = primary?.placementId ?? null;
 
   if (primary?.hasTenancy && tenancyId) {
     return {
@@ -125,6 +135,17 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.tenant,
       primaryApplicationId,
       tenancyId,
+      placementId: null,
+    };
+  }
+
+  if (primary?.hasPlacement && placementId) {
+    return {
+      stage: "placed",
+      stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.placed,
+      primaryApplicationId,
+      tenancyId: null,
+      placementId,
     };
   }
 
@@ -134,6 +155,7 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.approved,
       primaryApplicationId,
       tenancyId: null,
+      placementId: null,
     };
   }
 
@@ -143,6 +165,7 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.declined,
       primaryApplicationId,
       tenancyId: null,
+      placementId: null,
     };
   }
 
@@ -152,6 +175,7 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.application_received,
       primaryApplicationId,
       tenancyId: null,
+      placementId: null,
     };
   }
 
@@ -161,6 +185,7 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.application_sent,
       primaryApplicationId,
       tenancyId: null,
+      placementId: null,
     };
   }
 
@@ -170,6 +195,7 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.viewing_booked,
       primaryApplicationId,
       tenancyId: null,
+      placementId: null,
     };
   }
 
@@ -179,6 +205,7 @@ export function deriveProspectPipelineStage(args: {
       stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.qualified,
       primaryApplicationId,
       tenancyId: null,
+      placementId: null,
     };
   }
 
@@ -187,6 +214,7 @@ export function deriveProspectPipelineStage(args: {
     stageLabel: PROSPECT_PIPELINE_STAGE_LABELS.viewing_request,
     primaryApplicationId,
     tenancyId: null,
+    placementId: null,
   };
 }
 
@@ -196,12 +224,19 @@ export type ProspectPipelineNextAction =
   | "mark_application_sent"
   | "view_application"
   | "convert_application"
+  | "complete_placement"
   | "view_tenancy"
   | "none";
+
+export type ProspectPipelineNextActionContext = {
+  /** When true, approved applications need TenantPlacement completion, not managed conversion. */
+  placementOnly?: boolean;
+};
 
 export function deriveProspectPipelineNextAction(
   pipeline: DerivedProspectPipeline,
   prospect: ProspectPipelineProspect,
+  context?: ProspectPipelineNextActionContext,
 ): ProspectPipelineNextAction {
   if (prospect.status === "archived") return "none";
 
@@ -217,12 +252,20 @@ export function deriveProspectPipelineNextAction(
     case "application_received":
       return pipeline.primaryApplicationId ? "view_application" : "none";
     case "approved":
-      return pipeline.primaryApplicationId ? "convert_application" : "none";
+      if (!pipeline.primaryApplicationId) return "none";
+      return context?.placementOnly ? "complete_placement" : "convert_application";
     case "tenant":
       return pipeline.tenancyId ? "view_tenancy" : "none";
+    case "placed":
+      return pipeline.primaryApplicationId ? "view_application" : "none";
     case "declined":
       return pipeline.primaryApplicationId ? "view_application" : "none";
     case "archived":
       return "none";
   }
+}
+
+/** Prospects whose leasing journey is complete enough to leave the attention queue. */
+export function isProspectAttentionComplete(stage: ProspectPipelineStage): boolean {
+  return stage === "tenant" || stage === "placed" || stage === "archived" || stage === "declined";
 }

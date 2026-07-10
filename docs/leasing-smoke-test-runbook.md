@@ -6,6 +6,15 @@ Manual release checklist for the end-to-end leasing workflow. Run in **local or 
 
 ---
 
+## 0. Rental listing (staff)
+
+- [ ] Create or open a property; confirm **Operational status**, **Service relationship**, and listing section are distinct
+- [ ] Under **Rental listings**, create **List for rent**, enter rent + available date + beds/baths + headline + description
+- [ ] **Publish** the listing
+- **Expected:** unit shows **Published**; other units without listing history still appear on `/portal/viewing` while fallback is enabled
+- [ ] Create a **Draft** on another unit — that unit must disappear from the public page (no legacy fallback)
+- [ ] Confirm managed, pre-management, and placement-only properties can all publish — see [rental-listings.md](./rental-listings.md)
+
 ## 1. Viewing request
 
 - [ ] Open `/portal/viewing` (no sign-in)
@@ -34,11 +43,40 @@ Manual release checklist for the end-to-end leasing workflow. Run in **local or 
 
 - [ ] Staff opens `/leasing/applications/[id]`
 - [ ] Approve the application
-- **Expected:** status `approved`; ready for tenancy conversion
+- **Expected:** status `approved`; ready for tenancy conversion (managed / pre-management) or placement completion (placement-only)
 
-## 6. Convert to tenancy
+## 5a. Managed conversion
 
-- [ ] On application detail, create tenancy with lease start and move-in dates
+- [ ] Use a **Managed** property; approve application
+- [ ] Convert to tenancy with lease start and move-in dates
+- **Expected:** tenancy `pending_move_in`; primary contact with `portalAccessEnabled: true`; service relationship remains **Managed**
+
+## 5b. Pre-management conversion
+
+- [ ] Use a **Pre-management** property; approve application
+- [ ] Confirm property is still **Pre-management** before conversion
+- [ ] Convert to tenancy
+- **Expected:** tenancy + contact created; property service relationship becomes **Managed**
+
+## 5c. Placement-only completion
+
+- [ ] Use a **Tenant Placement Only** property; publish listing; submit viewing request (confirm listing attribution on prospect)
+- [ ] Submit and approve application (confirm listing on application detail)
+- [ ] Open application detail — managed conversion disabled; **Complete tenant placement** available
+- [ ] Complete placement with lease start + rent
+- **Expected:** `TenantPlacement` recorded; no tenancy/contact/portal; property remains **Placement only**; listing **Closed**; application stays `approved`
+- [ ] Confirm placement appears under property **Placement history**
+- [ ] Do **not** change service relationship merely to bypass the guard
+
+## 5d. Listing attribution / closure
+
+- [ ] Managed convert with attributed listing → listing closes
+- [ ] Legacy unattributed application with exactly one open listing → that listing closes
+- [ ] Failed conversion/placement leaves listing open
+
+## 6. Convert to tenancy (managed path)
+
+- [ ] On a managed (or post-conversion pre-management) application detail, create tenancy with lease start and move-in dates
 - **Expected:** tenancy `pending_move_in`; primary contact with `portalAccessEnabled: true`; link to tenancy detail
 
 ## 7. Lease setup

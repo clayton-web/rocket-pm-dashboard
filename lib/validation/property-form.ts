@@ -1,3 +1,7 @@
+import {
+  isPropertyServiceRelationship,
+  type PropertyServiceRelationshipValue,
+} from "@/lib/property/service-relationship";
 import { parsePropertyProfileFormInput } from "./property-profile";
 
 export type CreatePropertyFormInput = {
@@ -7,6 +11,7 @@ export type CreatePropertyFormInput = {
   city: string;
   province: string;
   postalCode: string;
+  serviceRelationship: PropertyServiceRelationshipValue;
   propertyType: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -71,6 +76,18 @@ export function parseCreatePropertyFormInput(
   const postalCode = parseRequiredString(raw.postalCode, "Postal code", 20);
   if (typeof postalCode === "object") return postalCode;
 
+  const serviceRelationshipRaw =
+    typeof raw.serviceRelationship === "string" ? raw.serviceRelationship.trim() : "";
+  if (!serviceRelationshipRaw) {
+    return { error: "Service relationship is required" };
+  }
+  if (!isPropertyServiceRelationship(serviceRelationshipRaw)) {
+    return {
+      error:
+        "Service relationship must be Property Management, Leasing then Property Management, or Tenant Placement Only",
+    };
+  }
+
   const profile = parsePropertyProfileFormInput({
     propertyType: raw.propertyType,
     bedrooms: raw.bedrooms,
@@ -86,11 +103,27 @@ export function parseCreatePropertyFormInput(
     city,
     province,
     postalCode,
+    serviceRelationship: serviceRelationshipRaw,
     propertyType: profile.propertyType,
     bedrooms: profile.bedrooms,
     bathrooms: profile.bathrooms,
     approxSqft: profile.approxSqft,
   };
+}
+
+export function parsePropertyServiceRelationshipFormInput(
+  body: unknown,
+): { serviceRelationship: PropertyServiceRelationshipValue } | { error: string } {
+  if (typeof body !== "object" || body === null) {
+    return { error: "Invalid form data" };
+  }
+  const raw = body as Record<string, unknown>;
+  const value = typeof raw.serviceRelationship === "string" ? raw.serviceRelationship.trim() : "";
+  if (!value) return { error: "Service relationship is required" };
+  if (!isPropertyServiceRelationship(value)) {
+    return { error: "Invalid service relationship" };
+  }
+  return { serviceRelationship: value };
 }
 
 export function parseCreateUnitFormInput(body: unknown): CreateUnitFormInput | { error: string } {

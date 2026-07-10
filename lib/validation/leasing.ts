@@ -9,6 +9,7 @@ import {
 export type PostViewingRequestBody = {
   propertyId: string;
   unitId?: string;
+  rentalListingId?: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -106,6 +107,13 @@ export function parsePostViewingRequestBody(
     if (!unitId) return { error: "Invalid unitId" };
   }
 
+  let rentalListingId: string | undefined;
+  if (o.rentalListingId !== undefined && o.rentalListingId !== null && o.rentalListingId !== "") {
+    if (typeof o.rentalListingId !== "string") return { error: "Invalid rentalListingId" };
+    rentalListingId = o.rentalListingId.trim();
+    if (!rentalListingId) return { error: "Invalid rentalListingId" };
+  }
+
   const firstName = parseRequiredString(o.firstName, "firstName", 200);
   if (typeof firstName === "object" && "error" in firstName) return firstName;
 
@@ -159,6 +167,7 @@ export function parsePostViewingRequestBody(
   return {
     propertyId,
     unitId,
+    rentalListingId,
     email,
     firstName,
     lastName,

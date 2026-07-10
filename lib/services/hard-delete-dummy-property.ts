@@ -23,7 +23,9 @@ export type PropertyHardDeleteBlocker =
   | "applicationDocument"
   | "notice"
   | "maintenanceRequest"
-  | "checklist";
+  | "checklist"
+  | "rentalListing"
+  | "tenantPlacement";
 
 export class PropertyHardDeleteBlockedError extends Error {
   readonly blockers: PropertyHardDeleteBlocker[];
@@ -51,6 +53,8 @@ export async function listPropertyHardDeleteBlockers(
     noticeCount,
     maintenanceRequestCount,
     checklistCount,
+    rentalListingCount,
+    tenantPlacementCount,
   ] = await Promise.all([
     prisma.tenancy.count({ where: { propertyId } }),
     prisma.application.count({ where: { propertyId } }),
@@ -63,6 +67,8 @@ export async function listPropertyHardDeleteBlockers(
     prisma.notice.count({ where: { propertyId } }),
     prisma.maintenanceRequest.count({ where: { propertyId } }),
     prisma.checklist.count({ where: { propertyId } }),
+    prisma.rentalListing.count({ where: { propertyId } }),
+    prisma.tenantPlacement.count({ where: { propertyId } }),
   ]);
 
   const blockers: PropertyHardDeleteBlocker[] = [];
@@ -77,6 +83,8 @@ export async function listPropertyHardDeleteBlockers(
   if (noticeCount > 0) blockers.push("notice");
   if (maintenanceRequestCount > 0) blockers.push("maintenanceRequest");
   if (checklistCount > 0) blockers.push("checklist");
+  if (rentalListingCount > 0) blockers.push("rentalListing");
+  if (tenantPlacementCount > 0) blockers.push("tenantPlacement");
   return blockers;
 }
 

@@ -4,6 +4,7 @@ import type {
   Prospect,
   ProspectStatus,
 } from "@prisma/client";
+import { resolvePublicRentalListingAttribution } from "@/lib/leasing/rental-listing-attribution";
 import { toDateOnlyUTC } from "@/lib/leasing/notice-rules";
 import type { StaffContext } from "./staff-context";
 import { requireLeasingAccess, requireStaff } from "./property-access";
@@ -13,6 +14,8 @@ import { logPropertyActivity, pickForAudit } from "./activityLog.service";
 export type SubmitPublicViewingRequestInput = {
   propertyId: string;
   unitId?: string | null;
+  /** Published listing id when the request came from a first-class listing; omit for legacy fallback. */
+  rentalListingId?: string | null;
   email: string;
   firstName: string;
   lastName: string;
@@ -49,10 +52,12 @@ function buildIntakeData(
   input: SubmitPublicViewingRequestInput,
   unitId: string | null,
   email: string,
+  rentalListingId: string | null,
 ): Prisma.ProspectUncheckedCreateInput {
   return {
     propertyId: input.propertyId,
     unitId,
+    rentalListingId,
     email,
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
@@ -83,7 +88,16 @@ async function resolveUnitId(
 }
 
 /**
- * Public viewing request — creates or updates a `new` prospect for the same property + email.
+ * Public viewing request — creates or updates a `new` prospect.
+ *
+ * Repeat-submission rule (documented):
+ * - Match open prospect by property + email + status=new (unchanged).
+ * - When a published listing id is provided, also prefer matching the same rentalListingId
+ *   so a new listing for the same unit does not silently overwrite prior listing attribution
+ *   on an unrelated open prospect; if only a property+email match exists with a *different*
+ *   listing id, create a new prospect instead of overwriting listing history.
+ * - Same listing (or both null / legacy): update intake fields and unit on the existing row.
+ * - Archived prior prospects never match; a new row is created.
  */
 export async function submitPublicViewingRequest(
   prisma: PrismaClient,
@@ -94,11 +108,18 @@ export async function submitPublicViewingRequest(
   });
   if (!property) throw new NotFoundError("Property not found or inactive");
 
-  const unitId = await resolveUnitId(prisma, input.propertyId, input.unitId);
+  const listing = await resolvePublicRentalListingAttribution(prisma, {
+    rentalListingId: input.rentalListingId,
+    propertyId: input.propertyId,
+    unitId: input.unitId,
+  });
+  const unitId =
+    listing?.unitId ?? (await resolveUnitId(prisma, input.propertyId, input.unitId));
+  const rentalListingId = listing?.id ?? null;
   const email = trimRequiredEmail(input.email);
-  const data = buildIntakeData(input, unitId, email);
+  const data = buildIntakeData(input, unitId, email, rentalListingId);
 
-  const existing = await prisma.prospect.findFirst({
+  const openProspects = await prisma.prospect.findMany({
     where: {
       propertyId: input.propertyId,
       email,
@@ -107,7 +128,44 @@ export async function submitPublicViewingRequest(
     orderBy: { createdAt: "desc" },
   });
 
-  if (existing) {
+  const sameListing = openProspects.find((p) =>
+    rentalListingId
+      ? p.rentalListingId === rentalListingId
+      : p.rentalListingId == null &&
+        (unitId == null || p.unitId == null || p.unitId === unitId),
+  );
+
+  if (sameListing) {
+    return prisma.prospect.update({
+      where: { id: sameListing.id },
+      data: {
+        ...data,
+        status: "new",
+      },
+    });
+  }
+
+  // Different listing attribution: keep prior prospect history; create a new open prospect.
+  if (rentalListingId && openProspects.some((p) => p.rentalListingId && p.rentalListingId !== rentalListingId)) {
+    return prisma.prospect.create({ data });
+  }
+
+  // Legacy / no listing: update the latest open prospect when present.
+  const existing = openProspects[0];
+  if (existing && !rentalListingId) {
+    return prisma.prospect.update({
+      where: { id: existing.id },
+      data: {
+        ...data,
+        status: "new",
+        // Do not clear an existing listing attribution on a legacy (no-id) resubmit.
+        rentalListingId: existing.rentalListingId,
+      },
+    });
+  }
+
+  if (existing && rentalListingId && existing.rentalListingId == null) {
+    // Attach listing to an unattributed open prospect for the same property/email.
     return prisma.prospect.update({
       where: { id: existing.id },
       data: {

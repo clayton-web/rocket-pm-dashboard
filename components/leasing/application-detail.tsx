@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  completeTenantPlacementAction,
   convertApprovedApplicationAction,
   setApplicationReviewAction,
 } from "@/app/(dashboard)/leasing/applications/actions";
@@ -89,17 +90,27 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [convertPending, startConvertTransition] = useTransition();
+  const [placementPending, startPlacementTransition] = useTransition();
   const [leaseStartDate, setLeaseStartDate] = useState(moveInDefault);
   const [moveInDate, setMoveInDate] = useState(moveInDefault);
   const [leaseEndDate, setLeaseEndDate] = useState("");
   const [moveOutDate, setMoveOutDate] = useState("");
-  const [monthlyRent, setMonthlyRent] = useState("");
+  const [monthlyRent, setMonthlyRent] = useState(detail.suggestedMonthlyRent ?? "");
   const [securityDeposit, setSecurityDeposit] = useState("0");
   const [petDeposit, setPetDeposit] = useState("");
+  const [placementLeaseStart, setPlacementLeaseStart] = useState(moveInDefault);
+  const [placementLeaseEnd, setPlacementLeaseEnd] = useState("");
+  const [placementRent, setPlacementRent] = useState(detail.suggestedMonthlyRent ?? "");
+  const [landlordHandoffNotes, setLandlordHandoffNotes] = useState("");
+  const [internalNotes, setInternalNotes] = useState("");
 
   const reviewable = isApplicationReviewable(detail.status);
   const canConvert = canConvertApplicationToTenancy(detail);
   const hasTenancy = detail.tenancyId != null;
+  const hasPlacement = detail.placementId != null;
+  const canCompletePlacement = detail.canCompletePlacement;
+  const beginsManagementOnConvert =
+    canConvert && detail.conversionPolicy.transitionPropertyToManaged;
   const displayName = formatName(detail);
   const decided =
     detail.status === "approved" || detail.status === "declined";
@@ -116,6 +127,27 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
         monthlyRent,
         securityDeposit,
         petDeposit: petDeposit || undefined,
+        rentalListingId: detail.rentalListingId || undefined,
+      });
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function onPlacementSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setActionError(null);
+    startPlacementTransition(async () => {
+      const result = await completeTenantPlacementAction(detail.id, {
+        leaseStartDate: placementLeaseStart,
+        leaseEndDate: placementLeaseEnd || undefined,
+        monthlyRent: placementRent,
+        landlordHandoffNotes: landlordHandoffNotes || undefined,
+        internalNotes: internalNotes || undefined,
+        rentalListingId: detail.rentalListingId || undefined,
       });
       if (!result.ok) {
         setActionError(result.error);
@@ -236,6 +268,119 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
         </div>
       ) : null}
 
+      {hasPlacement ? (
+        <div className={`${SURFACE_CARD} mb-8 border border-emerald-200 bg-emerald-50/40 px-4 py-4`}>
+          <h2 className="text-sm font-semibold text-neutral-900">Placement completed</h2>
+          <p className="mt-2 text-sm text-neutral-700">
+            This placement-only engagement is complete. No managed tenancy or tenant portal access
+            was created. The property remains Tenant Placement Only.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            <DetailRow label="Completed">{formatDateTime(detail.placementCompletedAt)}</DetailRow>
+            <DetailRow label="Lease start">{formatDate(detail.placementLeaseStartDate)}</DetailRow>
+            <DetailRow label="Monthly rent">
+              {detail.placementMonthlyRent ? `$${detail.placementMonthlyRent}` : "—"}
+            </DetailRow>
+            <DetailRow label="Listing closed">
+              {detail.placementListingClosed ? "Yes" : "No / already closed / none"}
+            </DetailRow>
+            {detail.placementLandlordHandoffNotes ? (
+              <DetailRow label="Landlord handoff">{detail.placementLandlordHandoffNotes}</DetailRow>
+            ) : null}
+            {detail.placementInternalNotes ? (
+              <DetailRow label="Internal notes">{detail.placementInternalNotes}</DetailRow>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {canCompletePlacement ? (
+        <div className="mb-8">
+          <FormSection legend="Complete tenant placement">
+            <p className="text-sm text-neutral-700">
+              Service relationship · {detail.serviceRelationshipLabel}
+            </p>
+            <p className="mt-2 text-sm text-neutral-600">
+              Completing placement records that the tenant was placed with the landlord. It does{" "}
+              <span className="font-medium">not</span> create a managed tenancy, enable tenant portal
+              access, or turn on maintenance, notices, inspections, or move-out workflows. The
+              property stays Tenant Placement Only. The related rental listing will be closed when
+              this succeeds.
+            </p>
+            {detail.rentalListingHeadline || detail.rentalListingId ? (
+              <p className="mt-2 text-sm text-neutral-700">
+                Listing · {detail.rentalListingHeadline ?? detail.rentalListingId}
+                {detail.rentalListingMonthlyRent
+                  ? ` · advertised $${detail.rentalListingMonthlyRent}`
+                  : ""}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-amber-900">
+                No listing attribution on this application. If exactly one open listing exists for
+                the unit it will close automatically; otherwise you will be asked to choose.
+              </p>
+            )}
+            <form className="mt-4 flex flex-col gap-4" onSubmit={onPlacementSubmit} noValidate>
+              <FormField label="Lease start date (required)" htmlFor="placement-lease-start">
+                <input
+                  id="placement-lease-start"
+                  type="date"
+                  value={placementLeaseStart}
+                  onChange={(e) => setPlacementLeaseStart(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Lease end date (optional)" htmlFor="placement-lease-end">
+                <input
+                  id="placement-lease-end"
+                  type="date"
+                  value={placementLeaseEnd}
+                  onChange={(e) => setPlacementLeaseEnd(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Final monthly rent (required)" htmlFor="placement-rent">
+                <input
+                  id="placement-rent"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={placementRent}
+                  onChange={(e) => setPlacementRent(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Landlord handoff notes (optional)" htmlFor="placement-handoff">
+                <textarea
+                  id="placement-handoff"
+                  value={landlordHandoffNotes}
+                  onChange={(e) => setLandlordHandoffNotes(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <FormField label="Internal notes (optional)" htmlFor="placement-notes">
+                <textarea
+                  id="placement-notes"
+                  value={internalNotes}
+                  onChange={(e) => setInternalNotes(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                />
+              </FormField>
+              <PrimaryButton type="submit" disabled={placementPending} className="!w-auto px-6">
+                {placementPending ? "Completing…" : "Complete placement"}
+              </PrimaryButton>
+            </form>
+            <p className="mt-3 text-xs text-neutral-500">
+              Managed tenancy conversion remains disabled for this property.
+            </p>
+          </FormSection>
+        </div>
+      ) : null}
+
       {canConvert ? (
         <div className="mb-8">
           <FormSection legend="Create tenancy">
@@ -244,6 +389,28 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
               primary tenant contact with portal access enabled. The tenant signs via email link;
               portal login works after you mark the tenancy Active.
             </p>
+            {beginsManagementOnConvert ? (
+              <p className="mt-2 text-sm text-neutral-700">
+                This property is <span className="font-medium">Pre-management</span>. Converting
+                will begin ongoing management and set the service relationship to{" "}
+                <span className="font-medium">Managed</span>.
+              </p>
+            ) : null}
+            {detail.rentalListingHeadline || detail.suggestedMonthlyRent ? (
+              <p className="mt-2 text-sm text-neutral-700">
+                {detail.rentalListingHeadline
+                  ? `Listing · ${detail.rentalListingHeadline}. `
+                  : ""}
+                {detail.suggestedMonthlyRent
+                  ? `Advertised rent $${detail.suggestedMonthlyRent} (prefilled below; adjust if needed).`
+                  : "Related listing will close when conversion succeeds."}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-neutral-600">
+                No listing attribution. If exactly one open listing exists for this unit, it will
+                close on successful conversion.
+              </p>
+            )}
             <form className="mt-4 flex flex-col gap-4" onSubmit={onConvertSubmit} noValidate>
               <FormField label="Lease start date (required)" htmlFor="lease-start">
                 <input
@@ -345,6 +512,11 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
           <div className={`${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-3`}>
             <DetailRow label="Property">{detail.propertyName}</DetailRow>
             <DetailRow label="Unit">{detail.unitLabel}</DetailRow>
+            <DetailRow label="Service relationship">{detail.serviceRelationshipLabel}</DetailRow>
+            <DetailRow label="Listing">
+              {detail.rentalListingHeadline ?? detail.rentalListingId ?? "None (legacy / unattributed)"}
+              {detail.rentalListingStatus ? ` · ${detail.rentalListingStatus}` : ""}
+            </DetailRow>
           </div>
         </FormSection>
 

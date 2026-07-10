@@ -26,10 +26,16 @@ type ProspectPrefillApiResponse =
       prefill: PublicProspectPrefillFields;
     };
 
+type LeasingSubmitOptionUnit = {
+  unitId: string;
+  unitNumber: string;
+  rentalListingId?: string;
+};
+
 type LeasingSubmitOption = {
   propertyId: string;
   propertyName: string;
-  units: { unitId: string; unitNumber: string }[];
+  units: LeasingSubmitOptionUnit[];
 };
 
 function apiErrorMessage(parsed: unknown, fallback: string): string {
@@ -151,6 +157,11 @@ export default function RentalApplicationPage() {
     [options, selectedPropertyId],
   );
 
+  const selectedUnit = useMemo(
+    () => selectedProperty?.units.find((u) => u.unitId === selectedUnitId) ?? null,
+    [selectedProperty, selectedUnitId],
+  );
+
   const onContinueLookup = useCallback(async () => {
     setLookupError(null);
     setError(null);
@@ -244,6 +255,7 @@ export default function RentalApplicationPage() {
           body: JSON.stringify({
             propertyId: selectedPropertyId,
             unitId: selectedUnitId,
+            rentalListingId: selectedUnit?.rentalListingId || undefined,
             email: trimmedEmail,
             prospectId: matchedProspectId ?? undefined,
             firstName: firstName.trim() || undefined,
@@ -340,6 +352,7 @@ export default function RentalApplicationPage() {
       phone,
       matchedProspectId,
       selectedPropertyId,
+      selectedUnit,
       selectedUnitId,
       smokerStatus,
     ],

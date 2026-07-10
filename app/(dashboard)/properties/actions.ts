@@ -10,11 +10,17 @@ import {
   PropertyHardDeleteBlockedError,
   hardDeleteDummyProperty,
 } from "@/lib/services/hard-delete-dummy-property";
-import { createProperty, updatePropertyOwnerStrata, updatePropertyProfile } from "@/lib/services/property.service";
+import {
+  createProperty,
+  updatePropertyOwnerStrata,
+  updatePropertyProfile,
+  updatePropertyServiceRelationship,
+} from "@/lib/services/property.service";
 import { createUnit } from "@/lib/services/unit.service";
 import {
   parseCreatePropertyFormInput,
   parseCreateUnitFormInput,
+  parsePropertyServiceRelationshipFormInput,
 } from "@/lib/validation/property-form";
 import { parsePropertyProfileFormInput } from "@/lib/validation/property-profile";
 import { parsePropertyOwnerStrataFormInput } from "@/lib/validation/property-owner-strata";
@@ -39,6 +45,7 @@ export async function createPropertyAction(formData: unknown): Promise<PropertyA
       city: parsed.city,
       province: parsed.province,
       postalCode: parsed.postalCode,
+      serviceRelationship: parsed.serviceRelationship,
       propertyType: parsed.propertyType,
       bedrooms: parsed.bedrooms,
       bathrooms: parsed.bathrooms,
@@ -165,6 +172,46 @@ export async function updatePropertyProfileAction(
       return { ok: false, error: e.message };
     }
     const message = e instanceof Error ? e.message : "Could not update property profile";
+    return { ok: false, error: message };
+  }
+}
+
+export async function updatePropertyServiceRelationshipAction(
+  propertyId: string,
+  formData: unknown,
+): Promise<PropertyActionResult> {
+  const trimmedPropertyId = propertyId.trim();
+  if (!trimmedPropertyId) {
+    return { ok: false, error: "Invalid property id" };
+  }
+
+  const parsed = parsePropertyServiceRelationshipFormInput(formData);
+  if ("error" in parsed) {
+    return { ok: false, error: parsed.error };
+  }
+
+  try {
+    const ctx = await requireStaffContextFromSession();
+    await updatePropertyServiceRelationship(
+      prisma,
+      ctx,
+      trimmedPropertyId,
+      parsed.serviceRelationship,
+    );
+    revalidatePath("/properties");
+    revalidatePath(`/properties/${trimmedPropertyId}`);
+    return { ok: true, propertyId: trimmedPropertyId };
+  } catch (e) {
+    if (e instanceof StaffAuthError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof NotFoundError) {
+      return { ok: false, error: e.message };
+    }
+    if (e instanceof ForbiddenError) {
+      return { ok: false, error: e.message };
+    }
+    const message = e instanceof Error ? e.message : "Could not update service relationship";
     return { ok: false, error: message };
   }
 }

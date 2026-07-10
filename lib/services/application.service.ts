@@ -8,12 +8,15 @@ import {
   assertProspectForApplicationStart,
   findProspectForApplicationMatch,
 } from "@/lib/leasing/prospect-match";
+import { resolveApplicationListingAttribution } from "@/lib/leasing/rental-listing-attribution";
 
 export type StartPublicApplicationInput = {
   propertyId: string;
   unitId: string;
   email: string;
   prospectId?: string | null;
+  /** Published listing context when starting from a listing-aware public form. */
+  rentalListingId?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   phone?: string | null;
@@ -159,12 +162,20 @@ export async function startPublicApplication(
     });
   }
 
+  const rentalListingId = await resolveApplicationListingAttribution(prisma, {
+    rentalListingId: input.rentalListingId,
+    propertyId: input.propertyId,
+    unitId: input.unitId,
+    prospectRentalListingId: prospect?.rentalListingId,
+  });
+
   const app = await prisma.application.create({
     data: {
       propertyId: input.propertyId,
       unitId: input.unitId,
       email,
       prospectId: prospect?.id ?? null,
+      rentalListingId,
       firstName: input.firstName?.trim() || prospect?.firstName || null,
       lastName: input.lastName?.trim() || prospect?.lastName || null,
       phone: input.phone?.trim() || prospect?.phone || null,
@@ -179,6 +190,24 @@ export async function startPublicApplication(
 
   if (!prospect) {
     await maybeLinkProspectForDraftApplication(prisma, app.id, app.email);
+    const linked = await getApplicationOrThrow(prisma, app.id);
+    if (!linked.rentalListingId && linked.prospectId) {
+      const linkedProspect = await prisma.prospect.findUnique({
+        where: { id: linked.prospectId },
+        select: { rentalListingId: true },
+      });
+      const inherited = await resolveApplicationListingAttribution(prisma, {
+        propertyId: linked.propertyId,
+        unitId: linked.unitId,
+        prospectRentalListingId: linkedProspect?.rentalListingId,
+      });
+      if (inherited) {
+        return prisma.application.update({
+          where: { id: linked.id },
+          data: { rentalListingId: inherited },
+        });
+      }
+    }
   }
   return getApplicationOrThrow(prisma, app.id);
 }

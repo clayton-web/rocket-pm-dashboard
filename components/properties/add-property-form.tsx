@@ -9,6 +9,12 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { PROPERTY_PROFILE_TYPES, PROPERTY_PROFILE_TYPE_LABELS } from "@/lib/property/profile";
+import {
+  PROPERTY_SERVICE_RELATIONSHIPS,
+  PROPERTY_SERVICE_RELATIONSHIP_HELPERS,
+  PROPERTY_SERVICE_RELATIONSHIP_LABELS,
+  type PropertyServiceRelationshipValue,
+} from "@/lib/property/service-relationship";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 
@@ -19,6 +25,7 @@ export function AddPropertyForm() {
   const cityId = useId();
   const provinceId = useId();
   const postalCodeId = useId();
+  const serviceRelationshipId = useId();
   const propertyTypeId = useId();
   const bedroomsId = useId();
   const bathroomsId = useId();
@@ -31,6 +38,8 @@ export function AddPropertyForm() {
   const [city, setCity] = useState("");
   const [province, setProvince] = useState("BC");
   const [postalCode, setPostalCode] = useState("");
+  const [serviceRelationship, setServiceRelationship] =
+    useState<PropertyServiceRelationshipValue>("MANAGED");
   const [propertyType, setPropertyType] = useState("");
   const [bedrooms, setBedrooms] = useState("");
   const [bathrooms, setBathrooms] = useState("");
@@ -46,6 +55,7 @@ export function AddPropertyForm() {
         city,
         province,
         postalCode,
+        serviceRelationship,
         propertyType: propertyType || null,
         bedrooms: bedrooms === "" ? null : bedrooms,
         bathrooms: bathrooms === "" ? null : bathrooms,
@@ -66,10 +76,9 @@ export function AddPropertyForm() {
   return (
     <FormSection legend="Add property">
       <p className="text-sm text-neutral-600">
-        Enter the street address — that becomes the property label on public viewing and application
-        forms when this organization matches the public portal org. Optional profile fields help with
-        market rent research later. Rentable spaces such as basement suites or numbered units can be
-        added after creation.
+        Enter the street address and choose how Axford is engaged with this property. New properties
+        stay private until you publish a rental listing. Operational Active status, service
+        relationship, and public listing are three separate concepts.
       </p>
       {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
       <form className={`mt-4 flex flex-col gap-4 ${SURFACE_PANEL} px-4 py-4`} onSubmit={onSubmit}>
@@ -122,6 +131,28 @@ export function AddPropertyForm() {
             className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
             required
           />
+        </FormField>
+
+        <FormField
+          label="Service relationship (required)"
+          htmlFor={serviceRelationshipId}
+          helper={PROPERTY_SERVICE_RELATIONSHIP_HELPERS[serviceRelationship]}
+        >
+          <select
+            id={serviceRelationshipId}
+            value={serviceRelationship}
+            onChange={(e) =>
+              setServiceRelationship(e.target.value as PropertyServiceRelationshipValue)
+            }
+            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            required
+          >
+            {PROPERTY_SERVICE_RELATIONSHIPS.map((value) => (
+              <option key={value} value={value}>
+                {PROPERTY_SERVICE_RELATIONSHIP_LABELS[value]}
+              </option>
+            ))}
+          </select>
         </FormField>
 
         <div className="border-t border-neutral-200 pt-4">
