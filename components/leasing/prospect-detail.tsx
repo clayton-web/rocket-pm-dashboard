@@ -144,7 +144,6 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
           prospectId={detail.id}
           primaryApplicationId={detail.primaryApplicationId}
           tenancyId={detail.tenancyId}
-          canMarkQualified={detail.canMarkQualified}
           onScheduleViewing={() =>
             scheduleSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
           }

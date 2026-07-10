@@ -175,7 +175,12 @@ function ShowingDetailBody({ detail }: { detail: ShowingStaffDetail }) {
 
         {showInterestedHandoff ? (
           <FormSection legend="Application handoff">
-            <ApplicationPortalHandoffPanel handoff={detail.applicationHandoff} />
+            <ApplicationPortalHandoffPanel
+              handoff={detail.applicationHandoff}
+              prospectId={detail.prospectId}
+              canMarkApplicationSent={detail.canMarkApplicationSent}
+              applicationSentAt={detail.applicationSentAt}
+            />
           </FormSection>
         ) : null}
 

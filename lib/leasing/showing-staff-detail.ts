@@ -40,6 +40,8 @@ export type ShowingStaffDetail = {
   canCloseOut: boolean;
   closeOutChoices: ShowingCloseOutChoice[];
   applicationHandoff: ReturnType<typeof buildApplicationPortalHandoff>;
+  canMarkApplicationSent: boolean;
+  applicationSentAt: string | null;
   linkedApplications: {
     id: string;
     status: string;
@@ -99,7 +101,14 @@ export async function getShowingDetailForStaff(
       : Promise.resolve(null),
     prisma.prospect.findUnique({
       where: { id: showing.prospectId },
-      select: { id: true, firstName: true, lastName: true, email: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        status: true,
+        applicationSentAt: true,
+      },
     }),
     showing.assignedToUserId
       ? prisma.user.findUnique({
@@ -161,6 +170,8 @@ export async function getShowingDetailForStaff(
       unitLabel,
       email: prospect.email,
     }),
+    canMarkApplicationSent: prospect.status === "new" && prospect.applicationSentAt == null,
+    applicationSentAt: prospect.applicationSentAt?.toISOString() ?? null,
     linkedApplications: linkedApplications.map((app) => ({
       id: app.id,
       status: app.status,

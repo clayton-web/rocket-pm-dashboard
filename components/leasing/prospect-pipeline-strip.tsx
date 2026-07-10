@@ -1,6 +1,5 @@
 "use client";
 
-import { markProspectQualifiedAction } from "@/app/(dashboard)/leasing/prospects/[prospectId]/actions";
 import { PrimaryButton } from "@/components/portal/ui";
 import {
   PROSPECT_PIPELINE_STAGE_LABELS,
@@ -9,8 +8,6 @@ import {
   type ProspectPipelineStage,
 } from "@/lib/leasing/prospect-pipeline-stage";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 
 function stagePillClassName(isCurrent: boolean) {
   if (isCurrent) {
@@ -26,25 +23,8 @@ export function ProspectPipelineStrip(props: {
   prospectId: string;
   primaryApplicationId: string | null;
   tenancyId: string | null;
-  canMarkQualified: boolean;
   onScheduleViewing?: () => void;
 }) {
-  const router = useRouter();
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [qualifyPending, startQualifyTransition] = useTransition();
-
-  function onMarkQualified() {
-    setActionError(null);
-    startQualifyTransition(async () => {
-      const result = await markProspectQualifiedAction(props.prospectId);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      router.refresh();
-    });
-  }
-
   const visibleStages =
     props.stage === "archived"
       ? (["archived"] as const)
@@ -73,24 +53,7 @@ export function ProspectPipelineStrip(props: {
         </p>
       </div>
 
-      {actionError ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
-          {actionError}
-        </p>
-      ) : null}
-
       <div className="flex flex-wrap gap-3">
-        {props.nextAction === "mark_qualified" && props.canMarkQualified ? (
-          <PrimaryButton
-            type="button"
-            className="!w-auto px-6"
-            disabled={qualifyPending}
-            onClick={onMarkQualified}
-          >
-            {qualifyPending ? "Saving…" : "Mark Qualified"}
-          </PrimaryButton>
-        ) : null}
-
         {props.nextAction === "schedule_viewing" ? (
           <PrimaryButton
             type="button"
@@ -103,7 +66,7 @@ export function ProspectPipelineStrip(props: {
 
         {props.nextAction === "mark_application_sent" ? (
           <p className="text-sm text-neutral-600">
-            Copy the application link in Application handoff below, then mark application sent.
+            Use <span className="font-medium">Send application</span> in Application handoff below.
           </p>
         ) : null}
 
@@ -121,7 +84,7 @@ export function ProspectPipelineStrip(props: {
             href={`/leasing/applications/${props.primaryApplicationId}`}
             className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
           >
-            Convert Approved Application
+            Finish leasing
           </Link>
         ) : null}
 
@@ -130,7 +93,7 @@ export function ProspectPipelineStrip(props: {
             href={`/leasing/applications/${props.primaryApplicationId}`}
             className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
           >
-            Complete Tenant Placement
+            Finish leasing
           </Link>
         ) : null}
 

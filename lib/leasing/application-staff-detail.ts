@@ -61,6 +61,9 @@ export type ApplicationStaffDetail = {
   placementListingClosed: boolean;
   canCompletePlacement: boolean;
   suggestedMonthlyRent: string | null;
+  /** YYYY-MM-DD: desired move-in, else listing available date. */
+  suggestedLeaseStartDate: string | null;
+  suggestedLeaseStartSource: "application" | "listing" | null;
   serviceRelationship: PropertyServiceRelationshipValue;
   serviceRelationshipLabel: string;
   conversionPolicy: ApplicationConversionPolicy;
@@ -136,6 +139,7 @@ export async function getApplicationDetailForStaff(
             headline: true,
             monthlyRent: true,
             status: true,
+            availableDate: true,
           },
         })
       : Promise.resolve(null),
@@ -157,6 +161,17 @@ export async function getApplicationDetailForStaff(
     tenancy == null &&
     placement == null &&
     conversionPolicy.recommendedAction === "await_placement_completion";
+
+  const desiredMoveIn = app.desiredMoveInDate?.toISOString().slice(0, 10) ?? null;
+  const listingAvailable = listing?.availableDate
+    ? listing.availableDate.toISOString().slice(0, 10)
+    : null;
+  const suggestedLeaseStartDate = desiredMoveIn ?? listingAvailable;
+  const suggestedLeaseStartSource: "application" | "listing" | null = desiredMoveIn
+    ? "application"
+    : listingAvailable
+      ? "listing"
+      : null;
 
   return {
     id: app.id,
@@ -203,6 +218,8 @@ export async function getApplicationDetailForStaff(
     placementListingClosed: placement?.rentalListingClosed ?? false,
     canCompletePlacement,
     suggestedMonthlyRent: listing?.monthlyRent?.toString() ?? null,
+    suggestedLeaseStartDate,
+    suggestedLeaseStartSource,
     serviceRelationship,
     serviceRelationshipLabel: formatPropertyServiceRelationship(serviceRelationship),
     conversionPolicy,

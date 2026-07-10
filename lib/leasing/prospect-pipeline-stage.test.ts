@@ -144,13 +144,23 @@ describe("deriveProspectPipelineStage", () => {
 });
 
 describe("deriveProspectPipelineNextAction", () => {
-  it("suggests mark qualified at viewing request", () => {
+  it("suggests schedule viewing at viewing request without requiring Mark Qualified", () => {
     const pipeline = deriveProspectPipelineStage({
       prospect: baseProspect,
       showings: [],
       applications: [],
     });
-    assert.equal(deriveProspectPipelineNextAction(pipeline, baseProspect), "mark_qualified");
+    assert.equal(deriveProspectPipelineNextAction(pipeline, baseProspect), "schedule_viewing");
+  });
+
+  it("suggests schedule viewing when already qualified", () => {
+    const prospect = { ...baseProspect, qualifiedAt: "2026-06-10T12:00:00.000Z" };
+    const pipeline = deriveProspectPipelineStage({
+      prospect,
+      showings: [],
+      applications: [],
+    });
+    assert.equal(deriveProspectPipelineNextAction(pipeline, prospect), "schedule_viewing");
   });
 
   it("suggests convert application when approved", () => {

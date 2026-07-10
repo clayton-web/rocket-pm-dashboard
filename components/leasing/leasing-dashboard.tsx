@@ -367,11 +367,11 @@ export function LeasingDashboard({
 
           <PreviewSection
             id="approved-ready-to-convert"
-            title="Approved · ready to convert"
+            title="Approved · finish leasing"
             total={data.approvedReadyToConvert.total}
             viewAllHref="/leasing/applications?queue=conversion"
             rows={data.approvedReadyToConvert.preview}
-            emptyMessage="No approved applications waiting for tenancy conversion."
+            emptyMessage="No approved applications waiting to finish leasing."
             getKey={(row) => row.id}
             renderRow={(row) => <ConversionPreview application={row} />}
           />

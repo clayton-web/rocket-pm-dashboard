@@ -85,20 +85,21 @@ export function ApplicationDetail({
 
 function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
   const router = useRouter();
-  const moveInDefault = detail.desiredMoveInDate ?? "";
+  const leaseStartDefault = detail.suggestedLeaseStartDate ?? "";
+  const moveInDefault = detail.desiredMoveInDate ?? detail.suggestedLeaseStartDate ?? "";
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [convertPending, startConvertTransition] = useTransition();
   const [placementPending, startPlacementTransition] = useTransition();
-  const [leaseStartDate, setLeaseStartDate] = useState(moveInDefault);
+  const [leaseStartDate, setLeaseStartDate] = useState(leaseStartDefault);
   const [moveInDate, setMoveInDate] = useState(moveInDefault);
   const [leaseEndDate, setLeaseEndDate] = useState("");
   const [moveOutDate, setMoveOutDate] = useState("");
   const [monthlyRent, setMonthlyRent] = useState(detail.suggestedMonthlyRent ?? "");
   const [securityDeposit, setSecurityDeposit] = useState("0");
   const [petDeposit, setPetDeposit] = useState("");
-  const [placementLeaseStart, setPlacementLeaseStart] = useState(moveInDefault);
+  const [placementLeaseStart, setPlacementLeaseStart] = useState(leaseStartDefault);
   const [placementLeaseEnd, setPlacementLeaseEnd] = useState("");
   const [placementRent, setPlacementRent] = useState(detail.suggestedMonthlyRent ?? "");
   const [landlordHandoffNotes, setLandlordHandoffNotes] = useState("");
@@ -109,11 +110,18 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
   const hasTenancy = detail.tenancyId != null;
   const hasPlacement = detail.placementId != null;
   const canCompletePlacement = detail.canCompletePlacement;
+  const needsFinishLeasing = canConvert || canCompletePlacement;
   const beginsManagementOnConvert =
     canConvert && detail.conversionPolicy.transitionPropertyToManaged;
   const displayName = formatName(detail);
   const decided =
     detail.status === "approved" || detail.status === "declined";
+  const leaseStartHint =
+    detail.suggestedLeaseStartSource === "application"
+      ? "Prefilled from applicant desired move-in (editable)."
+      : detail.suggestedLeaseStartSource === "listing"
+        ? "Prefilled from listing available date (editable)."
+        : null;
 
   function onConvertSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -168,6 +176,13 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
         return;
       }
       router.refresh();
+      if (status === "approved") {
+        window.setTimeout(() => {
+          document
+            .getElementById("finish-leasing")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      }
     });
   }
 
@@ -268,6 +283,22 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
         </div>
       ) : null}
 
+      {needsFinishLeasing ? (
+        <div
+          id="finish-leasing"
+          className={`${SURFACE_CARD} mb-8 border border-neutral-900 bg-neutral-50 px-4 py-4`}
+        >
+          <h2 className="text-sm font-semibold text-neutral-900">Next: finish leasing</h2>
+          <p className="mt-2 text-sm text-neutral-700">
+            {canCompletePlacement
+              ? "This application is approved. Complete tenant placement below to close the engagement."
+              : beginsManagementOnConvert
+                ? "This application is approved. Create the tenancy below to begin management and close the listing."
+                : "This application is approved. Create the tenancy below to finish leasing and close the listing."}
+          </p>
+        </div>
+      ) : null}
+
       {hasPlacement ? (
         <div className={`${SURFACE_CARD} mb-8 border border-emerald-200 bg-emerald-50/40 px-4 py-4`}>
           <h2 className="text-sm font-semibold text-neutral-900">Placement completed</h2>
@@ -321,7 +352,11 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
               </p>
             )}
             <form className="mt-4 flex flex-col gap-4" onSubmit={onPlacementSubmit} noValidate>
-              <FormField label="Lease start date (required)" htmlFor="placement-lease-start">
+              <FormField
+                label="Lease start date (required)"
+                htmlFor="placement-lease-start"
+                helper={leaseStartHint ?? undefined}
+              >
                 <input
                   id="placement-lease-start"
                   type="date"
@@ -340,7 +375,15 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
                 />
               </FormField>
-              <FormField label="Final monthly rent (required)" htmlFor="placement-rent">
+              <FormField
+                label="Final monthly rent (required)"
+                htmlFor="placement-rent"
+                helper={
+                  detail.suggestedMonthlyRent
+                    ? `From listing $${detail.suggestedMonthlyRent} (editable).`
+                    : undefined
+                }
+              >
                 <input
                   id="placement-rent"
                   type="number"
@@ -382,7 +425,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
       ) : null}
 
       {canConvert ? (
-        <div className="mb-8">
+        <div className="mb-8" id="finish-leasing-form">
           <FormSection legend="Create tenancy">
             <p className="text-sm text-neutral-600">
               Creates a tenancy in <span className="font-medium">Pending move-in</span> status and a
@@ -412,7 +455,11 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
               </p>
             )}
             <form className="mt-4 flex flex-col gap-4" onSubmit={onConvertSubmit} noValidate>
-              <FormField label="Lease start date (required)" htmlFor="lease-start">
+              <FormField
+                label="Lease start date (required)"
+                htmlFor="lease-start"
+                helper={leaseStartHint ?? undefined}
+              >
                 <input
                   id="lease-start"
                   type="date"
@@ -422,7 +469,15 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   required
                 />
               </FormField>
-              <FormField label="Move-in date (required)" htmlFor="move-in">
+              <FormField
+                label="Move-in date (required)"
+                htmlFor="move-in"
+                helper={
+                  detail.desiredMoveInDate
+                    ? "Defaults to desired move-in (editable)."
+                    : (leaseStartHint ?? undefined)
+                }
+              >
                 <input
                   id="move-in"
                   type="date"
@@ -453,7 +508,11 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
               <FormField
                 label="Monthly rent (required)"
                 htmlFor="monthly-rent"
-                helper="Enter the lease rent — not prefilled from applicant income."
+                helper={
+                  detail.suggestedMonthlyRent
+                    ? `From listing $${detail.suggestedMonthlyRent} (editable). Not from applicant income.`
+                    : "Enter the lease rent — not from applicant income."
+                }
               >
                 <input
                   id="monthly-rent"

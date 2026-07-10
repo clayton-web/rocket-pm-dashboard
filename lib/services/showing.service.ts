@@ -16,6 +16,7 @@ import {
 } from "./property-access";
 import { NotFoundError } from "./errors";
 import { logPropertyActivity, pickForAudit } from "./activityLog.service";
+import { markProspectQualified } from "./prospect.service";
 
 export type CreateShowingInput = {
   prospectId: string;
@@ -146,6 +147,8 @@ export async function createShowing(
   await logPropertyActivity(prisma, principal, input.propertyId, "Showing", row.id, "showing.created", {
     newValues: pickForAudit(row, ["prospectId", "status", "scheduledStart", "assignedToUserId"]),
   });
+  // Booking a showing implies staff engagement — qualify once without a separate click.
+  await markProspectQualified(prisma, principal, input.prospectId);
   return row;
 }
 

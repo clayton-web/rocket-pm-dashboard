@@ -75,12 +75,13 @@ export function ApplicationQueueList(props: ApplicationQueueListProps) {
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900">
-          {isConversion ? "Approved · ready to convert" : "Rental applications"}
+          {isConversion ? "Approved · finish leasing" : "Rental applications"}
         </h1>
         <p className="mt-1 text-sm text-neutral-600">
           {isConversion ? (
             <>
-              Approved applications awaiting tenancy conversion or placement completion.{" "}
+              Recovery queue for approved applications that still need tenancy creation or
+              placement completion. Prefer finishing from the application page after Approve.{" "}
               <Link href="/leasing/applications" className="font-medium underline">
                 View review queue
               </Link>
@@ -89,7 +90,7 @@ export function ApplicationQueueList(props: ApplicationQueueListProps) {
             <>
               Submitted and in-review applications from public intake.{" "}
               <Link href="/leasing/applications?queue=conversion" className="font-medium underline">
-                View conversion queue
+                Recovery: unfinished approved
               </Link>
               {" · Public form: "}
               <Link href="/portal/application" className="font-medium underline">

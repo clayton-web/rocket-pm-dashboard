@@ -242,8 +242,8 @@ export function deriveProspectPipelineNextAction(
 
   switch (pipeline.stage) {
     case "viewing_request":
-      return "mark_qualified";
     case "qualified":
+      // Qualification is automatic when a showing is scheduled; do not require Mark Qualified.
       return "schedule_viewing";
     case "viewing_booked":
       return "mark_application_sent";
