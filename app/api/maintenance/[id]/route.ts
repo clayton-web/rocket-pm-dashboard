@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireStaffMaintenanceContext } from "@/lib/maintenance/authorization";
 import { getMaintenanceForStaff, patchMaintenanceForStaff } from "@/lib/maintenance/maintenance.service";
@@ -48,6 +49,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!row) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    revalidatePath("/operations");
+    revalidatePath("/maintenance");
+    revalidatePath(`/maintenance/${id}`);
     return NextResponse.json(row);
   } catch (e) {
     if (e instanceof MaintenanceWorkflowTransitionError) {

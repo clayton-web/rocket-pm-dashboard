@@ -17,12 +17,21 @@ function formatDueLabel(dueAt: string | null): string | null {
 function visibleSecondaryIndicators(
   item: OperationalWorkItem,
   waitingLabel: string | null,
+  urgencyLabel: string | null,
 ): string[] {
   return item.secondaryIndicators.filter((indicator) => {
     if (item.isOverdue && /^overdue$/i.test(indicator)) return false;
     if (waitingLabel && indicator === waitingLabel) return false;
+    if (urgencyLabel && indicator === urgencyLabel) return false;
+    if (/^unassigned$/i.test(indicator)) return false;
     return true;
   });
+}
+
+function urgencyBadgeLabel(item: OperationalWorkItem): string | null {
+  if (item.secondaryIndicators.includes("Emergency")) return "Emergency";
+  if (item.secondaryIndicators.includes("Urgent")) return "Urgent";
+  return null;
 }
 
 export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
@@ -31,7 +40,9 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
     item.waitingOn && item.waitingOn !== "staff"
       ? WAITING_ON_LABELS[item.waitingOn]
       : null;
-  const secondary = visibleSecondaryIndicators(item, waitingLabel);
+  const urgencyLabel = urgencyBadgeLabel(item);
+  const showUnassigned = item.secondaryIndicators.some((i) => /^unassigned$/i.test(i));
+  const secondary = visibleSecondaryIndicators(item, waitingLabel, urgencyLabel);
   const location = [item.propertyLabel, item.unitLabel].filter(Boolean).join(" · ") || "—";
 
   return (
@@ -48,9 +59,25 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
                 <span>Overdue</span>
               </span>
             ) : null}
+            {urgencyLabel ? (
+              <span
+                className={
+                  urgencyLabel === "Emergency"
+                    ? "inline-flex max-w-full items-center truncate rounded-md border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-950"
+                    : "inline-flex max-w-full items-center truncate rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-950"
+                }
+              >
+                {urgencyLabel}
+              </span>
+            ) : null}
             {waitingLabel ? (
               <span className="inline-flex max-w-full items-center truncate rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-900">
                 {waitingLabel}
+              </span>
+            ) : null}
+            {showUnassigned ? (
+              <span className="inline-flex max-w-full items-center truncate rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+                Unassigned
               </span>
             ) : null}
           </div>
@@ -74,6 +101,13 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
             <span className="font-semibold">{item.nextActionLabel}</span>
           </p>
 
+          {item.assignedToLabel ? (
+            <p className="break-words text-xs text-neutral-600">
+              <span className="text-neutral-500">Assignee · </span>
+              {item.assignedToLabel}
+            </p>
+          ) : null}
+
           {dueLabel ? (
             <p className="text-xs text-neutral-600">
               <span className="text-neutral-500">Due / scheduled · </span>
@@ -82,7 +116,7 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
           ) : null}
 
           {secondary.length > 0 ? (
-            <ul className="flex flex-wrap gap-1.5 pt-0.5">
+            <ul className="flex flex-wrap gap-1.5 pt-0.5" aria-label="Additional indicators">
               {secondary.map((indicator) => (
                 <li
                   key={indicator}
@@ -108,3 +142,4 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
     </li>
   );
 }
+

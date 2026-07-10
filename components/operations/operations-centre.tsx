@@ -22,7 +22,7 @@ export function OperationsCentre({
         <PortalPageHeader
           eyebrow="Command"
           title="Operations"
-          description="What needs your attention across leasing workflows right now."
+          description="What needs your attention across operational work right now."
         />
         <InlineAlert>{loadError}</InlineAlert>
       </div>
@@ -35,7 +35,7 @@ export function OperationsCentre({
         <PortalPageHeader
           eyebrow="Command"
           title="Operations"
-          description="What needs your attention across leasing workflows right now."
+          description="What needs your attention across operational work right now."
         />
         <InlineNotice>Select an active organization to view operations.</InlineNotice>
       </div>
@@ -51,14 +51,14 @@ export function OperationsCentre({
       <PortalPageHeader
         eyebrow="Command"
         title="Operations"
-        description="What needs your attention across leasing workflows right now."
+        description="What needs your attention across operational work right now."
       />
 
       <div className="space-y-2">
         <p className="text-sm font-semibold text-neutral-900">Open items</p>
         <div className="flex flex-wrap gap-2" aria-label="Operations summary">
           {!hasWork ? (
-            <InlineNotice>No leasing items need attention right now.</InlineNotice>
+            <InlineNotice>No items need attention right now.</InlineNotice>
           ) : (
             <>
               <SummaryPill
@@ -85,9 +85,7 @@ export function OperationsCentre({
       {sourceErrors.length > 0 ? (
         <div className="space-y-2" role="status" aria-live="polite">
           {sourceErrors.map((err) => (
-            <InlineAlert key={err.sourceId}>
-              Could not load {err.sourceId.replaceAll("_", " ")}: {err.message}
-            </InlineAlert>
+            <InlineAlert key={err.sourceId}>{err.message}</InlineAlert>
           ))}
         </div>
       ) : null}

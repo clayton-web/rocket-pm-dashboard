@@ -23,7 +23,8 @@ export type OperationalRecordType =
   | "prospect"
   | "application"
   | "tenancy"
-  | "notice";
+  | "notice"
+  | "maintenance";
 
 export type WaitingOnParty =
   | "staff"
@@ -35,6 +36,16 @@ export type WaitingOnParty =
   | null;
 
 export type WorkItemUrgency = "high" | "normal" | "low";
+
+/**
+ * Domain-neutral intra-section urgency order (lower = higher priority).
+ * Used after overdue and dueAt comparisons.
+ */
+export const WORK_ITEM_URGENCY_RANK: Record<WorkItemUrgency, number> = {
+  high: 0,
+  normal: 1,
+  low: 2,
+};
 
 /**
  * Signals used by the classifier. Adapters set these; they do not assign

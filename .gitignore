@@ -49,5 +49,8 @@ yarn-error.log*
 
 # Local UX review artifacts (do not commit)
 /assets/operations-centre-review/
+/assets/operations-centre-maintenance-review/
 
 scripts/operations-centre-review-screenshots.mjs
+scripts/operations-centre-maintenance-review-screenshots.mjs
+scripts/operations-centre-maintenance-review-fixtures.mjs

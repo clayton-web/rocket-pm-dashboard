@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireStaffMaintenanceContext } from "@/lib/maintenance/authorization";
 import {
@@ -61,6 +62,8 @@ export async function POST(request: Request) {
       category: parsed.issueType ?? null,
     });
 
+    revalidatePath("/operations");
+    revalidatePath("/maintenance");
     return NextResponse.json(row);
   } catch (e) {
     if (e instanceof MaintenanceWorkflowTransitionError) {

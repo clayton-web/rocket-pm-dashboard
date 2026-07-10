@@ -3,9 +3,11 @@ import { listApplicationQueueForStaff } from "@/lib/leasing/application-staff-qu
 import { listOffboardingAttentionForStaff } from "@/lib/leasing/offboarding-attention-queue";
 import { listOnboardingAttentionForStaff } from "@/lib/leasing/onboarding-attention-queue";
 import { listNewProspectQueueForStaff } from "@/lib/leasing/staff-queue";
+import { listOpenMaintenanceQueueForStaff } from "@/lib/maintenance/maintenance-ops-queue";
 import type { StaffContext } from "@/lib/services/staff-context";
 import { adaptApplicationConversionToWorkItemDraft } from "@/lib/operations/adapters/application-work-item";
 import { adaptApplicationReviewToWorkItemDraft } from "@/lib/operations/adapters/application-work-item";
+import { adaptMaintenanceToWorkItemDraft } from "@/lib/operations/adapters/maintenance-work-item";
 import { adaptOffboardingToWorkItemDraft } from "@/lib/operations/adapters/offboarding-work-item";
 import { adaptOnboardingToWorkItemDraft } from "@/lib/operations/adapters/onboarding-work-item";
 import { adaptProspectToWorkItemDraft } from "@/lib/operations/adapters/prospect-work-item";
@@ -15,6 +17,7 @@ import {
   OPERATIONS_PREVIEW_LIMIT,
   OPERATIONS_SECTION_LABELS,
   OPERATIONS_SECTIONS,
+  WORK_ITEM_URGENCY_RANK,
   type OperationalWorkItem,
   type OperationalWorkItemDraft,
   type OperationsSection,
@@ -25,7 +28,8 @@ export type OperationsSourceId =
   | "application_review"
   | "application_conversion"
   | "onboarding"
-  | "offboarding";
+  | "offboarding"
+  | "maintenance";
 
 export type OperationsSourceError = {
   sourceId: OperationsSourceId;
@@ -53,6 +57,7 @@ const SOURCE_LABELS: Record<OperationsSourceId, string> = {
   application_conversion: "Approved applications",
   onboarding: "Onboarding",
   offboarding: "Offboarding",
+  maintenance: "Maintenance",
 };
 
 function defaultViewAllHref(section: OperationsSection): string | null {
@@ -68,14 +73,41 @@ function defaultViewAllHref(section: OperationsSection): string | null {
   }
 }
 
-function sortItems(items: OperationalWorkItem[]): OperationalWorkItem[] {
+/**
+ * Sort within a primary section:
+ * 1. overdue first
+ * 2. earlier dueAt when both have dueAt
+ * 3. higher urgency (high → normal → low)
+ * 4. title A–Z
+ */
+export function sortOperationalWorkItems(
+  items: OperationalWorkItem[],
+): OperationalWorkItem[] {
   return [...items].sort((a, b) => {
     if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
     const aDue = a.dueAt ?? "";
     const bDue = b.dueAt ?? "";
     if (aDue && bDue && aDue !== bDue) return aDue.localeCompare(bDue);
+    const urgencyDelta =
+      WORK_ITEM_URGENCY_RANK[a.urgency] - WORK_ITEM_URGENCY_RANK[b.urgency];
+    if (urgencyDelta !== 0) return urgencyDelta;
     return a.title.localeCompare(b.title);
   });
+}
+
+/**
+ * View all only when every item in the section shares one viewAllHref.
+ * Mixed leasing + maintenance sections omit the link to avoid a misleading destination.
+ */
+export function resolveSectionViewAllHref(
+  items: OperationalWorkItem[],
+  section: OperationsSection,
+): string | null {
+  if (items.length === 0) return defaultViewAllHref(section);
+  const first = items[0]?.viewAllHref ?? null;
+  if (!first) return defaultViewAllHref(section);
+  const uniform = items.every((item) => item.viewAllHref === first);
+  return uniform ? first : null;
 }
 
 type SourceResult = {
@@ -168,8 +200,63 @@ async function loadOffboardingDrafts(ctx: StaffContext): Promise<SourceResult> {
   }
 }
 
+async function loadMaintenanceDrafts(ctx: StaffContext): Promise<SourceResult> {
+  try {
+    const rows = await listOpenMaintenanceQueueForStaff(ctx);
+    const drafts = rows
+      .map((row) => adaptMaintenanceToWorkItemDraft(row))
+      .filter((d): d is OperationalWorkItemDraft => d != null);
+    return { sourceId: "maintenance", drafts };
+  } catch (e) {
+    return {
+      sourceId: "maintenance",
+      drafts: [],
+      error: e instanceof Error ? e.message : "Failed to load maintenance",
+    };
+  }
+}
+
+function buildSectionsFromClassified(
+  classified: OperationalWorkItem[],
+): {
+  sections: OperationsCentreSection[];
+  summary: OperationsCentreData["summary"];
+} {
+  const bySection = new Map<OperationsSection, OperationalWorkItem[]>();
+  for (const section of OPERATIONS_SECTIONS) {
+    bySection.set(section, []);
+  }
+  for (const item of classified) {
+    bySection.get(item.primarySection)?.push(item);
+  }
+
+  const summary = {
+    needs_attention: 0,
+    overdue: 0,
+    waiting: 0,
+    coming_up: 0,
+    total: 0,
+  };
+
+  const sections: OperationsCentreSection[] = OPERATIONS_SECTIONS.map((id) => {
+    const items = sortOperationalWorkItems(bySection.get(id) ?? []);
+    summary[id] = items.length;
+    summary.total += items.length;
+    const preview = items.slice(0, OPERATIONS_PREVIEW_LIMIT);
+    return {
+      id,
+      label: OPERATIONS_SECTION_LABELS[id],
+      total: items.length,
+      preview,
+      viewAllHref: resolveSectionViewAllHref(items, id),
+    };
+  });
+
+  return { sections, summary };
+}
+
 /**
- * Compose leasing attention sources into a classified Operations Centre payload.
+ * Compose leasing + maintenance attention sources into a classified Operations Centre payload.
  * Uses existing staff queue loaders (org + property scoped). Isolates source failures.
  */
 export async function getOperationsCentreForStaff(
@@ -181,6 +268,7 @@ export async function getOperationsCentreForStaff(
     loadApplicationConversionDrafts(ctx),
     loadOnboardingDrafts(ctx),
     loadOffboardingDrafts(ctx),
+    loadMaintenanceDrafts(ctx),
   ]);
 
   const sourceErrors: OperationsSourceError[] = [];
@@ -197,38 +285,7 @@ export async function getOperationsCentreForStaff(
   }
 
   const classified = classifyWorkItems(allDrafts);
-
-  const bySection = new Map<OperationsSection, OperationalWorkItem[]>();
-  for (const section of OPERATIONS_SECTIONS) {
-    bySection.set(section, []);
-  }
-  for (const item of classified) {
-    bySection.get(item.primarySection)?.push(item);
-  }
-
-  const summary = {
-    needs_attention: 0,
-    overdue: 0,
-    waiting: 0,
-    coming_up: 0,
-    total: 0,
-  };
-
-  const sections: OperationsCentreSection[] = OPERATIONS_SECTIONS.map((id) => {
-    const items = sortItems(bySection.get(id) ?? []);
-    summary[id] = items.length;
-    summary.total += items.length;
-    const preview = items.slice(0, OPERATIONS_PREVIEW_LIMIT);
-    const viewAllHref =
-      preview[0]?.viewAllHref ?? defaultViewAllHref(id);
-    return {
-      id,
-      label: OPERATIONS_SECTION_LABELS[id],
-      total: items.length,
-      preview,
-      viewAllHref: items.length > OPERATIONS_PREVIEW_LIMIT ? viewAllHref : viewAllHref,
-    };
-  });
+  const { sections, summary } = buildSectionsFromClassified(classified);
 
   return {
     sections,
@@ -244,34 +301,6 @@ export function buildOperationsCentreFromDrafts(
   sourceErrors: OperationsSourceError[] = [],
 ): OperationsCentreData {
   const classified = classifyWorkItems(drafts);
-  const bySection = new Map<OperationsSection, OperationalWorkItem[]>();
-  for (const section of OPERATIONS_SECTIONS) {
-    bySection.set(section, []);
-  }
-  for (const item of classified) {
-    bySection.get(item.primarySection)?.push(item);
-  }
-
-  const summary = {
-    needs_attention: 0,
-    overdue: 0,
-    waiting: 0,
-    coming_up: 0,
-    total: 0,
-  };
-
-  const sections: OperationsCentreSection[] = OPERATIONS_SECTIONS.map((id) => {
-    const items = sortItems(bySection.get(id) ?? []);
-    summary[id] = items.length;
-    summary.total += items.length;
-    return {
-      id,
-      label: OPERATIONS_SECTION_LABELS[id],
-      total: items.length,
-      preview: items.slice(0, OPERATIONS_PREVIEW_LIMIT),
-      viewAllHref: defaultViewAllHref(id),
-    };
-  });
-
+  const { sections, summary } = buildSectionsFromClassified(classified);
   return { sections, summary, sourceErrors, previewLimit: OPERATIONS_PREVIEW_LIMIT };
 }
