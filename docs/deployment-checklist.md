@@ -53,6 +53,20 @@ The server refuses to start in production if dangerous dev flags are set or if `
 | `EMAIL_FROM` | **Yes (prod)** | Verified sender, e.g. `Rocket PM <noreply@your-domain.com>`. |
 | `APP_PUBLIC_URL` | **Yes (prod)** | Public app origin for absolute links in email (falls back to `NEXTAUTH_URL`). |
 
+## Domain / Vercel ownership
+
+| Public URL | Vercel project |
+|------------|----------------|
+| `https://www.rocketlogic.ca/dashboard/*` | This app: **`rocket-pm-dashboard-app`** (reached via marketing rewrite) |
+| `https://www.rocketlogic.ca/` and domain ownership | Marketing: **`rocketlogic`** only |
+| `https://www.rocketlogic.ca/inspection/*` | Inspection: **`rocket-inspection-app`** |
+
+**Never** deploy this repository to Vercel project `rocketlogic`. Doing so (or deploying
+inspection there) replaces the marketing front door and breaks path rewrites.
+
+Production public URL: `https://www.rocketlogic.ca/dashboard`
+Direct alias (bypass marketing): `https://rocket-pm-dashboard-app.vercel.app/dashboard`
+
 ## Pre-deploy steps
 
 1. [ ] PostgreSQL provisioned; run `npx prisma migrate deploy` against `DIRECT_URL` **before** promoting new application code that depends on pending migrations (Vercel does not auto-migrate).

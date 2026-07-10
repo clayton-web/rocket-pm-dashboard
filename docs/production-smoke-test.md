@@ -4,16 +4,32 @@ Manual verification after deploying to staging or production. Use a real staff a
 
 **Prerequisites:** deployment checklist complete, `GET /dashboard/api/health` returns `ok: true`.
 
-**Base path:** The PM Dashboard is served under `/dashboard`. Prefix all routes below unless noted otherwise. Direct Vercel testing (before marketing rewrites): `https://rocket-pm-dashboard-app.vercel.app/dashboard/...`
+**Base path:** The PM Dashboard is served under `/dashboard`. Prefix all routes below unless noted otherwise.
+
+**Preferred production URL (via marketing rewrite):** `https://www.rocketlogic.ca/dashboard/...`
+**Direct alias (control group):** `https://rocket-pm-dashboard-app.vercel.app/dashboard/...`
+
+Always smoke the **www** URL after marketing or dashboard deploys. Do not treat the alias alone as proof that the domain rewrite works.
 
 ---
 
-## 1. Staff login
+## 0. Domain rewrite (unauthenticated)
 
-- [ ] Open `/login`
-- [ ] Sign in with email + password (seed accounts are **local only**)
-- [ ] Session persists; redirect to `/inbox` or dashboard home
-- [ ] Sign out / invalid password rejected
+- [ ] `https://www.rocketlogic.ca/` → marketing 200
+- [ ] `https://www.rocketlogic.ca/dashboard` → redirect toward `/dashboard/login`
+- [ ] `GET https://www.rocketlogic.ca/dashboard/api/health` → `ok: true`
+- [ ] `https://www.rocketlogic.ca/dashboard/portal/viewing` → 200
+- [ ] `https://www.rocketlogic.ca/inspection/login` → 200 (rewrite still intact)
+
+## 1. Staff login (www only)
+
+- [ ] Open `https://www.rocketlogic.ca/dashboard/login`
+- [ ] Confirm Auth.js providers/CSRF resolve under `https://www.rocketlogic.ca/dashboard/api/auth/…`
+- [ ] Sign in with a real production staff account (seed accounts are **local only**)
+- [ ] Land on `/dashboard/inbox` (or intended home) **without** leaving `www.rocketlogic.ca`
+- [ ] Hard-refresh a nested route (e.g. `/dashboard/properties`) — no Vercel `NOT_FOUND`
+- [ ] Sign out; session cleared; return to login
+- [ ] Invalid password rejected
 
 ## 2. Gmail connect
 
