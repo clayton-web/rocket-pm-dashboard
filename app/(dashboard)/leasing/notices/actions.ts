@@ -22,6 +22,8 @@ export async function acceptTenantNoticeAction(noticeId: string): Promise<Notice
     revalidatePath(`/leasing/notices/${trimmedId}`);
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${row.tenancyId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -63,6 +65,8 @@ export async function scheduleMoveOutFromNoticeAction(
     revalidatePath(`/leasing/notices/${trimmedId}`);
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${tenancy.id}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {

@@ -28,6 +28,8 @@ export async function markProspectQualifiedAction(
     await markProspectQualified(prisma, ctx, trimmedProspectId);
     revalidatePath("/leasing/prospects");
     revalidatePath(`/leasing/prospects/${trimmedProspectId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -51,6 +53,8 @@ export async function markApplicationSentAction(
     await markApplicationSent(prisma, ctx, trimmedProspectId);
     revalidatePath("/leasing/prospects");
     revalidatePath(`/leasing/prospects/${trimmedProspectId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -95,6 +99,8 @@ export async function scheduleShowingAction(
     revalidatePath("/leasing/prospects");
     revalidatePath(`/leasing/prospects/${trimmedProspectId}`);
     revalidatePath(`/leasing/showings/${showing.id}`);
+
+    revalidatePath("/operations");
     return { ok: true, showingId: showing.id };
   } catch (e) {
     if (e instanceof StaffAuthError) {

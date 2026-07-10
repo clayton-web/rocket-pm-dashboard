@@ -41,6 +41,8 @@ export async function closeOutShowingAction(
     revalidatePath(`/leasing/showings/${trimmedId}`);
     revalidatePath(`/leasing/prospects/${existing.prospectId}`);
     revalidatePath("/leasing/prospects");
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {

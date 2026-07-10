@@ -18,6 +18,8 @@ export async function archiveProspectAction(prospectId: string): Promise<Archive
     await updateProspect(prisma, ctx, trimmed, { status: "archived" });
     revalidatePath("/leasing/prospects");
     revalidatePath(`/leasing/prospects/${trimmed}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {

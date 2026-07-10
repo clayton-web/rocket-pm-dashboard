@@ -46,3 +46,8 @@ yarn-error.log*
 # prisma
 /prisma/*.db
 /prisma/*.db-journal
+
+# Local UX review artifacts (do not commit)
+/assets/operations-centre-review/
+
+scripts/operations-centre-review-screenshots.mjs

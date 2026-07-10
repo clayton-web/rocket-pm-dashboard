@@ -6,6 +6,7 @@ export type NavModuleId =
   | "inbox"
   | "email"
   | "briefing"
+  | "operations"
   | "aiResponder"
   | "inspections"
   | "maintenance"
@@ -56,6 +57,15 @@ export const navigationItems: NavItem[] = [
     moduleId: "briefing",
     label: "Daily Briefing",
     href: "/briefing",
+    enabled: true,
+    section: "command",
+    minimumRole: "MEMBER",
+  },
+  {
+    id: "nav-operations",
+    moduleId: "operations",
+    label: "Operations",
+    href: "/operations",
     enabled: true,
     section: "command",
     minimumRole: "MEMBER",

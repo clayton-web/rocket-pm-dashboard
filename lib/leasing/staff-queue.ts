@@ -1,7 +1,9 @@
 import prisma from "@/lib/db/prisma";
 import {
+  deriveProspectPipelineNextAction,
   deriveProspectPipelineStage,
   isProspectAttentionComplete,
+  type ProspectPipelineNextAction,
 } from "@/lib/leasing/prospect-pipeline-stage";
 import { formatHouseholdIncomeRange } from "@/lib/leasing/prospect-intake";
 import { formatPropertyAddress, formatUnitLabel } from "@/lib/property/display";
@@ -27,14 +29,23 @@ export type ProspectQueueRow = {
   messagePreview: string | null;
   pipelineStage: string;
   pipelineStageLabel: string;
+  /** Derived via deriveProspectPipelineNextAction — same source as prospect detail. */
+  pipelineNextAction: ProspectPipelineNextAction;
+  primaryApplicationId: string | null;
+  tenancyId: string | null;
+  placementOnly: boolean;
+  /** Earliest scheduled showing start, when present. */
+  nextScheduledShowingStart: string | null;
 };
 
 export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<ProspectQueueRow[]> {
   const properties = await listPropertiesForUser(prisma, ctx);
   const rows: ProspectQueueRow[] = [];
   const allProspectIds: string[] = [];
+  const placementOnlyByPropertyId = new Map<string, boolean>();
 
   for (const property of properties) {
+    placementOnlyByPropertyId.set(property.id, property.serviceRelationship === "PLACEMENT_ONLY");
     let prospects;
     try {
       prospects = await listProspectsForProperty(prisma, ctx, property.id, { status: "new" });
@@ -76,6 +87,11 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
         messagePreview: p.message,
         pipelineStage: "viewing_request",
         pipelineStageLabel: "Viewing Request",
+        pipelineNextAction: "schedule_viewing",
+        primaryApplicationId: null,
+        tenancyId: null,
+        placementOnly: placementOnlyByPropertyId.get(property.id) === true,
+        nextScheduledShowingStart: null,
       });
     }
   }
@@ -87,7 +103,7 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
   const [showings, applications] = await Promise.all([
     prisma.showing.findMany({
       where: { prospectId: { in: allProspectIds } },
-      select: { prospectId: true, status: true },
+      select: { prospectId: true, status: true, scheduledStart: true },
     }),
     prisma.application.findMany({
       where: { prospectId: { in: allProspectIds } },
@@ -102,10 +118,10 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
     }),
   ]);
 
-  const showingsByProspect = new Map<string, { status: string }[]>();
+  const showingsByProspect = new Map<string, { status: string; scheduledStart: Date }[]>();
   for (const showing of showings) {
     const list = showingsByProspect.get(showing.prospectId) ?? [];
-    list.push({ status: showing.status });
+    list.push({ status: showing.status, scheduledStart: showing.scheduledStart });
     showingsByProspect.set(showing.prospectId, list);
   }
 
@@ -153,13 +169,24 @@ export async function listNewProspectQueueForStaff(ctx: StaffContext): Promise<P
   for (const row of rows) {
     const prospect = prospectById.get(row.id);
     if (!prospect) continue;
+    const prospectShowings = showingsByProspect.get(row.id) ?? [];
     const pipeline = deriveProspectPipelineStage({
       prospect,
-      showings: showingsByProspect.get(row.id) ?? [],
+      showings: prospectShowings,
       applications: applicationsByProspect.get(row.id) ?? [],
     });
     row.pipelineStage = pipeline.stage;
     row.pipelineStageLabel = pipeline.stageLabel;
+    row.primaryApplicationId = pipeline.primaryApplicationId;
+    row.tenancyId = pipeline.tenancyId;
+    row.pipelineNextAction = deriveProspectPipelineNextAction(pipeline, prospect, {
+      placementOnly: row.placementOnly,
+    });
+    const nextScheduled = prospectShowings
+      .filter((s) => s.status === "scheduled")
+      .map((s) => s.scheduledStart)
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    row.nextScheduledShowingStart = nextScheduled?.toISOString() ?? null;
   }
 
   const attentionRows = rows.filter(

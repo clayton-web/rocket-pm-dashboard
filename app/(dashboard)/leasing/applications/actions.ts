@@ -76,6 +76,8 @@ export async function setApplicationReviewAction(
     });
     revalidatePath("/leasing/applications");
     revalidatePath(`/leasing/applications/${trimmedId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -218,6 +220,8 @@ export async function convertApprovedApplicationAction(
     revalidatePath(`/leasing/applications/${trimmedId}`);
     revalidatePath(`/properties/${application.propertyId}`);
     revalidatePath(`/leasing/tenancies/${tenancy.id}`);
+
+    revalidatePath("/operations");
     return { ok: true, tenancyId: tenancy.id };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -272,6 +276,8 @@ export async function completeTenantPlacementAction(
     revalidatePath("/leasing/applications");
     revalidatePath(`/leasing/applications/${trimmedId}`);
     revalidatePath(`/properties/${application.propertyId}`);
+
+    revalidatePath("/operations");
     return { ok: true, placementId: placement.id };
   } catch (e) {
     if (e instanceof StaffAuthError) {

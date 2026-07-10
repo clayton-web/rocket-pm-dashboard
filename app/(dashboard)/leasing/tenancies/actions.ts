@@ -135,6 +135,8 @@ export async function advanceTenancyStatusAction(
     revalidatePath("/leasing/tenancies");
     revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -170,6 +172,8 @@ export async function scheduleMoveOutInspectionAction(
     revalidatePath("/leasing/tenancies");
     revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -207,6 +211,8 @@ export async function completeMoveOutInspectionAction(
     revalidatePath("/leasing/tenancies");
     revalidatePath("/leasing/offboarding");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -262,6 +268,8 @@ export async function updateLeaseSetupAction(
 
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -291,6 +299,8 @@ export async function generateRtb1DraftAction(
     const document = await generateRtb1DraftForTenancy(prisma, ctx, trimmedId);
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
+
+    revalidatePath("/operations");
     return { ok: true, documentId: document.id };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -354,6 +364,8 @@ export async function sendLeaseForSignatureAction(
     }
 
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
+
+    revalidatePath("/operations");
     return {
       ok: true,
       signatureRequestId: result.signatureRequestId,
@@ -395,6 +407,8 @@ export async function refreshLeaseSigningLinkAction(
     });
     if (request?.tenancyId) {
       revalidatePath(`/leasing/tenancies/${request.tenancyId}`);
+
+    revalidatePath("/operations");
     }
     return {
       ok: true,
@@ -443,6 +457,8 @@ export async function submitPmLeaseSignatureAction(
       ...audit,
     });
     revalidatePath(`/leasing/tenancies/${document.tenancyId ?? ""}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -478,6 +494,8 @@ export async function retryLeaseExecutionAction(
       signatureDataUrl: "",
     });
     revalidatePath(`/leasing/tenancies/${document.tenancyId ?? ""}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -513,6 +531,8 @@ export async function setTenancyContactPortalAccessAction(
     });
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${contact.tenancyId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
@@ -550,6 +570,8 @@ export async function updateTenancyDetailsAction(
     revalidatePath(`/properties/${propertyId}`);
     revalidatePath("/leasing/tenancies");
     revalidatePath(`/leasing/tenancies/${trimmedId}`);
+
+    revalidatePath("/operations");
     return { ok: true };
   } catch (e) {
     if (e instanceof StaffAuthError) {
