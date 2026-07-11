@@ -47,7 +47,11 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
 
   return (
     <li className="rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/*
+        Stack action below content on narrow viewports so long Inbox subjects/senders
+        and the Open record control do not compete for one horizontal row.
+      */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex max-w-full items-center truncate rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-700">
@@ -86,23 +90,25 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
             {item.title}
           </p>
           {item.subtitle ? (
-            <p className="break-words text-xs text-neutral-500">{item.subtitle}</p>
+            <p className="break-words text-xs text-neutral-500 [overflow-wrap:anywhere]">
+              {item.subtitle}
+            </p>
           ) : null}
 
-          <p className="break-words text-sm text-neutral-700">{location}</p>
+          <p className="break-words text-sm text-neutral-700 [overflow-wrap:anywhere]">{location}</p>
 
-          <p className="text-sm text-neutral-600">
+          <p className="break-words text-sm text-neutral-600 [overflow-wrap:anywhere]">
             <span className="text-neutral-500">Status · </span>
             {item.statusLabel}
           </p>
 
-          <p className="text-sm text-neutral-900">
+          <p className="break-words text-sm text-neutral-900 [overflow-wrap:anywhere]">
             <span className="text-neutral-500">Next · </span>
             <span className="font-semibold">{item.nextActionLabel}</span>
           </p>
 
           {item.assignedToLabel ? (
-            <p className="break-words text-xs text-neutral-600">
+            <p className="break-words text-xs text-neutral-600 [overflow-wrap:anywhere]">
               <span className="text-neutral-500">Assignee · </span>
               {item.assignedToLabel}
             </p>
@@ -129,11 +135,11 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
           ) : null}
         </div>
 
-        <div className="shrink-0">
+        <div className="shrink-0 self-start">
           <Link
             href={item.href}
             aria-label={`Open record: ${item.title}`}
-            className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white no-underline hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+            className="inline-flex max-w-full items-center rounded-md border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white no-underline hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
           >
             Open record
           </Link>

@@ -56,6 +56,7 @@ export async function syncGmailMailboxAction(formData: FormData) {
     applyPromptSyncAfterEnqueue(result);
 
     revalidatePath("/inbox");
+    revalidatePath("/operations");
     const query = result.alreadyQueued ? "sync=queued" : "sync=enqueued";
     redirect(`/inbox?mailbox=${encodeURIComponent(account.id)}&${query}`);
   } catch (error) {
@@ -84,6 +85,7 @@ export async function restartGmailSyncAction(formData: FormData) {
     applyPromptSyncAfterRestart(result);
 
     revalidatePath("/inbox");
+    revalidatePath("/operations");
 
     if (!result.restarted) {
       redirect(

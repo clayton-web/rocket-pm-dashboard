@@ -24,7 +24,8 @@ export type OperationalRecordType =
   | "application"
   | "tenancy"
   | "notice"
-  | "maintenance";
+  | "maintenance"
+  | "inbox_thread";
 
 export type WaitingOnParty =
   | "staff"
