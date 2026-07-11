@@ -126,6 +126,156 @@ describe("buildOperationsCentreFromDrafts", () => {
     assert.equal(data.sourceErrors[0]?.sourceId, "maintenance");
   });
 
+  it("surfaces inbox source errors while keeping leasing and maintenance drafts", () => {
+    const data = buildOperationsCentreFromDrafts(
+      [
+        draft("lease-1", {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        }),
+        draft(
+          "maint-1",
+          {
+            requiresStaffAction: true,
+            isOverdue: false,
+            isWaitingOnOther: false,
+            isComingUp: false,
+          },
+          { recordType: "maintenance", viewAllHref: "/maintenance", title: "Maint" },
+        ),
+      ],
+      [{ sourceId: "inbox", message: "Inbox: boom" }],
+    );
+    assert.equal(data.summary.total, 2);
+    assert.equal(data.sourceErrors[0]?.sourceId, "inbox");
+  });
+
+  it("places inbox drafts in needs_attention only", () => {
+    const data = buildOperationsCentreFromDrafts([
+      draft(
+        "inbox:thread_1",
+        {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        },
+        {
+          recordType: "inbox_thread",
+          viewAllHref: "/inbox?mailbox=mb_1&queue=needs_reply",
+          workflowBadge: "Inbox",
+          title: "Tenant email",
+          urgency: "normal",
+        },
+      ),
+    ]);
+    assert.equal(data.summary.needs_attention, 1);
+    assert.equal(data.summary.overdue, 0);
+    assert.equal(data.summary.waiting, 0);
+    assert.equal(data.summary.coming_up, 0);
+    const needs = data.sections.find((s) => s.id === "needs_attention");
+    assert.ok(needs);
+    assert.equal(needs.preview[0]?.recordType, "inbox_thread");
+  });
+
+  it("omits viewAllHref when inbox mailboxes differ within a section", () => {
+    const data = buildOperationsCentreFromDrafts([
+      draft(
+        "inbox:a",
+        {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        },
+        {
+          recordType: "inbox_thread",
+          viewAllHref: "/inbox?mailbox=mb_a&queue=needs_reply",
+          title: "A",
+        },
+      ),
+      draft(
+        "inbox:b",
+        {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        },
+        {
+          recordType: "inbox_thread",
+          viewAllHref: "/inbox?mailbox=mb_b&queue=needs_reply",
+          title: "B",
+        },
+      ),
+    ]);
+    const needs = data.sections.find((s) => s.id === "needs_attention");
+    assert.ok(needs);
+    assert.equal(needs.viewAllHref, null);
+  });
+
+  it("omits viewAllHref for mixed leasing, maintenance, and inbox", () => {
+    const data = buildOperationsCentreFromDrafts([
+      draft(
+        "lease",
+        {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        },
+        { viewAllHref: "/leasing/prospects", title: "Lease" },
+      ),
+      draft(
+        "maint",
+        {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        },
+        { recordType: "maintenance", viewAllHref: "/maintenance", title: "Maint" },
+      ),
+      draft(
+        "inbox:t",
+        {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        },
+        {
+          recordType: "inbox_thread",
+          viewAllHref: "/inbox?mailbox=mb_1&queue=needs_reply",
+          title: "Inbox",
+        },
+      ),
+    ]);
+    const needs = data.sections.find((s) => s.id === "needs_attention");
+    assert.ok(needs);
+    assert.equal(needs.viewAllHref, null);
+  });
+
+  it("dedupes identical inbox keys when building from drafts", () => {
+    // Service-level protection is one draft per thread from the loader; classifier keeps both
+    // if callers pass duplicates — document that keys must be unique upstream.
+    const data = buildOperationsCentreFromDrafts([
+      draft(
+        "inbox:thread_1",
+        {
+          requiresStaffAction: true,
+          isOverdue: false,
+          isWaitingOnOther: false,
+          isComingUp: false,
+        },
+        { recordType: "inbox_thread", title: "One" },
+      ),
+    ]);
+    assert.equal(data.summary.total, 1);
+  });
+
   it("excludes ineligible drafts", () => {
     const data = buildOperationsCentreFromDrafts([
       draft("noop", {
@@ -239,14 +389,26 @@ describe("sortOperationalWorkItems", () => {
     assert.equal(sorted[0]?.key, "earlier-lo");
   });
 
-  it("does not change leasing title order when urgency is equal", () => {
+  it("sorts equal-urgency inbox titles alphabetically when dueAt is absent", () => {
     const sorted = sortOperationalWorkItems([
-      item({ key: "b", title: "Bravo", urgency: "normal" }),
-      item({ key: "a", title: "Alpha", urgency: "normal" }),
+      item({
+        key: "inbox:b",
+        title: "Zebra subject",
+        urgency: "normal",
+        recordType: "inbox_thread" as OperationalWorkItem["recordType"],
+        viewAllHref: "/inbox?mailbox=mb&queue=needs_reply",
+      }),
+      item({
+        key: "inbox:a",
+        title: "Alpha subject",
+        urgency: "normal",
+        recordType: "inbox_thread" as OperationalWorkItem["recordType"],
+        viewAllHref: "/inbox?mailbox=mb&queue=needs_reply",
+      }),
     ]);
     assert.deepEqual(
       sorted.map((i) => i.title),
-      ["Alpha", "Bravo"],
+      ["Alpha subject", "Zebra subject"],
     );
   });
 });

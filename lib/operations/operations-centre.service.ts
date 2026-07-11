@@ -3,10 +3,12 @@ import { listApplicationQueueForStaff } from "@/lib/leasing/application-staff-qu
 import { listOffboardingAttentionForStaff } from "@/lib/leasing/offboarding-attention-queue";
 import { listOnboardingAttentionForStaff } from "@/lib/leasing/onboarding-attention-queue";
 import { listNewProspectQueueForStaff } from "@/lib/leasing/staff-queue";
+import { listNeedsReplyInboxQueueForStaff } from "@/lib/inbox/inbox-ops-queue";
 import { listOpenMaintenanceQueueForStaff } from "@/lib/maintenance/maintenance-ops-queue";
 import type { StaffContext } from "@/lib/services/staff-context";
 import { adaptApplicationConversionToWorkItemDraft } from "@/lib/operations/adapters/application-work-item";
 import { adaptApplicationReviewToWorkItemDraft } from "@/lib/operations/adapters/application-work-item";
+import { adaptInboxThreadToWorkItemDraft } from "@/lib/operations/adapters/inbox-work-item";
 import { adaptMaintenanceToWorkItemDraft } from "@/lib/operations/adapters/maintenance-work-item";
 import { adaptOffboardingToWorkItemDraft } from "@/lib/operations/adapters/offboarding-work-item";
 import { adaptOnboardingToWorkItemDraft } from "@/lib/operations/adapters/onboarding-work-item";
@@ -29,7 +31,8 @@ export type OperationsSourceId =
   | "application_conversion"
   | "onboarding"
   | "offboarding"
-  | "maintenance";
+  | "maintenance"
+  | "inbox";
 
 export type OperationsSourceError = {
   sourceId: OperationsSourceId;
@@ -58,6 +61,7 @@ const SOURCE_LABELS: Record<OperationsSourceId, string> = {
   onboarding: "Onboarding",
   offboarding: "Offboarding",
   maintenance: "Maintenance",
+  inbox: "Inbox",
 };
 
 function defaultViewAllHref(section: OperationsSection): string | null {
@@ -216,6 +220,22 @@ async function loadMaintenanceDrafts(ctx: StaffContext): Promise<SourceResult> {
   }
 }
 
+async function loadInboxDrafts(ctx: StaffContext): Promise<SourceResult> {
+  try {
+    const rows = await listNeedsReplyInboxQueueForStaff(ctx);
+    const drafts = rows
+      .map((row) => adaptInboxThreadToWorkItemDraft(row))
+      .filter((d): d is OperationalWorkItemDraft => d != null);
+    return { sourceId: "inbox", drafts };
+  } catch (e) {
+    return {
+      sourceId: "inbox",
+      drafts: [],
+      error: e instanceof Error ? e.message : "Failed to load inbox",
+    };
+  }
+}
+
 function buildSectionsFromClassified(
   classified: OperationalWorkItem[],
 ): {
@@ -256,8 +276,8 @@ function buildSectionsFromClassified(
 }
 
 /**
- * Compose leasing + maintenance attention sources into a classified Operations Centre payload.
- * Uses existing staff queue loaders (org + property scoped). Isolates source failures.
+ * Compose leasing + maintenance + inbox attention sources into a classified Operations Centre payload.
+ * Uses existing staff queue loaders (org + property or mailbox scoped). Isolates source failures.
  */
 export async function getOperationsCentreForStaff(
   ctx: StaffContext,
@@ -269,6 +289,7 @@ export async function getOperationsCentreForStaff(
     loadOnboardingDrafts(ctx),
     loadOffboardingDrafts(ctx),
     loadMaintenanceDrafts(ctx),
+    loadInboxDrafts(ctx),
   ]);
 
   const sourceErrors: OperationsSourceError[] = [];

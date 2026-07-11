@@ -126,7 +126,8 @@ export function deriveStakeholderLabel(categories: EmailThreadCategory[]): strin
   return STAKEHOLDER_SHORT_LABELS[primary];
 }
 
-function inboxActionStateLabel(state: InboxThreadActionState): string | null {
+/** User-facing action-state labels — shared with Operations next-action helper. */
+export function labelForInboxActionState(state: InboxThreadActionState): string | null {
   if (state === "draft_review") return "Draft review";
   if (state === "new_reply_needed") return "New reply needed";
   if (state === "reply_needed") return "Reply needed";
@@ -151,7 +152,7 @@ export function deriveInboxRowMetaLine(args: {
   const parts: string[] = [];
   const trimmedSubject = args.subject?.trim() ?? "";
 
-  const actionLabel = inboxActionStateLabel(args.actionState);
+  const actionLabel = labelForInboxActionState(args.actionState);
   if (actionLabel) parts.push(actionLabel);
 
   if (args.unlinked) {
