@@ -48,24 +48,3 @@ export function AttentionSection({
     </section>
   );
 }
-
-export function SummaryPill({
-  href,
-  label,
-  count,
-}: {
-  href: string;
-  label: string;
-  count: number;
-}) {
-  if (count === 0) return null;
-  return (
-    <a
-      href={href}
-      className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 transition-colors hover:border-neutral-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
-    >
-      <span className="font-semibold tabular-nums text-neutral-900">{count}</span>
-      <span>{label}</span>
-    </a>
-  );
-}

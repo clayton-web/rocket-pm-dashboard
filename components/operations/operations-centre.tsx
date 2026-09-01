@@ -3,10 +3,8 @@ import {
   InlineNotice,
   PortalPageHeader,
 } from "@/components/portal/ui";
-import {
-  AttentionSection,
-  SummaryPill,
-} from "@/components/operations/attention-section";
+import { AttentionSection } from "@/components/operations/attention-section";
+import { SummaryPill } from "@/components/portal/summary-pill";
 import type { OperationsCentreData } from "@/lib/operations/operations-centre.service";
 
 export function OperationsCentre({

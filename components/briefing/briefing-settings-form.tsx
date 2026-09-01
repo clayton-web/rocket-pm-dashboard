@@ -1,6 +1,7 @@
 "use client";
 
 import { updateBriefingSettingsAction } from "@/app/(dashboard)/briefing/actions";
+import { formControlClasses } from "@/components/portal/form-control";
 import {
   FormField,
   FormSection,
@@ -61,8 +62,7 @@ export function BriefingSettingsForm({ initialSettings }: { initialSettings: Bri
     });
   }
 
-  const inputClass =
-    "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-neutral-500 focus:outline-none";
+  const inputClass = formControlClasses({ className: "shadow-sm" });
 
   return (
     <div className="space-y-6">

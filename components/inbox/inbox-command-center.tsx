@@ -17,27 +17,7 @@ import type { InboxCrateFilter } from "@/lib/inbox/email-thread-category";
 import type { InboxQueueParam, StakeholderBinSection } from "@/lib/inbox/inbox-thread-queues";
 import Link from "next/link";
 import type { ReactNode } from "react";
-
-function SummaryPill({
-  href,
-  label,
-  count,
-}: {
-  href: string;
-  label: string;
-  count: number;
-}) {
-  if (count === 0) return null;
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 transition-colors hover:border-neutral-400"
-    >
-      <span className="font-semibold tabular-nums text-neutral-900">{count}</span>
-      <span>{label}</span>
-    </Link>
-  );
-}
+import { SummaryPill } from "@/components/portal/summary-pill";
 
 function mailboxQuery(mailboxId: string, queue?: InboxQueueParam) {
   const params = new URLSearchParams({ mailbox: mailboxId });

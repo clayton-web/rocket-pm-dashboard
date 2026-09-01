@@ -7,6 +7,7 @@ import {
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import { SummaryPill } from "@/components/portal/summary-pill";
 import type { OnboardingAttentionRow } from "@/lib/leasing/onboarding-attention-queue";
 import type {
   OnboardingCommandCenterData,
@@ -24,19 +25,6 @@ function formatMoveInDate(iso: string | null) {
 
 function onboardingQueueHref(queue?: OnboardingQueueParam) {
   return queue ? `/leasing/onboarding?queue=${queue}` : "/leasing/onboarding";
-}
-
-function SummaryPill({ href, label, count }: { href: string; label: string; count: number }) {
-  if (count === 0) return null;
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 transition-colors hover:border-neutral-400"
-    >
-      <span className="font-semibold tabular-nums text-neutral-900">{count}</span>
-      <span>{label}</span>
-    </Link>
-  );
 }
 
 function SectionHeader({

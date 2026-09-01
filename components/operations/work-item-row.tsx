@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { buttonClasses } from "@/components/portal/button";
+import { StatusBadge } from "@/components/portal/status-badge";
 import type { OperationalWorkItem } from "@/lib/operations/work-item";
 import { WAITING_ON_LABELS } from "@/lib/operations/work-item";
 
@@ -54,35 +56,25 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex max-w-full items-center truncate rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-700">
-              {item.workflowBadge}
-            </span>
+            <StatusBadge tone="neutral">{item.workflowBadge}</StatusBadge>
             {item.isOverdue ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-950">
-                <span aria-hidden="true">!</span>
-                <span>Overdue</span>
-              </span>
+              <StatusBadge tone="warning" emphasis="strong" icon="!">
+                Overdue
+              </StatusBadge>
             ) : null}
             {urgencyLabel ? (
-              <span
-                className={
-                  urgencyLabel === "Emergency"
-                    ? "inline-flex max-w-full items-center truncate rounded-md border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-950"
-                    : "inline-flex max-w-full items-center truncate rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-950"
-                }
+              <StatusBadge
+                tone={urgencyLabel === "Emergency" ? "danger" : "warning"}
+                emphasis="strong"
               >
                 {urgencyLabel}
-              </span>
+              </StatusBadge>
             ) : null}
-            {waitingLabel ? (
-              <span className="inline-flex max-w-full items-center truncate rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-900">
-                {waitingLabel}
-              </span>
-            ) : null}
+            {waitingLabel ? <StatusBadge tone="info">{waitingLabel}</StatusBadge> : null}
             {showUnassigned ? (
-              <span className="inline-flex max-w-full items-center truncate rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+              <StatusBadge tone="neutral" emphasis="strong">
                 Unassigned
-              </span>
+              </StatusBadge>
             ) : null}
           </div>
 
@@ -139,7 +131,7 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
           <Link
             href={item.href}
             aria-label={`Open record: ${item.title}`}
-            className="inline-flex max-w-full items-center rounded-md border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white no-underline hover:bg-neutral-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+            className={buttonClasses({ variant: "primary", size: "xs", className: "max-w-full" })}
           >
             Open record
           </Link>
