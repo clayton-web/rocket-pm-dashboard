@@ -1,3 +1,4 @@
+import { buttonClasses } from "@/components/portal/button";
 import { PortalBackLink } from "@/components/portal/portal-nav";
 import { PortalPageHeader, SURFACE_CARD, SURFACE_PANEL } from "@/components/portal/ui";
 import { listTenantDocumentsForSession } from "@/lib/portal/tenant-documents";
@@ -30,9 +31,9 @@ export default async function TenantDocumentsPage() {
       />
 
       {documents.length === 0 ? (
-        <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4 text-sm text-neutral-700`}>
+        <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4 text-sm text-foreground-muted`}>
           <p>No signed lease documents are available yet.</p>
-          <p className="mt-3 text-neutral-600">
+          <p className="mt-3 text-foreground-muted">
             If you have not signed in before, confirm your property manager has marked your tenancy
             active. If you recently signed your lease, they may still be completing execution.
           </p>
@@ -42,14 +43,14 @@ export default async function TenantDocumentsPage() {
           {documents.map((doc) => (
             <li key={doc.id}>
               <div className={`${SURFACE_CARD} px-4 py-4`}>
-                <p className="text-sm font-semibold text-neutral-900">{doc.title}</p>
-                <p className="mt-1 text-sm text-neutral-600">Created {formatDate(doc.createdAt)}</p>
+                <p className="text-sm font-semibold text-foreground">{doc.title}</p>
+                <p className="mt-1 text-sm text-foreground-muted">Created {formatDate(doc.createdAt)}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link
                     href={doc.downloadHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                    className={buttonClasses({ variant: "primary" })}
                   >
                     View / download
                   </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import { LeaseSigningForm } from "@/components/signing/lease-signing-form";
+import { FOCUS_RING } from "@/components/portal/focus";
 import { InlineNotice } from "@/components/portal/ui";
 import { withBasePath } from "@/lib/app-path";
 import { useRouter } from "next/navigation";
@@ -47,10 +48,10 @@ export function TenantLeaseSigningClient({
   return (
     <>
       <div className="space-y-1">
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-foreground-muted">
           {propertyName} · {unitLabel}
         </p>
-        <p className="text-sm text-neutral-700">
+        <p className="text-sm text-foreground-muted">
           Review the RTB-1 draft, confirm your legal name, and sign below. This secure link is separate
           from tenant portal login, which becomes available after your property manager activates your
           tenancy.
@@ -62,14 +63,14 @@ export function TenantLeaseSigningClient({
           href={`/api/sign/lease/${encodeURIComponent(token)}/document`}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-medium text-neutral-900 underline"
+          className={`font-medium text-foreground underline ${FOCUS_RING}`}
         >
           View / download draft
         </a>
       </div>
 
       {alreadySigned ? (
-        <InlineNotice className="mt-6">
+        <InlineNotice tone="success" className="mt-6">
           You signed this agreement as {signerName} on{" "}
           {signedAt
             ? new Date(signedAt).toLocaleString(undefined, {

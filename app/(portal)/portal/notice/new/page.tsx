@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "@/components/portal/focus";
 import { TenantNoticeForm, TenantNoticePendingView } from "@/components/portal/tenant-notice-form";
 import { PortalPageHeader, SURFACE_PANEL } from "@/components/portal/ui";
 import { PortalBackLink } from "@/components/portal/portal-nav";
@@ -30,14 +31,14 @@ export default async function TenantNoticeNewPage() {
           title="Notice not available"
           description="Notice to end tenancy can only be submitted while your tenancy is active."
         />
-        <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4 text-sm text-neutral-700`}>
+        <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4 text-sm text-foreground-muted`}>
           <p>
             If you need help, contact your property manager. You can still use maintenance and
             other portal features when your tenancy is active.
           </p>
         </div>
         <p className="mt-6 text-sm">
-          <Link href="/portal/dashboard" className="font-medium underline">
+          <Link href="/portal/dashboard" className={`font-medium underline ${FOCUS_RING}`}>
             Back to dashboard
           </Link>
         </p>

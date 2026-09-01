@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export default function PortalLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+    <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-lg px-4 py-8">{children}</main>
     </div>
   );

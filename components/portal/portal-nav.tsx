@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "@/components/portal/focus";
 import Link from "next/link";
 
 export function PortalBackLink({
@@ -9,7 +10,7 @@ export function PortalBackLink({
 }) {
   return (
     <p className="mb-4">
-      <Link href={href} className="text-sm font-medium text-neutral-700 underline underline-offset-2">
+      <Link href={href} className={`text-sm font-medium text-foreground-muted underline underline-offset-2 ${FOCUS_RING}`}>
         ← {label}
       </Link>
     </p>

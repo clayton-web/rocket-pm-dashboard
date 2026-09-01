@@ -1,5 +1,7 @@
 "use client";
 
+import { formControlClasses } from "@/components/portal/form-control";
+import { FOCUS_RING } from "@/components/portal/focus";
 import {
   FormField,
   InlineAlert,
@@ -227,14 +229,14 @@ export default function ViewingRequestPage() {
           description="Our team will review your details and follow up by email. No account is required."
         />
         <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4`}>
-          <p className="text-xs text-neutral-500">Your reference</p>
+          <p className="text-xs text-foreground-subtle">Your reference</p>
           <p className="mt-1 break-all font-mono text-sm">{submittedProspectId}</p>
-          <p className="mt-3 text-sm text-neutral-600">
+          <p className="mt-3 text-sm text-foreground-muted">
             Save this reference if you need to follow up with the property manager.
           </p>
         </div>
         <p className="mt-4">
-          <Link href="/portal" className="text-sm font-medium text-neutral-700 underline">
+          <Link href="/portal" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
             Back to tenant portal
           </Link>
         </p>
@@ -265,7 +267,7 @@ export default function ViewingRequestPage() {
               setSelectedPropertyId(e.target.value);
               setSelectedUnitId("");
             }}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           >
             <option value="">Select property…</option>
@@ -287,7 +289,7 @@ export default function ViewingRequestPage() {
               id={unitSelectId}
               value={selectedUnitId}
               onChange={(e) => setSelectedUnitId(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
             >
               <option value="">Any available unit</option>
               {selectedProperty.units.map((u) => (
@@ -306,7 +308,7 @@ export default function ViewingRequestPage() {
             autoComplete="given-name"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           />
         </FormField>
@@ -318,7 +320,7 @@ export default function ViewingRequestPage() {
             autoComplete="family-name"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           />
         </FormField>
@@ -330,7 +332,7 @@ export default function ViewingRequestPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           />
         </FormField>
@@ -342,7 +344,7 @@ export default function ViewingRequestPage() {
             autoComplete="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
           />
         </FormField>
 
@@ -354,19 +356,19 @@ export default function ViewingRequestPage() {
             max={50}
             value={occupantCount}
             onChange={(e) => setOccupantCount(e.target.value)}
-            className="w-full max-w-[8rem] rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg", className: "max-w-[8rem]" })}
             required
           />
         </FormField>
 
         <FormField htmlFor={hasPetsId} label="Pets">
-          <label className="flex items-center gap-2 text-sm text-neutral-800">
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input
               id={hasPetsId}
               type="checkbox"
               checked={hasPets}
               onChange={(e) => setHasPets(e.target.checked)}
-              className="h-4 w-4 rounded border-neutral-300"
+              className={`h-4 w-4 rounded border-border-strong ${FOCUS_RING}`}
             />
             I have pets
           </label>
@@ -379,7 +381,7 @@ export default function ViewingRequestPage() {
               value={petDetails}
               onChange={(e) => setPetDetails(e.target.value)}
               rows={3}
-              className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg", className: "min-h-[5rem] resize-y" })}
               required
             />
           </FormField>
@@ -390,7 +392,7 @@ export default function ViewingRequestPage() {
             id={smokerStatusId}
             value={smokerStatus}
             onChange={(e) => setSmokerStatus(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           >
             <option value="">Select…</option>
@@ -407,7 +409,7 @@ export default function ViewingRequestPage() {
             id={incomeRangeId}
             value={householdIncomeRange}
             onChange={(e) => setHouseholdIncomeRange(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           >
             <option value="">Select…</option>
@@ -425,7 +427,7 @@ export default function ViewingRequestPage() {
             type="date"
             value={desiredMoveInDate}
             onChange={(e) => setDesiredMoveInDate(e.target.value)}
-            className="w-full max-w-xs rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg", className: "max-w-xs" })}
             required
           />
         </FormField>
@@ -440,7 +442,7 @@ export default function ViewingRequestPage() {
             value={preferredViewingNotes}
             onChange={(e) => setPreferredViewingNotes(e.target.value)}
             rows={3}
-            className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg", className: "min-h-[5rem] resize-y" })}
           />
         </FormField>
 
@@ -450,7 +452,7 @@ export default function ViewingRequestPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={3}
-            className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg", className: "min-h-[5rem] resize-y" })}
           />
         </FormField>
 

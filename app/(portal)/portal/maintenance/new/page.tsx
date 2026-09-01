@@ -1,5 +1,7 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
 import {
   FormField,
   FormSection,
@@ -141,17 +143,17 @@ export default function TenantMaintenanceNewPage() {
           description="Your maintenance request is submitted. Save your reference to check status later."
         />
         <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4`}>
-          <p className="text-xs text-neutral-500">Your reference</p>
+          <p className="text-xs text-foreground-subtle">Your reference</p>
           <p className="mt-1 break-all font-mono text-sm">{submittedRequestId}</p>
-          <p className="mt-3 text-sm text-neutral-600">
-            <Link href="/portal/maintenance/status" className="font-medium text-neutral-900 underline">
+          <p className="mt-3 text-sm text-foreground-muted">
+            <Link href="/portal/maintenance/status" className={`font-medium text-foreground underline ${FOCUS_RING}`}>
               Check status
             </Link>{" "}
             using this reference and your tenancy email.
           </p>
         </div>
         <p className="mt-4">
-          <Link href="/portal" className="text-sm font-medium text-neutral-700 underline">
+          <Link href="/portal" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
             Back to tenant portal
           </Link>
         </p>
@@ -179,7 +181,7 @@ export default function TenantMaintenanceNewPage() {
             id={tenancySelectId}
             value={selectedTenancyId}
             onChange={(e) => setSelectedTenancyId(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           >
             <option value="">Select property / unit…</option>
@@ -226,7 +228,7 @@ export default function TenantMaintenanceNewPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className={`flex min-h-[3.25rem] w-full items-center justify-center px-4 py-3.5 text-sm ${SURFACE_DASHED}`}
+            className={`flex min-h-[3.25rem] w-full items-center justify-center px-4 py-3.5 text-sm ${SURFACE_DASHED} ${FOCUS_RING}`}
           >
             {photoLabel ?? "Add photos"}
           </button>
@@ -238,7 +240,7 @@ export default function TenantMaintenanceNewPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            className="min-h-[8.5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg", className: "min-h-[8.5rem] resize-y" })}
           />
         </FormField>
 

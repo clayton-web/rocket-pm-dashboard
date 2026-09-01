@@ -1,5 +1,7 @@
 "use client";
 
+import { formControlClasses } from "@/components/portal/form-control";
+import { FOCUS_RING } from "@/components/portal/focus";
 import {
   FormField,
   FormSection,
@@ -368,14 +370,14 @@ export default function RentalApplicationPage() {
           description="Our team will review your application and follow up by email. No account is required."
         />
         <div className={`mt-6 ${SURFACE_PANEL} px-3.5 py-4`}>
-          <p className="text-xs text-neutral-500">Your reference</p>
+          <p className="text-xs text-foreground-subtle">Your reference</p>
           <p className="mt-1 break-all font-mono text-sm">{submittedApplicationId}</p>
-          <p className="mt-3 text-sm text-neutral-600">
+          <p className="mt-3 text-sm text-foreground-muted">
             Save this reference if you need to follow up with the property manager.
           </p>
         </div>
         <p className="mt-4">
-          <Link href="/portal" className="text-sm font-medium text-neutral-700 underline">
+          <Link href="/portal" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
             Back to tenant portal
           </Link>
         </p>
@@ -415,7 +417,7 @@ export default function RentalApplicationPage() {
                 setSelectedPropertyId(e.target.value);
                 setSelectedUnitId("");
               }}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             >
               <option value="">Select property…</option>
@@ -433,7 +435,7 @@ export default function RentalApplicationPage() {
                 id={unitSelectId}
                 value={selectedUnitId}
                 onChange={(e) => setSelectedUnitId(e.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+                className={formControlClasses({ size: "lg" })}
                 required
               >
                 <option value="">Select unit…</option>
@@ -463,7 +465,7 @@ export default function RentalApplicationPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -489,7 +491,7 @@ export default function RentalApplicationPage() {
         {step === "application" ? (
           <>
             {matchedProspectId ? (
-              <div className={`${SURFACE_PANEL} px-3.5 py-4 text-sm text-neutral-700`}>
+              <div className={`${SURFACE_PANEL} px-3.5 py-4 text-sm text-foreground-muted`}>
                 We found information linked to your viewing request. Review the fields below and
                 update anything that has changed.
               </div>
@@ -497,13 +499,13 @@ export default function RentalApplicationPage() {
 
             {householdIncomeRangeLabel ? (
               <div className={`${SURFACE_PANEL} px-3.5 py-4`}>
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
                   From your viewing request
                 </p>
-                <p className="mt-1 text-sm text-neutral-800">
+                <p className="mt-1 text-sm text-foreground">
                   Household income range (approximate): {householdIncomeRangeLabel}
                 </p>
-                <p className="mt-2 text-xs text-neutral-600">
+                <p className="mt-2 text-xs text-foreground-muted">
                   Enter your exact monthly household income below. We do not copy a range into that
                   field.
                 </p>
@@ -513,7 +515,7 @@ export default function RentalApplicationPage() {
             <p className="text-sm">
               <button
                 type="button"
-                className="font-medium text-neutral-700 underline"
+                className={`font-medium text-foreground-muted underline ${FOCUS_RING}`}
                 onClick={() => {
                   clearProspectMatch();
                   setStep("lookup");
@@ -533,7 +535,7 @@ export default function RentalApplicationPage() {
               autoComplete="given-name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -545,7 +547,7 @@ export default function RentalApplicationPage() {
               autoComplete="family-name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -557,7 +559,7 @@ export default function RentalApplicationPage() {
               autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -568,7 +570,7 @@ export default function RentalApplicationPage() {
               value={currentAddress}
               onChange={(e) => setCurrentAddress(e.target.value)}
               rows={3}
-              className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg", className: "min-h-[5rem] resize-y" })}
               required
             />
           </FormField>
@@ -581,7 +583,7 @@ export default function RentalApplicationPage() {
               type="date"
               value={desiredMoveInDate}
               onChange={(e) => setDesiredMoveInDate(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -594,7 +596,7 @@ export default function RentalApplicationPage() {
               step={1}
               value={occupantCount}
               onChange={(e) => setOccupantCount(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -607,7 +609,7 @@ export default function RentalApplicationPage() {
               step="0.01"
               value={monthlyIncome}
               onChange={(e) => setMonthlyIncome(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -617,7 +619,7 @@ export default function RentalApplicationPage() {
               id={smokerStatusId}
               value={smokerStatus}
               onChange={(e) => setSmokerStatus(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             >
               <option value="">Select…</option>
@@ -629,13 +631,13 @@ export default function RentalApplicationPage() {
           </FormField>
 
           <FormField htmlFor={hasPetsId} label="Pets">
-            <label className="flex items-center gap-2 text-sm text-neutral-800">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input
                 id={hasPetsId}
                 type="checkbox"
                 checked={hasPets}
                 onChange={(e) => setHasPets(e.target.checked)}
-                className="h-4 w-4 rounded border-neutral-300"
+                className={`h-4 w-4 rounded border-border-strong ${FOCUS_RING}`}
               />
               I have pets
             </label>
@@ -648,7 +650,7 @@ export default function RentalApplicationPage() {
                 value={petDetails}
                 onChange={(e) => setPetDetails(e.target.value)}
                 rows={3}
-                className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                className={formControlClasses({ size: "lg", className: "min-h-[5rem] resize-y" })}
                 required
               />
             </FormField>
@@ -656,7 +658,7 @@ export default function RentalApplicationPage() {
         </FormSection>
 
         <FormSection legend="Emergency contact">
-          <p className="mb-4 text-sm text-neutral-600">
+          <p className="mb-4 text-sm text-foreground-muted">
             Person we can reach if we cannot contact you directly.
           </p>
           <FormField htmlFor={emergencyFirstNameId} label="First name">
@@ -665,7 +667,7 @@ export default function RentalApplicationPage() {
               type="text"
               value={emergencyContactFirstName}
               onChange={(e) => setEmergencyContactFirstName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
             />
           </FormField>
           <FormField htmlFor={emergencyLastNameId} label="Last name">
@@ -674,7 +676,7 @@ export default function RentalApplicationPage() {
               type="text"
               value={emergencyContactLastName}
               onChange={(e) => setEmergencyContactLastName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
             />
           </FormField>
           <FormField htmlFor={emergencyPhoneId} label="Phone">
@@ -683,7 +685,7 @@ export default function RentalApplicationPage() {
               type="tel"
               value={emergencyContactPhone}
               onChange={(e) => setEmergencyContactPhone(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
             />
           </FormField>
           <FormField htmlFor={emergencyEmailId} label="Email (optional)">
@@ -692,7 +694,7 @@ export default function RentalApplicationPage() {
               type="email"
               value={emergencyContactEmail}
               onChange={(e) => setEmergencyContactEmail(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
             />
           </FormField>
         </FormSection>
@@ -704,7 +706,7 @@ export default function RentalApplicationPage() {
               type="text"
               value={employerName}
               onChange={(e) => setEmployerName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -715,7 +717,7 @@ export default function RentalApplicationPage() {
               type="text"
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>
@@ -726,20 +728,20 @@ export default function RentalApplicationPage() {
               value={employmentNotes}
               onChange={(e) => setEmploymentNotes(e.target.value)}
               rows={3}
-              className="min-h-[5rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg", className: "min-h-[5rem] resize-y" })}
             />
           </FormField>
         </FormSection>
 
         <FormSection legend="Consent">
           <FormField htmlFor={consentCheckId} label="Credit check consent (required)">
-            <label className="flex items-start gap-2 text-sm text-neutral-800">
+            <label className="flex items-start gap-2 text-sm text-foreground">
               <input
                 id={consentCheckId}
                 type="checkbox"
                 checked={consentCreditCheck}
                 onChange={(e) => setConsentCreditCheck(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-neutral-300"
+                className={`mt-0.5 h-4 w-4 rounded border-border-strong ${FOCUS_RING}`}
                 required
               />
               <span>
@@ -759,7 +761,7 @@ export default function RentalApplicationPage() {
               type="text"
               value={consentSignatureName}
               onChange={(e) => setConsentSignatureName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+              className={formControlClasses({ size: "lg" })}
               required
             />
           </FormField>

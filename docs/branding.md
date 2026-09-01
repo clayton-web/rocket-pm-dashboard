@@ -235,6 +235,34 @@ When the Owner supplies a real transparent master, an image treatment can be eva
 wordmark is the intentional answer, and it is also the graceful-degradation floor: a Rocket surface can always
 identify itself in text.
 
+## Generated output is not themed — the signature exception
+
+`components/signing/signature-pad.tsx` keeps two literal hex values, exported as
+`SIGNATURE_BACKGROUND` (`#ffffff`) and `SIGNATURE_INK` (`#111827`):
+
+```ts
+ctx.fillStyle = SIGNATURE_BACKGROUND;
+ctx.strokeStyle = SIGNATURE_INK;
+```
+
+These are **not** unmigrated debt and must not be routed through `--portal-*` tokens.
+
+The pad calls `canvas.toDataURL("image/png")`, and that PNG is parsed by
+`lib/leasing/lease-signing-signature-image.ts`, stored, and reproduced on the executed tenancy
+agreement. The colours are therefore *output values baked into a persisted artefact*, not
+presentation of live UI. Resolving them from a CSS variable would mean a signature captured today
+could render differently — or, if the variable failed to resolve in a canvas context, as a
+transparent or black rectangle — the next time the agreement is opened. A stored legal signature has
+to be reproducible independently of whatever the theme is doing.
+
+The rule generalises: **CSS theming and generated bitmap/document content are separate concerns.**
+Anything whose colour is serialized into a stored file, generated PDF, or emailed image stays
+literal. Only the surrounding chrome — the pad's border and background, its instructions, its Clear
+control — is themed.
+
+`components/signing/signature-pad.test.ts` pins this so a later palette sweep cannot quietly
+undo it.
+
 ## Product-source boundaries
 
 Rocket Inspections, Rocket Communicator and the Rocket Logic marketing site are **product implementations**.

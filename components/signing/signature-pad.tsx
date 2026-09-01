@@ -1,11 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { FOCUS_RING } from "@/components/portal/focus";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type SignaturePadProps = {
   onChange: (dataUrl: string | null) => void;
   disabled?: boolean;
 };
+
+/**
+ * Fixed output colours for the serialized signature bitmap, not theme values.
+ *
+ * Exported so a test can assert they stay literal: a persisted signature must look the same on
+ * every future render of the agreement, which it would not if these tracked a CSS variable.
+ */
+export const SIGNATURE_BACKGROUND = "#ffffff";
+export const SIGNATURE_INK = "#111827";
 
 function getPoint(event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement) {
   const rect = canvas.getBoundingClientRect();
@@ -18,6 +28,7 @@ function getPoint(event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanv
 }
 
 export function SignaturePad({ onChange, disabled = false }: SignaturePadProps) {
+  const instructionsId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const hasInkRef = useRef(false);
@@ -31,9 +42,13 @@ export function SignaturePad({ onChange, disabled = false }: SignaturePadProps) 
     canvas.height = Math.max(120, Math.floor(rect.height * 2));
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.fillStyle = "#ffffff";
+      // These two are deliberately raw and must not become theme tokens. `toDataURL` below
+      // serializes these exact pixels into the PNG that is persisted and reproduced on the
+      // executed agreement, so the signature has to render identically regardless of what the
+      // portal theme is doing. See docs/branding.md.
+      ctx.fillStyle = SIGNATURE_BACKGROUND;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = "#111827";
+      ctx.strokeStyle = SIGNATURE_INK;
       ctx.lineWidth = 2.5;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -97,11 +112,12 @@ export function SignaturePad({ onChange, disabled = false }: SignaturePadProps) 
 
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border border-neutral-300 bg-white">
+      <div className="rounded-lg border border-border-strong bg-surface">
         <canvas
           ref={canvasRef}
           className="h-32 w-full touch-none"
           aria-label="Signature pad"
+          aria-describedby={instructionsId}
           onPointerDown={startDraw}
           onPointerMove={draw}
           onPointerUp={endDraw}
@@ -110,10 +126,12 @@ export function SignaturePad({ onChange, disabled = false }: SignaturePadProps) 
         />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-neutral-500">Sign with your finger, stylus, or mouse.</p>
+        <p id={instructionsId} className="text-xs text-foreground-subtle">
+          Sign with your finger, stylus, or mouse.
+        </p>
         <button
           type="button"
-          className="text-sm font-medium text-neutral-700 underline disabled:opacity-50"
+          className={`text-sm font-medium text-foreground-muted underline disabled:opacity-50 ${FOCUS_RING}`}
           disabled={disabled || !hasInk}
           onClick={clear}
         >

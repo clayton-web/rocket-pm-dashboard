@@ -1,5 +1,7 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
 import {
   FormField,
   InlineAlert,
@@ -84,7 +86,7 @@ export default function MaintenanceStatusPage() {
             value={requestId}
             onChange={(e) => setRequestId(e.target.value)}
             required
-            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 font-mono text-sm"
+            className={formControlClasses({ size: "lg", className: "font-mono" })}
             placeholder="Paste your reference"
             autoComplete="off"
           />
@@ -96,7 +98,7 @@ export default function MaintenanceStatusPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             autoComplete="email"
           />
         </FormField>
@@ -108,40 +110,40 @@ export default function MaintenanceStatusPage() {
 
       {result ? (
         <div className={`mt-8 ${SURFACE_PANEL} px-3.5 py-4`}>
-          <h2 className="text-sm font-semibold text-neutral-900">{result.title}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{result.title}</h2>
           <dl className="mt-4 grid gap-3 text-sm">
             <div>
-              <dt className="text-xs text-neutral-500">Status</dt>
-              <dd className="mt-0.5 text-neutral-800">{result.statusLabel}</dd>
+              <dt className="text-xs text-foreground-subtle">Status</dt>
+              <dd className="mt-0.5 text-foreground">{result.statusLabel}</dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500">Submitted</dt>
-              <dd className="mt-0.5 text-neutral-800">{formatDate(result.submittedAt)}</dd>
+              <dt className="text-xs text-foreground-subtle">Submitted</dt>
+              <dd className="mt-0.5 text-foreground">{formatDate(result.submittedAt)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500">Urgency / trade</dt>
-              <dd className="mt-0.5 capitalize text-neutral-800">
+              <dt className="text-xs text-foreground-subtle">Urgency / trade</dt>
+              <dd className="mt-0.5 capitalize text-foreground">
                 {result.urgency} · {result.trade.replace(/_/g, " ")}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500">Scheduled work</dt>
-              <dd className="mt-0.5 text-neutral-800">{formatDate(result.scheduledWorkAt)}</dd>
+              <dt className="text-xs text-foreground-subtle">Scheduled work</dt>
+              <dd className="mt-0.5 text-foreground">{formatDate(result.scheduledWorkAt)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-neutral-500">Completed</dt>
-              <dd className="mt-0.5 text-neutral-800">{formatDate(result.completedAt)}</dd>
+              <dt className="text-xs text-foreground-subtle">Completed</dt>
+              <dd className="mt-0.5 text-foreground">{formatDate(result.completedAt)}</dd>
             </div>
           </dl>
-          <p className="mt-4 text-xs text-neutral-500">
+          <p className="mt-4 text-xs text-foreground-subtle">
             Reference · <span className="font-mono">{result.id}</span>
           </p>
         </div>
       ) : null}
 
-      <p className="mt-6 text-sm text-neutral-600">
+      <p className="mt-6 text-sm text-foreground-muted">
         Need to report a new issue?{" "}
-        <Link href="/portal/maintenance/new" className="font-medium underline">
+        <Link href="/portal/maintenance/new" className={`font-medium underline ${FOCUS_RING}`}>
           Submit maintenance
         </Link>
       </p>

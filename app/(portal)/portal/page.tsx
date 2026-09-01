@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "@/components/portal/focus";
 import { PortalPageHeader, SURFACE_CARD } from "@/components/portal/ui";
 import { getVerifiedTenantSession } from "@/lib/portal/tenant-auth";
 import Link from "next/link";
@@ -73,13 +74,13 @@ export default async function TenantPortalHomePage() {
       />
 
       {session ? (
-        <p className={`${SURFACE_CARD} mb-6 px-4 py-3 text-sm text-neutral-700`}>
-          Signed in as <span className="font-medium text-neutral-900">{session.email}</span>.{" "}
-          <Link href="/portal/dashboard" className="font-medium underline">
+        <p className={`${SURFACE_CARD} mb-6 px-4 py-3 text-sm text-foreground-muted`}>
+          Signed in as <span className="font-medium text-foreground">{session.email}</span>.{" "}
+          <Link href="/portal/dashboard" className={`font-medium underline ${FOCUS_RING}`}>
             Go to dashboard
           </Link>{" "}
           ·{" "}
-          <Link href="/portal/logout" className="font-medium underline">
+          <Link href="/portal/logout" className={`font-medium underline ${FOCUS_RING}`}>
             Sign out
           </Link>
         </p>
@@ -92,10 +93,10 @@ export default async function TenantPortalHomePage() {
           <li key={item.href}>
             <Link
               href={item.href}
-              className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+              className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
             >
-              <span className="text-sm font-semibold text-neutral-900">{item.title}</span>
-              <span className="mt-1 block text-sm text-neutral-600">{item.description}</span>
+              <span className="text-sm font-semibold text-foreground">{item.title}</span>
+              <span className="mt-1 block text-sm text-foreground-muted">{item.description}</span>
             </Link>
           </li>
         ))}
