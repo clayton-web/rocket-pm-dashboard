@@ -6,6 +6,7 @@ import {
   FormSection,
   InlineAlert,
   InlineNotice,
+  noticeClasses,
   PortalPageHeader,
   PrimaryButton,
   SelectionCard,
@@ -15,6 +16,7 @@ import {
   SURFACE_PANEL,
   toggleTileClasses,
 } from "@/components/portal/ui";
+import { statusBadgeClasses, type StatusTone } from "@/components/portal/status-badge";
 
 /**
  * Contract guard for the shared portal primitives. These are consumed across the staff shell and
@@ -132,6 +134,35 @@ describe("status primitives", () => {
     assert.match(html, /border-border\b/);
     assert.match(html, /bg-surface-muted\b/);
     assert.match(html, /text-foreground-muted\b/);
+  });
+
+  it("gives each notice tone its own semantic treatment", () => {
+    const tones: StatusTone[] = ["neutral", "success", "warning", "danger", "info"];
+    const rendered = tones.map((tone) => noticeClasses(tone));
+
+    assert.equal(new Set(rendered).size, tones.length);
+    for (const [index, tone] of tones.entries()) {
+      assertNoRawPalette(rendered[index]!, `notice/${tone}`);
+    }
+  });
+
+  it("shares one tone vocabulary with the status badges", () => {
+    assert.match(noticeClasses("warning"), /bg-warning-surface\b/);
+    assert.match(statusBadgeClasses("warning"), /bg-warning-surface\b/);
+  });
+
+  it("varies only shape between notice sizes, never tone", () => {
+    assert.match(noticeClasses("info", "default"), /rounded-lg px-3\.5 py-3 text-sm/);
+    assert.match(noticeClasses("info", "compact"), /rounded-md px-3 py-2 text-xs/);
+    assert.match(noticeClasses("info", "compact"), /bg-info-surface\b/);
+  });
+
+  it("keeps the alert role on danger notices at any size", () => {
+    const html = renderToStaticMarkup(InlineAlert({ children: "Failed", size: "compact" }));
+
+    assert.match(html, /role="alert"/);
+    assert.match(html, /bg-danger-surface\b/);
+    assert.match(html, /text-xs/);
   });
 });
 

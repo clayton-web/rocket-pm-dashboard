@@ -49,6 +49,7 @@ promote it into corporate canon.
 | `components/portal/status-badge.tsx` | Shared status-chip treatment | Yes |
 | `components/portal/form-control.tsx` | Shared native form-control treatment | Yes |
 | `components/portal/summary-pill.tsx` | Shared count-and-label jump target | Yes |
+| `components/portal/focus.ts` | The single keyboard-focus class contract | Yes |
 
 ### Updating the vendored tokens
 
@@ -119,8 +120,8 @@ requires an Owner-ratified decision in that repository first.
 - **Selected state.** `selected` surface plus a Rocket-red leading indicator plus a weight change, and
   `aria-current` in markup. Never colour alone.
 - **Focus.** `--portal-focus` is high-contrast ink, not red, so a focus ring is never mistaken for an error
-  state. Interactive primitives use `focus-visible:outline-2 focus-visible:outline-offset-2
-  focus-visible:outline-focus`, which is the single focus contract for the whole portal.
+  state. `FOCUS_RING` in `components/portal/focus.ts` is the single focus contract for the whole portal;
+  primitives and migrated pages import it rather than repeating the utility string.
 - **List conventions.** Rows separate with `border` and hover raises to `surface-muted`. There is no shared
   table primitive: the repository contains two `<table>` elements in total, which is not enough repetition to
   justify one. Operational data is presented as card lists, and those compose the primitives below.
@@ -136,9 +137,18 @@ re-expose.
 |---|---|---|
 | `buttonClasses` / `Button` | Action treatment: 4 variants × 3 densities | What the action does, or its label |
 | `statusBadgeClasses` / `StatusBadge` | `tone -> visual treatment` | Which business status maps to which tone |
-| `formControlClasses` | Native control treatment: 2 densities, invalid border | Validation logic, submission, `aria-invalid` |
+| `formControlClasses` | Native control treatment: 3 densities, invalid border | Validation logic, submission, `aria-invalid` |
 | `FormField` | Label, helper text, error region | The control element itself |
 | `SummaryPill` | Compact count-and-label jump target | What is counted, or where it links |
+| `noticeClasses` / `InlineNotice` / `InlineAlert` | System-state strips: 5 tones × 2 densities | What the message says, or when to show it |
+
+`formControlClasses` and `buttonClasses` share the same `xs`/`sm`/`lg` density names on purpose, so an `xs`
+select and an `xs` button placed in the same row line up without per-site adjustment.
+
+Notices reuse the `StatusTone` vocabulary rather than defining a parallel one, so the portal has a single
+answer to "what does a warning look like" whether it is rendered as a chip or as a strip. Tone and size are
+props rather than appended `className` overrides because border, radius and background cannot be reliably
+overridden by class order in Tailwind — the winner depends on generated CSS order, not on the class string.
 
 ### The status-badge boundary
 

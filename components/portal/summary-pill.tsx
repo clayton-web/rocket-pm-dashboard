@@ -1,5 +1,6 @@
 import Link from "next/link";
 import React from "react";
+import { FOCUS_RING } from "@/components/portal/focus";
 
 /**
  * Compact count-and-label jump target used by the operational command centres.
@@ -21,8 +22,7 @@ export function SummaryPill({
 }) {
   if (count === 0) return null;
 
-  const className =
-    "inline-flex items-center gap-2 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground transition-colors hover:border-foreground-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
+  const className = `inline-flex items-center gap-2 rounded-md border border-border-strong bg-surface px-3 py-1.5 text-sm text-foreground transition-colors hover:border-foreground-subtle ${FOCUS_RING}`;
 
   const content = (
     <>

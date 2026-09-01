@@ -1,6 +1,7 @@
 "use client";
 
 import { markBriefingReviewedAction } from "@/app/(dashboard)/briefing/actions";
+import { Button } from "@/components/portal/button";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -17,7 +18,7 @@ export function BriefingMarkReviewedButton({
 
   if (reviewedAt) {
     return (
-      <p className="text-sm text-neutral-600">
+      <p className="text-sm text-foreground-muted">
         Reviewed {new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" }).format(new Date(reviewedAt))}
       </p>
     );
@@ -37,15 +38,14 @@ export function BriefingMarkReviewedButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={pending}
-        className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-50"
-      >
+      <Button onClick={onClick} disabled={pending}>
         {pending ? "Saving…" : "Mark reviewed"}
-      </button>
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      </Button>
+      {error ? (
+        <p className="text-sm text-danger-foreground" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

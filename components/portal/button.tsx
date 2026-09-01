@@ -1,4 +1,5 @@
 import React from "react";
+import { FOCUS_RING } from "@/components/portal/focus";
 
 /**
  * Shared action treatment for the portal.
@@ -30,7 +31,7 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
 };
 
 const BASE_CLASSES =
-  "inline-flex items-center justify-center gap-2 border no-underline transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
+  `inline-flex items-center justify-center gap-2 border no-underline transition-colors ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60`;
 
 export function buttonClasses({
   variant = "secondary",

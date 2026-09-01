@@ -1,20 +1,27 @@
+import React from "react";
 import type { BriefingRunStatus } from "@prisma/client";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import { BRIEFING_STATUS_LABELS } from "@/lib/briefing/briefing-queries";
 
-const STATUS_STYLES: Record<BriefingRunStatus, string> = {
-  PENDING: "border-neutral-200 bg-neutral-100 text-neutral-700",
-  RUNNING: "border-blue-200 bg-blue-50 text-blue-800",
-  COMPLETED: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  FAILED: "border-red-200 bg-red-50 text-red-800",
-  PARTIAL: "border-amber-200 bg-amber-50 text-amber-900",
+/**
+ * Briefing owns `run status -> tone`; `StatusBadge` owns `tone -> visual treatment`.
+ *
+ * The five run states are semantically equivalent to the shared tones — a queued run is neutral, an
+ * in-flight run is informational, and the three outcomes are success/warning/danger — so briefing
+ * keeps its vocabulary here rather than teaching the primitive about briefing runs.
+ */
+export const BRIEFING_STATUS_TONES: Record<BriefingRunStatus, StatusTone> = {
+  PENDING: "neutral",
+  RUNNING: "info",
+  COMPLETED: "success",
+  FAILED: "danger",
+  PARTIAL: "warning",
 };
 
 export function BriefingStatusBadge({ status }: { status: BriefingRunStatus }) {
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
-    >
+    <StatusBadge tone={BRIEFING_STATUS_TONES[status]}>
       {BRIEFING_STATUS_LABELS[status]}
-    </span>
+    </StatusBadge>
   );
 }

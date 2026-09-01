@@ -24,7 +24,7 @@
 
   /* Typeface — Inter, per corporate D-004, injected by next/font in app/layout.tsx.
      --rl-font-family-sans supplies the corporate fallback chain when the webfont is absent. */
-  --portal-font-sans: var(--font-inter), var(--rl-font-family-sans);
+  --portal-font-sans: var(--font-inter, var(--rl-font-family-sans));
 
   /* Canvas and surfaces */
   --portal-background: oklch(98.5% 0 0); /* neutral-50 */
@@ -41,7 +41,8 @@
   --portal-border-strong: oklch(87% 0 0); /* neutral-300 */
 
   /* Primary filled action — deliberately dark ink, not Rocket red.
-     Registered product exception to the corporate D-011 default; rationale in docs/branding.md. */
+     Product exception to the corporate D-011 default. Documented in docs/branding.md, and not yet
+     registered in the corporate DECISIONS.md. */
   --portal-primary: oklch(20.5% 0 0); /* neutral-900 */
   --portal-primary-hover: oklch(26.9% 0 0); /* neutral-800 */
   --portal-primary-foreground: #ffffff;
@@ -49,7 +50,6 @@
   /* Rocket identity accent — corporate red, reserved for identity, active navigation and
      restrained emphasis. Not the default action colour in this product. */
   --portal-brand: var(--rl-color-brand-red);
-  --portal-accent: var(--portal-brand);
 
   /* Selected state. Never colour alone: pair with the brand indicator and weight change. */
   --portal-selected: oklch(97% 0 0); /* neutral-100 */
@@ -116,7 +116,6 @@
   --color-primary-foreground: var(--portal-primary-foreground);
 
   --color-brand: var(--portal-brand);
-  --color-accent: var(--portal-accent);
 
   --color-selected: var(--portal-selected);
   --color-selected-foreground: var(--portal-selected-foreground);

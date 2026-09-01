@@ -2,6 +2,7 @@
 
 import { updateBriefingSettingsAction } from "@/app/(dashboard)/briefing/actions";
 import { formControlClasses } from "@/components/portal/form-control";
+import { StatusBadge } from "@/components/portal/status-badge";
 import {
   FormField,
   FormSection,
@@ -73,14 +74,18 @@ export function BriefingSettingsForm({ initialSettings }: { initialSettings: Bri
         </InlineNotice>
       ) : null}
 
-      {error ? <InlineNotice>{error}</InlineNotice> : null}
+      {error ? (
+        <InlineNotice tone="danger" role="alert">
+          {error}
+        </InlineNotice>
+      ) : null}
 
       {!initialSettings.canEdit ? (
         <InlineNotice>Organization admin access is required to edit Daily Briefing settings.</InlineNotice>
       ) : null}
 
       <FormSection legend="Daily Briefing">
-        <label className="flex items-center gap-2 text-sm text-neutral-800">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={enabled}
@@ -92,7 +97,7 @@ export function BriefingSettingsForm({ initialSettings }: { initialSettings: Bri
       </FormSection>
 
       <FormSection legend="Schedule">
-        <label className="flex items-center gap-2 text-sm text-neutral-800">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={morningEnabled}
@@ -101,7 +106,7 @@ export function BriefingSettingsForm({ initialSettings }: { initialSettings: Bri
           />
           Morning slot enabled
         </label>
-        <label className="flex items-center gap-2 text-sm text-neutral-800">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={afternoonEnabled}
@@ -162,7 +167,7 @@ export function BriefingSettingsForm({ initialSettings }: { initialSettings: Bri
       </FormSection>
 
       <FormSection legend="Generation">
-        <label className="flex items-center gap-2 text-sm text-neutral-800">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={autoSyncBeforeBriefing}
@@ -185,7 +190,7 @@ export function BriefingSettingsForm({ initialSettings }: { initialSettings: Bri
           />
         </FormField>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-800">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={autoBriefingEnabled}
@@ -197,21 +202,17 @@ export function BriefingSettingsForm({ initialSettings }: { initialSettings: Bri
       </FormSection>
 
       <FormSection legend="Active sources">
-        <ul className="space-y-2 text-sm text-neutral-700">
+        <ul className="space-y-2 text-sm text-foreground-muted">
           {BRIEFING_MVP_ACTIVE_SOURCE_TYPES.map((sourceType) => (
             <li key={sourceType} className="flex items-center gap-2">
-              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
-                Active
-              </span>
+              <StatusBadge tone="success">Active</StatusBadge>
               {sourceType}
             </li>
           ))}
           {[...BRIEFING_FUTURE_FINANCIAL_SOURCE_TYPES, ...BRIEFING_FUTURE_OPERATIONAL_SOURCE_TYPES].map(
             (sourceType) => (
-              <li key={sourceType} className="flex items-center gap-2 text-neutral-500">
-                <span className="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
-                  Coming later
-                </span>
+              <li key={sourceType} className="flex items-center gap-2 text-foreground-subtle">
+                <StatusBadge tone="neutral">Coming later</StatusBadge>
                 {sourceType}
                 <span className="text-xs">(Buildium / future integrations)</span>
               </li>

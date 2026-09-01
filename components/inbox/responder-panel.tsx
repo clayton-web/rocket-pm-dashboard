@@ -9,7 +9,11 @@ import {
   type GenerateState,
   type LoadGmailDraftState,
 } from "@/app/(dashboard)/inbox/[threadId]/actions";
+import { buttonClasses } from "@/components/portal/button";
+import { InlineNotice, noticeClasses, SURFACE_PANEL } from "@/components/portal/ui";
 import type { ResponderClassification, ResponderCitations } from "@/lib/ai/generate-responder-draft";
+
+const SECTION_LABEL = "text-[11px] font-semibold uppercase tracking-wide text-foreground-subtle";
 
 const initialGenerateState: GenerateState = { error: null, completedAt: 0 };
 const initialLoadGmailState: LoadGmailDraftState = {
@@ -58,13 +62,13 @@ export function ResponderPanel(props: {
   const citations = draft ? asCitations(draft.citations) : null;
 
   return (
-    <aside className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto">
+    <aside className={`space-y-4 ${SURFACE_PANEL} p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto`}>
       <div>
-        <h2 className="text-sm font-semibold text-neutral-900">AI responder</h2>
-        <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-neutral-600">
+        <h2 className="text-sm font-semibold text-foreground">AI responder</h2>
+        <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-foreground-muted">
           <li>Rocket PM generates the draft below.</li>
           <li>
-            <span className="font-medium text-neutral-800">Load to Gmail</span> creates a reply draft in the original
+            <span className="font-medium text-foreground">Load to Gmail</span> creates a reply draft in the original
             Gmail thread.
           </li>
           <li>Review, edit, and send in Gmail — sending from Rocket PM is not available.</li>
@@ -72,9 +76,9 @@ export function ResponderPanel(props: {
       </div>
 
       {!geminiConfigured ? (
-        <p className="text-xs text-amber-900">
-          Set <code className="rounded bg-amber-50 px-1">GEMINI_API_KEY</code>{" "}
-          (optional: <code className="rounded bg-amber-50 px-1">GEMINI_MODEL</code>) to generate drafts.
+        <p className="text-xs text-warning-foreground">
+          Set <code className="rounded bg-warning-surface px-1">GEMINI_API_KEY</code>{" "}
+          (optional: <code className="rounded bg-warning-surface px-1">GEMINI_MODEL</code>) to generate drafts.
         </p>
       ) : null}
 
@@ -83,28 +87,30 @@ export function ResponderPanel(props: {
         <button
           type="submit"
           disabled={!geminiConfigured || isPending}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className={buttonClasses({ variant: "primary", size: "xs", block: true })}
         >
           {isPending ? "Generating…" : "Generate draft"}
         </button>
       </form>
 
       {state.error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">{state.error}</div>
+        <InlineNotice tone="danger" size="compact" role="alert">
+          {state.error}
+        </InlineNotice>
       ) : null}
 
       {!draft ? (
-        <p className="text-xs text-neutral-600">
+        <p className="text-xs text-foreground-muted">
           Generate a draft, then load it to Gmail when you are ready to reply.
         </p>
       ) : (
-        <div className="space-y-3 text-xs text-neutral-700">
+        <div className="space-y-3 text-xs text-foreground-muted">
           {classification?.review_required ? (
-            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-950">
+            <div className={noticeClasses("warning", "compact")}>
               <div className="font-semibold">Review required</div>
-              <p className="mt-1 text-amber-900">{classification.review_reason}</p>
+              <p className="mt-1">{classification.review_reason}</p>
               {classification.sensitivity_flags?.length ? (
-                <p className="mt-2 text-[11px] text-amber-900">
+                <p className="mt-2 text-[11px]">
                   Flags: {classification.sensitivity_flags.join(", ")}
                 </p>
               ) : null}
@@ -112,36 +118,36 @@ export function ResponderPanel(props: {
           ) : null}
 
           <section>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Summary</h3>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-800">{classification?.thread_summary}</p>
+            <h3 className={SECTION_LABEL}>Summary</h3>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{classification?.thread_summary}</p>
           </section>
 
           <section className="grid grid-cols-2 gap-2">
             <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Topic</h3>
+              <h3 className={SECTION_LABEL}>Topic</h3>
               <p className="mt-1">{classification?.topic}</p>
             </div>
             <div>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Urgency</h3>
+              <h3 className={SECTION_LABEL}>Urgency</h3>
               <p className="mt-1">{classification?.urgency}</p>
             </div>
           </section>
 
           {classification?.risk_flags?.length ? (
             <section>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Risk flags</h3>
+              <h3 className={SECTION_LABEL}>Risk flags</h3>
               <p className="mt-1">{classification.risk_flags.join(", ")}</p>
             </section>
           ) : null}
 
           <section>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Recommended action</h3>
+            <h3 className={SECTION_LABEL}>Recommended action</h3>
             <p className="mt-1 font-medium">{classification?.recommended_action?.replaceAll("_", " ")}</p>
           </section>
 
           <section>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Draft reply</h3>
-            <div className="mt-1 whitespace-pre-wrap rounded-md border border-neutral-100 bg-neutral-50 p-2 text-sm text-neutral-900">
+            <h3 className={SECTION_LABEL}>Draft reply</h3>
+            <div className="mt-1 whitespace-pre-wrap rounded-md border border-border bg-surface-muted p-2 text-sm text-foreground">
               {draft.draftText}
             </div>
             <form action={loadGmailAction} className="mt-2">
@@ -150,28 +156,26 @@ export function ResponderPanel(props: {
               <button
                 type="submit"
                 disabled={loadPending}
-                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-xs font-semibold text-neutral-900 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className={buttonClasses({ size: "xs", block: true })}
               >
                 {loadPending ? "Loading into Gmail…" : "Load to Gmail"}
               </button>
             </form>
             {loadState.error ? (
-              <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+              <InlineNotice tone="danger" size="compact" role="alert" className="mt-2">
                 {loadState.error}
-              </div>
+              </InlineNotice>
             ) : null}
             {loadState.successMessage ? (
-              <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-950">
+              <InlineNotice tone="success" size="compact" role="status" className="mt-2">
                 {loadState.successMessage}
-              </div>
+              </InlineNotice>
             ) : null}
           </section>
 
           {citations?.model_notes?.length ? (
             <section>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                What the model used
-              </h3>
+              <h3 className={SECTION_LABEL}>What the model used</h3>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 {citations.model_notes.map((line) => (
                   <li key={line}>{line}</li>
@@ -182,20 +186,18 @@ export function ResponderPanel(props: {
 
           {citations?.retrieval?.length ? (
             <section>
-              <h3 className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Retrieval sources
-              </h3>
+              <h3 className={SECTION_LABEL}>Retrieval sources</h3>
               <ul className="mt-1 space-y-1">
                 {citations.retrieval.slice(0, 12).map((item) => (
                   <li key={`${item.kind}-${item.id}`}>
-                    <span className="text-neutral-500">{item.kind}:</span> {item.title}
+                    <span className="text-foreground-subtle">{item.kind}:</span> {item.title}
                   </li>
                 ))}
               </ul>
             </section>
           ) : null}
 
-          <p className="text-[10px] text-neutral-400">
+          <p className="text-[10px] text-foreground-subtle">
             {draft.model} · {draft.promptVersion} ·{" "}
             {new Intl.DateTimeFormat("en-CA", { dateStyle: "short", timeStyle: "short" }).format(draft.createdAt)}
           </p>

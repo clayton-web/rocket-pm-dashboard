@@ -3,6 +3,8 @@ import type { BriefingRunSummary } from "@/lib/briefing/briefing-queries";
 import { BRIEFING_SLOT_LABELS } from "@/lib/briefing/briefing-queries";
 import { BriefingStatusBadge } from "@/components/briefing/briefing-status-badge";
 import { BriefingItemList } from "@/components/briefing/briefing-item-list";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { InlineNotice, SURFACE_CARD } from "@/components/portal/ui";
 
 function formatWindow(start: Date, end: Date): string {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -20,21 +22,21 @@ export function BriefingRunCard({
   compact?: boolean;
 }) {
   return (
-    <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+    <section className={`${SURFACE_CARD} p-5`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold text-neutral-900">
+            <h2 className="text-base font-semibold text-foreground">
               {BRIEFING_SLOT_LABELS[run.slot]} briefing
             </h2>
             <BriefingStatusBadge status={run.status} />
           </div>
-          <p className="mt-1 text-sm text-neutral-600">Window: {formatWindow(run.windowStart, run.windowEnd)}</p>
+          <p className="mt-1 text-sm text-foreground-muted">Window: {formatWindow(run.windowStart, run.windowEnd)}</p>
         </div>
         <Link
           href={`/briefing/${run.id}`}
           prefetch={false}
-          className="text-sm font-medium text-neutral-900 underline-offset-2 hover:underline"
+          className={`rounded-sm text-sm font-medium text-foreground underline-offset-2 hover:underline ${FOCUS_RING}`}
         >
           View full run
         </Link>
@@ -42,28 +44,28 @@ export function BriefingRunCard({
 
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
         <div>
-          <dt className="text-neutral-500">Threads scanned</dt>
-          <dd className="font-medium text-neutral-900">{run.threadsScanned}</dd>
+          <dt className="text-foreground-subtle">Threads scanned</dt>
+          <dd className="font-medium text-foreground">{run.threadsScanned}</dd>
         </div>
         <div>
-          <dt className="text-neutral-500">Items included</dt>
-          <dd className="font-medium text-neutral-900">{run.itemsIncluded}</dd>
+          <dt className="text-foreground-subtle">Items included</dt>
+          <dd className="font-medium text-foreground">{run.itemsIncluded}</dd>
         </div>
         <div>
-          <dt className="text-neutral-500">Items skipped</dt>
-          <dd className="font-medium text-neutral-900">{run.itemsSkipped}</dd>
+          <dt className="text-foreground-subtle">Items skipped</dt>
+          <dd className="font-medium text-foreground">{run.itemsSkipped}</dd>
         </div>
       </dl>
 
       {run.executiveSummary ? (
-        <p className="mt-4 text-sm leading-relaxed text-neutral-700">{run.executiveSummary}</p>
+        <p className="mt-4 text-sm leading-relaxed text-foreground-muted">{run.executiveSummary}</p>
       ) : null}
 
       {run.errorMessage ? (
-        <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <InlineNotice tone="danger" role="alert" className="mt-4">
           {run.errorMessage.slice(0, 280)}
           {run.errorMessage.length > 280 ? "…" : ""}
-        </p>
+        </InlineNotice>
       ) : null}
 
       {!compact && run.items.length > 0 ? (

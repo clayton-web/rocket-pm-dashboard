@@ -30,8 +30,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
   if (!active) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
-        <h1 className="text-lg font-semibold text-neutral-900">Inbox</h1>
-        <p className="text-sm text-neutral-600">Select an organization to view the inbox.</p>
+        <h1 className="text-lg font-semibold text-foreground">Inbox</h1>
+        <p className="text-sm text-foreground-muted">Select an organization to view the inbox.</p>
       </div>
     );
   }
@@ -88,8 +88,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold text-neutral-900">Inbox</h1>
-        <p className="text-sm text-neutral-600">
+        <h1 className="text-lg font-semibold text-foreground">Inbox</h1>
+        <p className="text-sm text-foreground-muted">
           PM work queue from synced Gmail threads.
         </p>
       </div>

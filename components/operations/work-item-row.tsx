@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { buttonClasses } from "@/components/portal/button";
 import { StatusBadge } from "@/components/portal/status-badge";
+import { SURFACE_CARD } from "@/components/portal/ui";
 import type { OperationalWorkItem } from "@/lib/operations/work-item";
 import { WAITING_ON_LABELS } from "@/lib/operations/work-item";
 
@@ -48,7 +49,7 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
   const location = [item.propertyLabel, item.unitLabel].filter(Boolean).join(" · ") || "—";
 
   return (
-    <li className="rounded-xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+    <li className={`${SURFACE_CARD} px-4 py-3`}>
       {/*
         Stack action below content on narrow viewports so long Inbox subjects/senders
         and the Open record control do not compete for one horizontal row.
@@ -78,37 +79,37 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
             ) : null}
           </div>
 
-          <p className="min-w-0 break-words text-base font-semibold leading-snug text-neutral-900 [overflow-wrap:anywhere]">
+          <p className="min-w-0 break-words text-base font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
             {item.title}
           </p>
           {item.subtitle ? (
-            <p className="break-words text-xs text-neutral-500 [overflow-wrap:anywhere]">
+            <p className="break-words text-xs text-foreground-subtle [overflow-wrap:anywhere]">
               {item.subtitle}
             </p>
           ) : null}
 
-          <p className="break-words text-sm text-neutral-700 [overflow-wrap:anywhere]">{location}</p>
+          <p className="break-words text-sm text-foreground [overflow-wrap:anywhere]">{location}</p>
 
-          <p className="break-words text-sm text-neutral-600 [overflow-wrap:anywhere]">
-            <span className="text-neutral-500">Status · </span>
+          <p className="break-words text-sm text-foreground-muted [overflow-wrap:anywhere]">
+            <span className="text-foreground-subtle">Status · </span>
             {item.statusLabel}
           </p>
 
-          <p className="break-words text-sm text-neutral-900 [overflow-wrap:anywhere]">
-            <span className="text-neutral-500">Next · </span>
+          <p className="break-words text-sm text-foreground [overflow-wrap:anywhere]">
+            <span className="text-foreground-subtle">Next · </span>
             <span className="font-semibold">{item.nextActionLabel}</span>
           </p>
 
           {item.assignedToLabel ? (
-            <p className="break-words text-xs text-neutral-600 [overflow-wrap:anywhere]">
-              <span className="text-neutral-500">Assignee · </span>
+            <p className="break-words text-xs text-foreground-muted [overflow-wrap:anywhere]">
+              <span className="text-foreground-subtle">Assignee · </span>
               {item.assignedToLabel}
             </p>
           ) : null}
 
           {dueLabel ? (
-            <p className="text-xs text-neutral-600">
-              <span className="text-neutral-500">Due / scheduled · </span>
+            <p className="text-xs text-foreground-muted">
+              <span className="text-foreground-subtle">Due / scheduled · </span>
               <time dateTime={item.dueAt ?? undefined}>{dueLabel}</time>
             </p>
           ) : null}
@@ -118,7 +119,7 @@ export function WorkItemRow({ item }: { item: OperationalWorkItem }) {
               {secondary.map((indicator) => (
                 <li
                   key={indicator}
-                  className="max-w-full truncate rounded border border-neutral-200 px-1.5 py-0.5 text-[11px] text-neutral-600"
+                  className="max-w-full truncate rounded border border-border px-1.5 py-0.5 text-[11px] text-foreground-muted"
                 >
                   {indicator}
                 </li>

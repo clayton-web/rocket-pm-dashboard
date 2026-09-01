@@ -1,7 +1,17 @@
 import Link from "next/link";
 import { restartGmailSyncAction, syncGmailMailboxAction } from "@/app/(dashboard)/inbox/actions";
+import { buttonClasses } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { InlineNotice, noticeClasses, SURFACE_PANEL } from "@/components/portal/ui";
 import type { SyncFreshnessLevel } from "@/lib/gmail/sync-freshness";
 import type { ConnectedEmailAccountStatus } from "@prisma/client";
+
+/** Sync freshness is a domain vocabulary; this maps it onto the shared text tones. */
+function freshnessClass(level: SyncFreshnessLevel | undefined): string {
+  if (level === "overdue" || level === "sync_stuck") return "font-medium text-warning-foreground";
+  if (level === "in_progress") return "font-medium text-info-foreground";
+  return "text-foreground-subtle";
+}
 
 type Mailbox = {
   id: string;
@@ -41,64 +51,70 @@ export function InboxToolbar(props: {
   const syncActive = selectedMailbox?.syncFreshnessLevel === "in_progress";
 
   return (
-    <div className="space-y-2 rounded-lg border border-neutral-200 bg-white px-3 py-2.5">
+    <div className={`space-y-2 ${SURFACE_PANEL} px-3 py-2.5`}>
       {syncEnqueued ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+        <InlineNotice tone="success" size="compact">
           Sync queued — processing in the background.
-        </div>
+        </InlineNotice>
       ) : null}
 
       {syncQueued ? (
-        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+        <InlineNotice tone="info" size="compact">
           A sync is already in progress for this mailbox.
-        </div>
+        </InlineNotice>
       ) : null}
 
       {syncRestarted ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+        <InlineNotice tone="success" size="compact">
           Sync restarted — processing in the background.
-        </div>
+        </InlineNotice>
       ) : null}
 
       {syncStillRunning ? (
-        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+        <InlineNotice tone="info" size="compact">
           Sync is still running. Try again once it has been active for at least 5 minutes.
-        </div>
+        </InlineNotice>
       ) : null}
 
       {syncError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+        <InlineNotice tone="danger" size="compact" role="alert">
           {syncError}
-        </div>
+        </InlineNotice>
       ) : null}
 
       {syncStuck ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+        <InlineNotice tone="warning" size="compact">
           Sync appears stuck. You can restart it.
-        </div>
+        </InlineNotice>
       ) : null}
 
       {needsReconnect ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+        <div className={noticeClasses("warning", "compact")}>
           <div className="font-semibold">Gmail connection needs attention</div>
           <p className="mt-1">
             {selectedMailbox?.status === "REVOKED"
               ? "This mailbox was disconnected or revoked."
               : "This mailbox needs to be reconnected before sync and drafts will work reliably."}
             {selectedMailbox?.lastError ? (
-              <span className="mt-1 block text-amber-900">{selectedMailbox.lastError}</span>
+              <span className="mt-1 block">{selectedMailbox.lastError}</span>
             ) : null}
           </p>
-          <Link href="/email" className="mt-2 inline-block font-medium text-amber-950 underline">
+          <Link
+            href="/email"
+            className={`mt-2 inline-block rounded-sm font-medium underline ${FOCUS_RING}`}
+          >
             Reconnect Gmail
           </Link>
         </div>
       ) : null}
 
       {!mailboxes.length ? (
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-foreground-muted">
           No Gmail mailboxes connected for this organization yet.{" "}
-          <Link className="font-medium text-neutral-900 underline" href="/email">
+          <Link
+            className={`rounded-sm font-medium text-foreground underline ${FOCUS_RING}`}
+            href="/email"
+          >
             Connect Gmail
           </Link>
         </p>
@@ -111,10 +127,11 @@ export function InboxToolbar(props: {
                 <Link
                   key={mailbox.id}
                   href={`/inbox?mailbox=${encodeURIComponent(mailbox.id)}`}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  aria-current={active ? "true" : undefined}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${FOCUS_RING} ${
                     active
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-surface text-foreground-muted hover:bg-surface-muted"
                   }`}
                 >
                   {mailbox.email}
@@ -125,21 +142,11 @@ export function InboxToolbar(props: {
 
           {selectedMailboxId ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`text-xs ${
-                  selectedMailbox?.syncFreshnessLevel === "overdue"
-                    ? "font-medium text-amber-800"
-                    : selectedMailbox?.syncFreshnessLevel === "sync_stuck"
-                      ? "font-medium text-amber-800"
-                      : selectedMailbox?.syncFreshnessLevel === "in_progress"
-                        ? "font-medium text-sky-800"
-                        : "text-neutral-500"
-                }`}
-              >
+              <span className={`text-xs ${freshnessClass(selectedMailbox?.syncFreshnessLevel)}`}>
                 {selectedMailbox?.syncFreshnessLabel ?? "Never synced"}
               </span>
               {selectedMailbox?.lastError && !needsReconnect ? (
-                <span className="text-xs text-amber-800">{selectedMailbox.lastError}</span>
+                <span className="text-xs text-warning-foreground">{selectedMailbox.lastError}</span>
               ) : null}
               {syncStuck ? (
                 <form action={restartGmailSyncAction}>
@@ -147,7 +154,7 @@ export function InboxToolbar(props: {
                   <button
                     type="submit"
                     disabled={syncDisabled}
-                    className="rounded-md border border-amber-700 bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={buttonClasses({ variant: "primary", size: "xs" })}
                   >
                     Restart Sync
                   </button>
@@ -158,13 +165,16 @@ export function InboxToolbar(props: {
                   <button
                     type="submit"
                     disabled={syncDisabled || syncActive}
-                    className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={buttonClasses({ variant: "primary", size: "xs" })}
                   >
                     {syncActive ? "Syncing…" : "Sync now"}
                   </button>
                 </form>
               )}
-              <Link href="/email" className="text-xs font-medium text-neutral-600 hover:text-neutral-900">
+              <Link
+                href="/email"
+                className={`rounded-sm text-xs font-medium text-foreground-muted hover:text-foreground ${FOCUS_RING}`}
+              >
                 Manage
               </Link>
             </div>

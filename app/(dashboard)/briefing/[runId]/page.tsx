@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { BriefingItemList } from "@/components/briefing/briefing-item-list";
 import { BriefingMarkReviewedButton } from "@/components/briefing/briefing-mark-reviewed-button";
 import { BriefingStatusBadge } from "@/components/briefing/briefing-status-badge";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { SURFACE_PANEL } from "@/components/portal/ui";
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import {
   getBriefingRunDetail,
@@ -44,17 +46,17 @@ export default async function BriefingRunPage({ params }: PageProps) {
           <Link
             href="/briefing"
             prefetch={false}
-            className="text-sm font-medium text-neutral-600 hover:text-neutral-900"
+            className={`rounded-sm text-sm font-medium text-foreground-muted hover:text-foreground ${FOCUS_RING}`}
           >
             ← Daily Briefing
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <h1 className="text-lg font-semibold text-neutral-900">
+            <h1 className="text-lg font-semibold text-foreground">
               {BRIEFING_SLOT_LABELS[run.slot]} briefing
             </h1>
             <BriefingStatusBadge status={run.status} />
           </div>
-          <p className="mt-1 text-sm text-neutral-600">Window: {formatWindow(run.windowStart, run.windowEnd)}</p>
+          <p className="mt-1 text-sm text-foreground-muted">Window: {formatWindow(run.windowStart, run.windowEnd)}</p>
         </div>
         <BriefingMarkReviewedButton
           runId={run.id}
@@ -62,32 +64,35 @@ export default async function BriefingRunPage({ params }: PageProps) {
         />
       </div>
 
-      <dl className="grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 text-sm sm:grid-cols-3">
+      <dl className={`grid gap-3 ${SURFACE_PANEL} p-4 text-sm sm:grid-cols-3`}>
         <div>
-          <dt className="text-neutral-500">Threads scanned</dt>
-          <dd className="font-medium text-neutral-900">{run.threadsScanned}</dd>
+          <dt className="text-foreground-subtle">Threads scanned</dt>
+          <dd className="font-medium text-foreground">{run.threadsScanned}</dd>
         </div>
         <div>
-          <dt className="text-neutral-500">Items included</dt>
-          <dd className="font-medium text-neutral-900">{run.itemsIncluded}</dd>
+          <dt className="text-foreground-subtle">Items included</dt>
+          <dd className="font-medium text-foreground">{run.itemsIncluded}</dd>
         </div>
         <div>
-          <dt className="text-neutral-500">Items skipped</dt>
-          <dd className="font-medium text-neutral-900">{run.itemsSkipped}</dd>
+          <dt className="text-foreground-subtle">Items skipped</dt>
+          <dd className="font-medium text-foreground">{run.itemsSkipped}</dd>
         </div>
       </dl>
 
       {run.executiveSummary ? (
-        <section className="rounded-xl border border-neutral-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-neutral-900">Executive summary</h2>
-          <p className="mt-2 text-sm leading-relaxed text-neutral-700">{run.executiveSummary}</p>
+        <section className={`${SURFACE_PANEL} p-5`}>
+          <h2 className="text-sm font-semibold text-foreground">Executive summary</h2>
+          <p className="mt-2 text-sm leading-relaxed text-foreground-muted">{run.executiveSummary}</p>
         </section>
       ) : null}
 
       {run.errorMessage ? (
-        <section className="rounded-xl border border-red-200 bg-red-50 p-5">
-          <h2 className="text-sm font-semibold text-red-900">Run error</h2>
-          <p className="mt-2 text-sm text-red-800">
+        <section
+          className="rounded-xl border border-danger-border bg-danger-surface p-5 text-danger-foreground"
+          role="alert"
+        >
+          <h2 className="text-sm font-semibold">Run error</h2>
+          <p className="mt-2 text-sm">
             {run.errorMessage.slice(0, 500)}
             {run.errorMessage.length > 500 ? "…" : ""}
           </p>
@@ -95,7 +100,7 @@ export default async function BriefingRunPage({ params }: PageProps) {
       ) : null}
 
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold text-neutral-900">Items</h2>
+        <h2 className="text-sm font-semibold text-foreground">Items</h2>
         <BriefingItemList items={run.items} />
       </section>
     </div>

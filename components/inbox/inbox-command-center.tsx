@@ -1,5 +1,6 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
 import {
   FormField,
   FormSection,
@@ -48,15 +49,18 @@ function SectionHeader({
       <div>
         <h2
           id={id}
-          className={`scroll-mt-6 text-lg font-semibold ${cleanup ? "text-amber-950" : "text-neutral-900"}`}
+          className={`scroll-mt-6 text-lg font-semibold ${cleanup ? "text-warning-foreground-strong" : "text-foreground"}`}
         >
           {title}
         </h2>
-        <p className={`mt-1 text-sm ${cleanup ? "text-amber-800" : "text-neutral-600"}`}>
+        <p className={`mt-1 text-sm ${cleanup ? "text-warning-foreground" : "text-foreground-muted"}`}>
           {total} thread{total === 1 ? "" : "s"}
         </p>
       </div>
-      <Link href={viewAllHref} className="text-sm font-medium text-neutral-900 underline">
+      <Link
+        href={viewAllHref}
+        className={`rounded-sm text-sm font-medium text-foreground underline ${FOCUS_RING}`}
+      >
         View all →
       </Link>
     </div>
@@ -84,11 +88,11 @@ function StakeholderBinPreview({
           <InlineNotice>{bin.emptyMessage}</InlineNotice>
         ) : (
           <div
-            className={`overflow-hidden rounded-lg border bg-white ${
-              bin.variant === "cleanup" ? "border-amber-200" : "border-neutral-200"
+            className={`overflow-hidden rounded-xl border bg-surface ${
+              bin.variant === "cleanup" ? "border-warning-border" : "border-border"
             }`}
           >
-            <ul className="divide-y divide-neutral-100">
+            <ul className="divide-y divide-border">
               {bin.preview.map((row) => (
                 <li key={row.id}>
                   <InboxThreadRow row={row} mailboxId={mailboxId} />
@@ -124,13 +128,13 @@ function PreviewSection({
   return (
     <FormSection legend="">
       <SectionHeader id={id} title={title} total={total} viewAllHref={viewAllHref} />
-      {description ? <p className="mt-1 text-sm text-neutral-600">{description}</p> : null}
+      {description ? <p className="mt-1 text-sm text-foreground-muted">{description}</p> : null}
       <div className="mt-4">
         {total === 0 ? (
           <InlineNotice>{emptyMessage}</InlineNotice>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
-            <ul className="divide-y divide-neutral-100">
+          <div className={`overflow-hidden ${SURFACE_PANEL}`}>
+            <ul className="divide-y divide-border">
               {rows.map((row) => (
                 <li key={row.id}>
                   <InboxThreadRow row={row} mailboxId={mailboxId} />
@@ -160,10 +164,10 @@ export function InboxCommandCenter(props: {
     filteredContent = (
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-neutral-900">{data.filteredViewTitle}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{data.filteredViewTitle}</h2>
           <Link
             href={inboxCommandCenterQuery(mailboxId)}
-            className="text-sm font-medium text-neutral-900 underline"
+            className={`rounded-sm text-sm font-medium text-foreground underline ${FOCUS_RING}`}
           >
             Back to command center
           </Link>
@@ -185,7 +189,7 @@ export function InboxCommandCenter(props: {
           id="inbox-command-center-summary"
           className={`block ${SURFACE_PANEL} px-3.5 py-3 text-sm`}
         >
-          <span className="font-medium text-neutral-900">
+          <span className="font-medium text-foreground">
             {summary.totalUnique} thread{summary.totalUnique === 1 ? "" : "s"} need attention
           </span>
           {summary.totalUnique > 0 || summary.connectionIssues > 0 ? (
@@ -209,7 +213,7 @@ export function InboxCommandCenter(props: {
               {summary.connectionIssues > 0 ? (
                 <Link
                   href="#mailbox-toolbar"
-                  className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm text-amber-950 transition-colors hover:border-amber-400"
+                  className={`inline-flex items-center gap-2 rounded-md border border-warning-border-strong bg-warning-surface px-3 py-1.5 text-sm text-warning-foreground-strong transition-colors hover:border-warning ${FOCUS_RING}`}
                 >
                   <span className="font-semibold tabular-nums">!</span>
                   <span>Connection issue</span>
@@ -217,7 +221,7 @@ export function InboxCommandCenter(props: {
               ) : null}
             </div>
           ) : (
-            <span className="mt-1 block text-neutral-600">Nothing needs attention right now.</span>
+            <span className="mt-1 block text-foreground-muted">Nothing needs attention right now.</span>
           )}
         </output>
       </FormField>

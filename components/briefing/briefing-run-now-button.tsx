@@ -1,6 +1,7 @@
 "use client";
 
 import { runBriefingNowAction } from "@/app/(dashboard)/briefing/actions";
+import { Button } from "@/components/portal/button";
 import type { BriefingSlot } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -30,15 +31,14 @@ export function BriefingRunNowButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled || pending}
-        className="inline-flex items-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button variant="primary" onClick={onClick} disabled={disabled || pending}>
         {pending ? "Queueing…" : "Run briefing now"}
-      </button>
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      </Button>
+      {error ? (
+        <p className="text-sm text-danger-foreground" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

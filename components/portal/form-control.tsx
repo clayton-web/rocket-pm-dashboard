@@ -9,13 +9,19 @@
  * Inputs, selects and textareas share one treatment because that is what the portal already does.
  */
 
-/** Two densities, matching the compact staff forms and the roomier tenant forms. */
-export type FormControlSize = "sm" | "lg";
+import { FOCUS_RING } from "@/components/portal/focus";
+
+/**
+ * Densities matching the dense thread side panels, the compact staff forms and the roomier tenant
+ * forms. These mirror `ButtonSize`, so an `xs` select and an `xs` button share a row cleanly.
+ */
+export type FormControlSize = "xs" | "sm" | "lg";
 
 const CONTROL_BASE =
-  "w-full border text-foreground placeholder:text-foreground-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60";
+  `w-full border text-foreground placeholder:text-foreground-subtle ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-60`;
 
 const CONTROL_SIZE: Record<FormControlSize, string> = {
+  xs: "rounded-md px-3 py-1.5 text-xs",
   sm: "rounded-md px-3 py-2 text-sm",
   lg: "rounded-xl bg-surface px-3.5 py-3 text-sm",
 };

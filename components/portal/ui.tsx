@@ -1,5 +1,7 @@
 import React, { type ReactNode } from "react";
 import { buttonClasses } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import type { StatusTone } from "@/components/portal/status-badge";
 
 /**
  * Shared portal primitives.
@@ -14,9 +16,6 @@ export const SURFACE_PANEL = "rounded-xl border border-border bg-surface";
 export const SURFACE_CARD = "rounded-xl border border-border bg-surface shadow-sm";
 export const SURFACE_DASHED =
   "rounded-xl border border-dashed border-border-strong bg-surface-muted/80";
-
-const FOCUS_RING =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
 
 export function PortalPageHeader({
   eyebrow,
@@ -145,23 +144,61 @@ export function PrimaryButton({
   );
 }
 
-export function InlineAlert({ children }: { children: ReactNode }) {
+/**
+ * Toned system-state strips.
+ *
+ * Tones reuse the `StatusBadge` vocabulary so the portal has one answer to "what does warning look
+ * like". `compact` is the denser strip the operational panels already used; it is a size rather
+ * than a `className` override because border, radius and background cannot be reliably overridden
+ * by appending utilities.
+ */
+const NOTICE_TONE: Record<StatusTone, string> = {
+  neutral: "border-border bg-surface-muted text-foreground-muted",
+  success: "border-success-border bg-success-surface text-success-foreground",
+  warning: "border-warning-border bg-warning-surface text-warning-foreground",
+  danger: "border-danger-border bg-danger-surface text-danger-foreground",
+  info: "border-info-border bg-info-surface text-info-foreground",
+};
+
+const NOTICE_SIZE = {
+  default: "rounded-lg px-3.5 py-3 text-sm",
+  compact: "rounded-md px-3 py-2 text-xs",
+} as const;
+
+export type NoticeSize = keyof typeof NOTICE_SIZE;
+
+export function noticeClasses(
+  tone: StatusTone = "neutral",
+  size: NoticeSize = "default",
+  className = "",
+): string {
+  return ["border", NOTICE_SIZE[size], NOTICE_TONE[tone], className].filter(Boolean).join(" ");
+}
+
+/** Danger-toned notice that also announces itself. */
+export function InlineAlert({ children, size }: { children: ReactNode; size?: NoticeSize }) {
   return (
-    <p
-      className="rounded-lg border border-danger-border bg-danger-surface px-3.5 py-3 text-sm text-danger-foreground"
-      role="alert"
-    >
+    <p className={noticeClasses("danger", size)} role="alert">
       {children}
     </p>
   );
 }
 
-export function InlineNotice({ children, className = "", role }: { children: ReactNode; className?: string; role?: string }) {
+export function InlineNotice({
+  children,
+  className = "",
+  role,
+  tone = "neutral",
+  size = "default",
+}: {
+  children: ReactNode;
+  className?: string;
+  role?: string;
+  tone?: StatusTone;
+  size?: NoticeSize;
+}) {
   return (
-    <p
-      className={`rounded-lg border border-border bg-surface-muted px-3.5 py-3 text-sm text-foreground-muted ${className}`}
-      role={role}
-    >
+    <p className={noticeClasses(tone, size, className)} role={role}>
       {children}
     </p>
   );

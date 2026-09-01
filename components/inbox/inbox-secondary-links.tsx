@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FOCUS_RING } from "@/components/portal/focus";
 import {
   buildInboxBrowseAllLink,
   buildInboxSecondaryNavLinks,
@@ -25,28 +26,30 @@ export function InboxSecondaryLinks(props: {
   const browseAll = buildInboxBrowseAllLink(crateCounts);
 
   return (
-    <div className="space-y-2 border-t border-neutral-100 pt-4">
-      <p className="text-xs font-medium text-neutral-500">Other</p>
+    <div className="space-y-2 border-t border-border pt-4">
+      <p className="text-xs font-medium text-foreground-subtle">Other</p>
       {secondaryLinks.map((link) => (
         <Link
           key={link.crate}
           href={mailboxCrateQuery(mailboxId, link.crate)}
-          className={`flex items-center justify-between gap-3 text-sm ${
+          aria-current={activeCrate === link.crate ? "true" : undefined}
+          className={`flex items-center justify-between gap-3 rounded-sm text-sm ${FOCUS_RING} ${
             activeCrate === link.crate
-              ? "font-medium text-neutral-900 underline"
-              : "text-neutral-600 hover:text-neutral-900"
+              ? "font-medium text-foreground underline"
+              : "text-foreground-muted hover:text-foreground"
           }`}
         >
           <span>{link.label}</span>
-          <span className="tabular-nums text-neutral-500">{link.countLabel}</span>
+          <span className="tabular-nums text-foreground-subtle">{link.countLabel}</span>
         </Link>
       ))}
       <Link
         href={mailboxCrateQuery(mailboxId, browseAll.crate)}
-        className={`inline-block text-sm ${
+        aria-current={activeCrate === browseAll.crate ? "true" : undefined}
+        className={`inline-block rounded-sm text-sm ${FOCUS_RING} ${
           activeCrate === browseAll.crate
-            ? "font-medium text-neutral-900 underline"
-            : "text-neutral-600 hover:text-neutral-900"
+            ? "font-medium text-foreground underline"
+            : "text-foreground-muted hover:text-foreground"
         }`}
       >
         {browseAll.label} ({browseAll.count})

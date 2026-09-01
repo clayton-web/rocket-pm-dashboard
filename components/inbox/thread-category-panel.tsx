@@ -6,6 +6,10 @@ import {
   updateThreadCategoryAction,
   type UpdateThreadCategoryState,
 } from "@/app/(dashboard)/inbox/[threadId]/actions";
+import { buttonClasses } from "@/components/portal/button";
+import { formControlClasses } from "@/components/portal/form-control";
+import { StatusBadge } from "@/components/portal/status-badge";
+import { InlineNotice, SURFACE_PANEL } from "@/components/portal/ui";
 import { isClassificationReviewThread } from "@/lib/inbox/classification-review";
 import {
   EMAIL_THREAD_CATEGORY_DESCRIPTIONS,
@@ -87,31 +91,29 @@ export function ThreadCategoryPanel(props: {
   }, [state.completedAt, state.successMessage, router]);
 
   return (
-    <section className="rounded-lg border border-neutral-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-neutral-900">Move to crate</h2>
-      <p className="mt-1 text-xs text-neutral-600">
+    <section className={`${SURFACE_PANEL} p-4`}>
+      <h2 className="text-sm font-semibold text-foreground">Move to crate</h2>
+      <p className="mt-1 text-xs text-foreground-muted">
         Reclassify this thread in Rocket PM. Gmail labels and folders are not changed.
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-neutral-500">Current crates</span>
+        <span className="text-xs text-foreground-subtle">Current crates</span>
         {props.categories.map((category) => (
           <span
             key={category}
-            className="inline-flex items-center rounded-md border border-neutral-300 bg-neutral-50 px-2.5 py-1 text-xs font-medium text-neutral-900"
+            className="inline-flex items-center rounded-md border border-border-strong bg-surface-muted px-2.5 py-1 text-xs font-medium text-foreground"
           >
             {EMAIL_THREAD_CATEGORY_LABELS[category]}
           </span>
         ))}
         {isManual ? (
-          <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
-            Manually categorized
-          </span>
+          <StatusBadge tone="success">Manually categorized</StatusBadge>
         ) : null}
       </div>
 
       {props.categories.length === 1 ? (
-        <p className="mt-2 text-xs text-neutral-500">{EMAIL_THREAD_CATEGORY_DESCRIPTIONS[props.categories[0]!]}</p>
+        <p className="mt-2 text-xs text-foreground-subtle">{EMAIL_THREAD_CATEGORY_DESCRIPTIONS[props.categories[0]!]}</p>
       ) : null}
 
       {props.assignments.length > 0 ? (
@@ -119,14 +121,14 @@ export function ThreadCategoryPanel(props: {
           {props.assignments.map((assignment) => (
             <div
               key={`${assignment.category}-${assignment.source}`}
-              className="rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2 text-xs"
+              className="rounded-md border border-border bg-surface-muted px-3 py-2 text-xs"
             >
-              <div className="font-medium text-neutral-900">
+              <div className="font-medium text-foreground">
                 {EMAIL_THREAD_CATEGORY_LABELS[assignment.category]}
               </div>
-              <div className="text-neutral-600">Source: {formatAssignmentSource(assignment.source)}</div>
+              <div className="text-foreground-muted">Source: {formatAssignmentSource(assignment.source)}</div>
               {assignment.reason ? (
-                <div className="mt-1 whitespace-pre-wrap text-neutral-700">{assignment.reason}</div>
+                <div className="mt-1 whitespace-pre-wrap text-foreground-muted">{assignment.reason}</div>
               ) : null}
             </div>
           ))}
@@ -134,41 +136,41 @@ export function ThreadCategoryPanel(props: {
       ) : null}
 
       {isManual && props.categoryUpdatedAt ? (
-        <p className="mt-2 text-[11px] text-neutral-400">
+        <p className="mt-2 text-[11px] text-foreground-subtle">
           Last updated manually {formatDateTime(props.categoryUpdatedAt)}
         </p>
       ) : null}
 
       {showClassificationMetadata ? (
-        <div className="mt-4 space-y-2 rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2.5">
-          <h3 className="text-xs font-semibold text-neutral-800">Classifier details</h3>
+        <div className="mt-4 space-y-2 rounded-md border border-border bg-surface-muted px-3 py-2.5">
+          <h3 className="text-xs font-semibold text-foreground">Classifier details</h3>
           {needsClassificationReview ? (
-            <p className="text-xs text-violet-900">
+            <p className="text-xs text-warning-foreground">
               The classifier attempted this thread but left it uncategorized. Choose the correct crate
               below.
             </p>
           ) : props.categorySource === "ai" || props.categorySource === "rule" ? (
-            <p className="text-xs text-neutral-700">
+            <p className="text-xs text-foreground-muted">
               This crate was assigned automatically. Choose a different crate below if it looks wrong.
             </p>
           ) : null}
           <dl className="space-y-1.5 text-xs">
             <div>
-              <dt className="text-neutral-500">Primary source</dt>
-              <dd className="text-neutral-800">{legacyStringToAssignmentSourceLabel(props.categorySource)}</dd>
+              <dt className="text-foreground-subtle">Primary source</dt>
+              <dd className="text-foreground">{legacyStringToAssignmentSourceLabel(props.categorySource)}</dd>
             </div>
             <div>
-              <dt className="text-neutral-500">Confidence</dt>
-              <dd className="text-neutral-800">{formatConfidence(props.categoryConfidence)}</dd>
+              <dt className="text-foreground-subtle">Confidence</dt>
+              <dd className="text-foreground">{formatConfidence(props.categoryConfidence)}</dd>
             </div>
             <div>
-              <dt className="text-neutral-500">Last attempt</dt>
-              <dd className="text-neutral-800">{formatDateTime(props.lastClassificationAttemptAt)}</dd>
+              <dt className="text-foreground-subtle">Last attempt</dt>
+              <dd className="text-foreground">{formatDateTime(props.lastClassificationAttemptAt)}</dd>
             </div>
             {props.categoryAiReason ? (
               <div>
-                <dt className="text-neutral-500">Reason</dt>
-                <dd className="whitespace-pre-wrap text-neutral-800">{props.categoryAiReason}</dd>
+                <dt className="text-foreground-subtle">Reason</dt>
+                <dd className="whitespace-pre-wrap text-foreground">{props.categoryAiReason}</dd>
               </div>
             ) : null}
           </dl>
@@ -176,19 +178,19 @@ export function ThreadCategoryPanel(props: {
       ) : null}
 
       {state.error ? (
-        <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+        <InlineNotice tone="danger" size="compact" role="alert" className="mt-4">
           {state.error}
-        </p>
+        </InlineNotice>
       ) : null}
       {state.successMessage ? (
-        <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+        <InlineNotice tone="success" size="compact" role="status" className="mt-4">
           {state.successMessage}
-        </p>
+        </InlineNotice>
       ) : null}
 
       <form action={formAction} className="mt-4 space-y-1">
         <input type="hidden" name="threadId" value={props.threadId} />
-        <label htmlFor="thread-category" className="block text-xs font-medium text-neutral-700">
+        <label htmlFor="thread-category" className="block text-xs font-medium text-foreground-muted">
           Move to crate
         </label>
         <div className="flex gap-2">
@@ -197,7 +199,7 @@ export function ThreadCategoryPanel(props: {
             name="category"
             required
             defaultValue={props.category}
-            className="min-w-0 flex-1 rounded-md border border-neutral-200 px-2 py-1.5 text-xs"
+            className={formControlClasses({ size: "xs", className: "min-w-0 flex-1" })}
           >
             {INBOX_CRATE_ORDER.map((category) => (
               <option key={category} value={category}>
@@ -208,7 +210,7 @@ export function ThreadCategoryPanel(props: {
           <button
             type="submit"
             disabled={isPending}
-            className="shrink-0 rounded-md border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
+            className={buttonClasses({ variant: "primary", size: "xs", className: "shrink-0" })}
           >
             {isPending ? "Moving…" : "Move to crate"}
           </button>
