@@ -6,6 +6,9 @@ import {
   SURFACE_CARD,
   toggleTileClasses,
 } from "@/components/portal/ui";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
+import { OFFBOARDING_ATTENTION_TONES } from "@/components/leasing/leasing-status-tones";
 import type { NoticeQueueRow } from "@/lib/leasing/notice-staff-queue";
 import type { OffboardingTenancyQueueRow } from "@/lib/leasing/offboarding-queue";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
@@ -30,14 +33,14 @@ function formatMoveOutDate(iso: string) {
 function NoticeListSection({
   title,
   badgeLabel,
-  badgeClassName,
+  badgeTone,
   notices,
   propertyFilter,
   emptyMessage,
 }: {
   title: string;
   badgeLabel: string;
-  badgeClassName: string;
+  badgeTone: StatusTone;
   notices: NoticeQueueRow[];
   propertyFilter: string;
   emptyMessage: string;
@@ -61,25 +64,21 @@ function NoticeListSection({
               <li key={notice.id}>
                 <Link
                   href={`/leasing/notices/${notice.id}`}
-                  className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+                  className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <span
-                      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${badgeClassName}`}
-                    >
-                      {badgeLabel}
-                    </span>
-                    <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
+                    <StatusBadge tone={badgeTone}>{badgeLabel}</StatusBadge>
+                    <time className="text-xs text-foreground-subtle" dateTime={submitted.dateTime}>
                       {submitted.label}
                     </time>
                   </div>
-                  <h2 className="mt-3 text-sm font-semibold text-neutral-900">
+                  <h2 className="mt-3 text-sm font-semibold text-foreground">
                     {notice.tenantLabel ?? "Tenant"}
                   </h2>
-                  <p className="mt-1 text-xs font-medium text-neutral-700">{notice.propertyName}</p>
-                  <p className="mt-2 text-sm text-neutral-600">{notice.unitLabel}</p>
-                  <p className="mt-2 text-sm text-neutral-600">
-                    <span className="text-neutral-500">Requested move-out · </span>
+                  <p className="mt-1 text-xs font-medium text-foreground-muted">{notice.propertyName}</p>
+                  <p className="mt-2 text-sm text-foreground-muted">{notice.unitLabel}</p>
+                  <p className="mt-2 text-sm text-foreground-muted">
+                    <span className="text-foreground-subtle">Requested move-out · </span>
                     {formatMoveOutDate(notice.tenantRequestedMoveOutDate)}
                   </p>
                 </Link>
@@ -95,7 +94,7 @@ function NoticeListSection({
 function TenancyListSection({
   title,
   badgeLabel,
-  badgeClassName,
+  badgeTone,
   tenancies,
   propertyFilter,
   emptyMessage,
@@ -103,7 +102,7 @@ function TenancyListSection({
 }: {
   title: string;
   badgeLabel: string;
-  badgeClassName: string;
+  badgeTone: StatusTone;
   tenancies: OffboardingTenancyQueueRow[];
   propertyFilter: string;
   emptyMessage: string;
@@ -126,28 +125,26 @@ function TenancyListSection({
             <li key={t.id}>
               <Link
                 href={`/leasing/tenancies/${t.id}#offboarding-summary`}
-                className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+                className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <span
-                    className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${badgeClassName}`}
-                  >
-                    {badgeLabel}
+                  <StatusBadge tone={badgeTone}>{badgeLabel}</StatusBadge>
+                  <span className="text-xs text-foreground-subtle">
+                    {formatTenancyStatus(t.status)}
                   </span>
-                  <span className="text-xs text-neutral-500">{formatTenancyStatus(t.status)}</span>
                 </div>
-                <h2 className="mt-3 text-sm font-semibold text-neutral-900">
+                <h2 className="mt-3 text-sm font-semibold text-foreground">
                   {t.tenantLabel ?? "Tenant"}
                 </h2>
-                <p className="mt-1 text-xs font-medium text-neutral-700">{t.propertyName}</p>
-                <p className="mt-2 text-sm text-neutral-600">{t.unitLabel}</p>
-                <p className="mt-2 text-sm text-neutral-600">
-                  <span className="text-neutral-500">Scheduled move-out · </span>
+                <p className="mt-1 text-xs font-medium text-foreground-muted">{t.propertyName}</p>
+                <p className="mt-2 text-sm text-foreground-muted">{t.unitLabel}</p>
+                <p className="mt-2 text-sm text-foreground-muted">
+                  <span className="text-foreground-subtle">Scheduled move-out · </span>
                   {t.moveOutDate ? formatMoveOutDate(t.moveOutDate) : "—"}
                 </p>
                 {showInspectionDate ? (
-                  <p className="mt-1 text-sm text-neutral-600">
-                    <span className="text-neutral-500">Inspection date · </span>
+                  <p className="mt-1 text-sm text-foreground-muted">
+                    <span className="text-foreground-subtle">Inspection date · </span>
                     {t.inspectionDate ? formatMoveOutDate(t.inspectionDate) : "—"}
                   </p>
                 ) : null}
@@ -198,13 +195,17 @@ export function OffboardingQueueList({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">Offboarding</h1>
-        <p className="mt-1 text-sm text-neutral-600">
+        <h1 className="text-2xl font-semibold text-foreground">Offboarding</h1>
+        <p className="mt-1 text-sm text-foreground-muted">
           Review tenant notices, schedule move-out and inspection, then end and archive tenancies.
         </p>
       </div>
 
-      {loadError ? <InlineNotice className="mb-4">{loadError}</InlineNotice> : null}
+      {loadError ? (
+        <InlineNotice className="mb-4" tone="danger">
+          {loadError}
+        </InlineNotice>
+      ) : null}
 
       <div className="flex flex-col gap-10">
         {propertyOptions.length > 1 ? (
@@ -236,7 +237,7 @@ export function OffboardingQueueList({
         <NoticeListSection
           title="Pending notice review"
           badgeLabel="Pending review"
-          badgeClassName="border-amber-200 bg-amber-50 text-amber-900"
+          badgeTone={OFFBOARDING_ATTENTION_TONES.pending_notice}
           notices={pendingNotices}
           propertyFilter={propertyFilter}
           emptyMessage="No pending tenant notices."
@@ -245,7 +246,7 @@ export function OffboardingQueueList({
         <NoticeListSection
           title="Awaiting move-out schedule"
           badgeLabel="Awaiting schedule"
-          badgeClassName="border-sky-200 bg-sky-50 text-sky-900"
+          badgeTone={OFFBOARDING_ATTENTION_TONES.awaiting_schedule}
           notices={awaitingSchedule}
           propertyFilter={propertyFilter}
           emptyMessage="No accepted notices awaiting move-out scheduling."
@@ -254,7 +255,7 @@ export function OffboardingQueueList({
         <TenancyListSection
           title="Awaiting inspection schedule"
           badgeLabel="Schedule inspection"
-          badgeClassName="border-violet-200 bg-violet-50 text-violet-900"
+          badgeTone={OFFBOARDING_ATTENTION_TONES.awaiting_inspection_schedule}
           tenancies={awaitingInspectionSchedule}
           propertyFilter={propertyFilter}
           emptyMessage="No tenancies awaiting move-out inspection scheduling."
@@ -264,7 +265,7 @@ export function OffboardingQueueList({
         <TenancyListSection
           title="Awaiting inspection complete"
           badgeLabel="Complete inspection"
-          badgeClassName="border-indigo-200 bg-indigo-50 text-indigo-900"
+          badgeTone={OFFBOARDING_ATTENTION_TONES.awaiting_inspection_complete}
           tenancies={awaitingInspectionComplete}
           propertyFilter={propertyFilter}
           emptyMessage="No tenancies awaiting inspection completion."

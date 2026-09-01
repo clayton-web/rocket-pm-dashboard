@@ -1,6 +1,6 @@
 "use client";
 
-import { PrimaryButton } from "@/components/portal/ui";
+import { Button, buttonClasses } from "@/components/portal/button";
 import {
   PROSPECT_PIPELINE_STAGE_LABELS,
   PROSPECT_PIPELINE_STAGE_ORDER,
@@ -9,11 +9,16 @@ import {
 } from "@/lib/leasing/prospect-pipeline-stage";
 import Link from "next/link";
 
+/**
+ * The stage pills are a stepper, not status chips: they show where a prospect sits in a fixed
+ * sequence, so the current stage is marked by filled dark ink and the rest recede. That is position,
+ * not tone, which is why this stays local rather than routing through `StatusBadge`.
+ */
 function stagePillClassName(isCurrent: boolean) {
   if (isCurrent) {
-    return "border-neutral-900 bg-neutral-900 text-white";
+    return "border-primary bg-primary text-primary-foreground";
   }
-  return "border-neutral-200 bg-neutral-50 text-neutral-600";
+  return "border-border bg-surface-muted text-foreground-muted";
 }
 
 export function ProspectPipelineStrip(props: {
@@ -33,7 +38,7 @@ export function ProspectPipelineStrip(props: {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">Pipeline</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">Pipeline</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {visibleStages.map((stage) => {
             const isCurrent = stage === props.stage;
@@ -47,25 +52,21 @@ export function ProspectPipelineStrip(props: {
             );
           })}
         </div>
-        <p className="mt-2 text-sm text-neutral-700">
-          <span className="text-neutral-500">Current stage · </span>
+        <p className="mt-2 text-sm text-foreground-muted">
+          <span className="text-foreground-subtle">Current stage · </span>
           {props.stageLabel}
         </p>
       </div>
 
       <div className="flex flex-wrap gap-3">
         {props.nextAction === "schedule_viewing" ? (
-          <PrimaryButton
-            type="button"
-            className="!w-auto px-6"
-            onClick={() => props.onScheduleViewing?.()}
-          >
+          <Button variant="primary" size="lg" onClick={() => props.onScheduleViewing?.()}>
             Schedule Viewing
-          </PrimaryButton>
+          </Button>
         ) : null}
 
         {props.nextAction === "mark_application_sent" ? (
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-foreground-muted">
             Use <span className="font-medium">Send application</span> in Application handoff below.
           </p>
         ) : null}
@@ -73,7 +74,7 @@ export function ProspectPipelineStrip(props: {
         {props.nextAction === "view_application" && props.primaryApplicationId ? (
           <Link
             href={`/leasing/applications/${props.primaryApplicationId}`}
-            className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
+            className={buttonClasses({ variant: "primary" })}
           >
             View Application
           </Link>
@@ -82,7 +83,7 @@ export function ProspectPipelineStrip(props: {
         {props.nextAction === "convert_application" && props.primaryApplicationId ? (
           <Link
             href={`/leasing/applications/${props.primaryApplicationId}`}
-            className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
+            className={buttonClasses({ variant: "primary" })}
           >
             Finish leasing
           </Link>
@@ -91,7 +92,7 @@ export function ProspectPipelineStrip(props: {
         {props.nextAction === "complete_placement" && props.primaryApplicationId ? (
           <Link
             href={`/leasing/applications/${props.primaryApplicationId}`}
-            className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
+            className={buttonClasses({ variant: "primary" })}
           >
             Finish leasing
           </Link>
@@ -100,7 +101,7 @@ export function ProspectPipelineStrip(props: {
         {props.nextAction === "view_tenancy" && props.tenancyId ? (
           <Link
             href={`/leasing/tenancies/${props.tenancyId}`}
-            className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
+            className={buttonClasses({ variant: "primary" })}
           >
             View Tenancy
           </Link>

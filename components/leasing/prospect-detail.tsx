@@ -2,11 +2,14 @@
 
 import { archiveProspectAction } from "@/app/(dashboard)/leasing/prospects/actions";
 import { scheduleShowingAction } from "@/app/(dashboard)/leasing/prospects/[prospectId]/actions";
+import { Button } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
+import { statusBadgeClasses } from "@/components/portal/status-badge";
 import {
   FormField,
   FormSection,
   InlineNotice,
-  PrimaryButton,
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
@@ -38,8 +41,8 @@ function formatName(detail: ProspectStaffDetail) {
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <p className="text-sm text-neutral-700">
-      <span className="text-neutral-500">{label} · </span>
+    <p className="text-sm text-foreground-muted">
+      <span className="text-foreground-subtle">{label} · </span>
       {children}
     </p>
   );
@@ -56,11 +59,11 @@ export function ProspectDetail({
     return (
       <div className="mx-auto max-w-3xl">
         <p className="mb-4">
-          <Link href="/leasing/prospects" className="text-sm font-medium text-neutral-700 underline">
+          <Link href="/leasing/prospects" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
             ← Back to viewing requests
           </Link>
         </p>
-        <InlineNotice>{loadError ?? "Prospect not found."}</InlineNotice>
+        <InlineNotice tone="danger">{loadError ?? "Prospect not found."}</InlineNotice>
       </div>
     );
   }
@@ -118,23 +121,27 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
   return (
     <div className="mx-auto max-w-3xl">
       <p className="mb-4">
-        <Link href="/leasing/prospects" className="text-sm font-medium text-neutral-700 underline">
+        <Link href="/leasing/prospects" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
           ← Back to viewing requests
         </Link>
       </p>
 
       <div className="mb-6">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold text-neutral-900">{formatName(detail)}</h1>
-          <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+          <h1 className="text-2xl font-semibold text-foreground">{formatName(detail)}</h1>
+          <span className={statusBadgeClasses("neutral", "strong")}>
             {detail.pipelineStageLabel}
           </span>
         </div>
-        <p className="mt-1 text-sm text-neutral-600">{detail.propertyName}</p>
-        <p className="mt-1 font-mono text-xs text-neutral-500">Ref · {detail.id}</p>
+        <p className="mt-1 text-sm text-foreground-muted">{detail.propertyName}</p>
+        <p className="mt-1 font-mono text-xs text-foreground-subtle">Ref · {detail.id}</p>
       </div>
 
-      {actionError ? <InlineNotice className="mb-4">{actionError}</InlineNotice> : null}
+      {actionError ? (
+        <InlineNotice className="mb-4" tone="danger" role="alert">
+          {actionError}
+        </InlineNotice>
+      ) : null}
 
       <div className={`${SURFACE_PANEL} mb-8 px-3.5 py-3`}>
         <ProspectPipelineStrip
@@ -194,7 +201,7 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
                   required
                   value={scheduledStart}
                   onChange={(e) => setScheduledStart(e.target.value)}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 />
               </FormField>
               <FormField label="Scheduled end (optional)" htmlFor={scheduledEndId}>
@@ -203,7 +210,7 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
                   type="datetime-local"
                   value={scheduledEnd}
                   onChange={(e) => setScheduledEnd(e.target.value)}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 />
               </FormField>
               <FormField label="Assigned staff (optional)" htmlFor={assignedToId}>
@@ -211,7 +218,7 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
                   id={assignedToId}
                   value={assignedToUserId}
                   onChange={(e) => setAssignedToUserId(e.target.value)}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 >
                   <option value="">Unassigned</option>
                   {detail.assignableStaff.map((staff) => (
@@ -227,12 +234,12 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
                   rows={3}
                   value={scheduleNotes}
                   onChange={(e) => setScheduleNotes(e.target.value)}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 />
               </FormField>
-              <PrimaryButton type="submit" className="!w-auto px-6" disabled={schedulePending}>
+              <Button variant="primary" size="lg" type="submit" disabled={schedulePending}>
                 {schedulePending ? "Scheduling…" : "Schedule showing"}
-              </PrimaryButton>
+              </Button>
             </form>
           </FormSection>
           </div>
@@ -247,24 +254,24 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
             <ul className="flex list-none flex-col gap-3 p-0">
               {detail.showings.map((showing) => (
                 <li key={showing.id}>
-                  <Link href={showing.href} className={`block ${SURFACE_CARD} px-4 py-4 no-underline`}>
+                  <Link href={showing.href} className={`block ${SURFACE_CARD} px-4 py-4 no-underline ${FOCUS_RING}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-neutral-900">
+                      <span className="text-sm font-semibold text-foreground">
                         {formatDateTime(showing.scheduledStart)}
                       </span>
-                      <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+                      <span className={statusBadgeClasses("neutral", "strong")}>
                         {showing.statusLabel}
                       </span>
                     </div>
                     {showing.outcomeLabel ? (
-                      <p className="mt-2 text-sm text-neutral-600">
-                        <span className="text-neutral-500">Outcome · </span>
+                      <p className="mt-2 text-sm text-foreground-muted">
+                        <span className="text-foreground-subtle">Outcome · </span>
                         {showing.outcomeLabel}
                       </p>
                     ) : null}
                     {showing.assignedToLabel ? (
-                      <p className="mt-1 text-sm text-neutral-600">
-                        <span className="text-neutral-500">Assigned · </span>
+                      <p className="mt-1 text-sm text-foreground-muted">
+                        <span className="text-foreground-subtle">Assigned · </span>
                         {showing.assignedToLabel}
                       </p>
                     ) : null}
@@ -282,20 +289,20 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
             <ul className="flex list-none flex-col gap-3 p-0">
               {detail.linkedApplications.map((app) => (
                 <li key={app.id}>
-                  <Link href={app.href} className={`block ${SURFACE_CARD} px-4 py-4 no-underline`}>
+                  <Link href={app.href} className={`block ${SURFACE_CARD} px-4 py-4 no-underline ${FOCUS_RING}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-neutral-900">Application</span>
-                      <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+                      <span className="text-sm font-semibold text-foreground">Application</span>
+                      <span className={statusBadgeClasses("neutral", "strong")}>
                         {app.statusLabel}
                       </span>
                     </div>
                     {app.submittedAt ? (
-                      <p className="mt-2 text-sm text-neutral-600">
-                        <span className="text-neutral-500">Submitted · </span>
+                      <p className="mt-2 text-sm text-foreground-muted">
+                        <span className="text-foreground-subtle">Submitted · </span>
                         {formatDateTime(app.submittedAt)}
                       </p>
                     ) : null}
-                    <p className="mt-1 font-mono text-xs text-neutral-500">Ref · {app.id}</p>
+                    <p className="mt-1 font-mono text-xs text-foreground-subtle">Ref · {app.id}</p>
                   </Link>
                 </li>
               ))}
@@ -314,17 +321,17 @@ function ProspectDetailBody({ detail }: { detail: ProspectStaffDetail }) {
 
         {detail.status === "new" ? (
           <FormSection legend="Archive">
-            <p className="mb-3 text-sm text-neutral-600">
+            <p className="mb-3 text-sm text-foreground-muted">
               Remove this prospect from the viewing requests queue when you are done pursuing them.
             </p>
-            <PrimaryButton
-              type="button"
-              className="!w-auto px-6"
+            <Button
+              variant="primary"
+              size="lg"
               disabled={archivePending}
               onClick={onArchive}
             >
               {archivePending ? "Archiving…" : "Archive prospect"}
-            </PrimaryButton>
+            </Button>
           </FormSection>
         ) : null}
       </div>

@@ -8,10 +8,13 @@ import {
   FormField,
   FormSection,
   InlineNotice,
-  PrimaryButton,
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import { Button } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
+import { StatusBadge, type StatusTone } from "@/components/portal/status-badge";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
 import type { NoticeStaffDetail } from "@/lib/leasing/notice-staff-detail";
 import Link from "next/link";
@@ -32,24 +35,30 @@ function formatDate(iso: string) {
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <p className="text-sm text-neutral-700">
-      <span className="text-neutral-500">{label} · </span>
+    <p className="text-sm text-foreground-muted">
+      <span className="text-foreground-subtle">{label} · </span>
       {children}
     </p>
   );
 }
 
-function statusBadge(detail: NoticeStaffDetail) {
+/**
+ * Notice owns `state -> label + tone`; `StatusBadge` owns the visual treatment. The four states are
+ * semantically equivalent to shared tones — a notice awaiting review needs action, one awaiting
+ * scheduling is informational, a scheduled move-out is a completed step, and a reviewed notice is
+ * the routine baseline.
+ */
+function statusBadge(detail: NoticeStaffDetail): { label: string; tone: StatusTone } {
   if (detail.canAccept) {
-    return { label: "Pending review", className: "border-amber-200 bg-amber-50 text-amber-900" };
+    return { label: "Pending review", tone: "warning" };
   }
   if (detail.canSchedule) {
-    return { label: "Awaiting schedule", className: "border-sky-200 bg-sky-50 text-sky-900" };
+    return { label: "Awaiting schedule", tone: "info" };
   }
   if (detail.scheduledMoveOutDate) {
-    return { label: "Move-out scheduled", className: "border-emerald-200 bg-emerald-50 text-emerald-900" };
+    return { label: "Move-out scheduled", tone: "success" };
   }
-  return { label: "Reviewed", className: "border-neutral-300 bg-white text-neutral-800" };
+  return { label: "Reviewed", tone: "neutral" };
 }
 
 export function NoticeDetail({
@@ -63,11 +72,11 @@ export function NoticeDetail({
     return (
       <div className="mx-auto max-w-3xl">
         <p className="mb-4">
-          <Link href="/leasing/notices" className="text-sm font-medium text-neutral-700 underline">
+          <Link href="/leasing/notices" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
             ← Back to notices
           </Link>
         </p>
-        <InlineNotice>{loadError ?? "Notice not found."}</InlineNotice>
+        <InlineNotice tone="danger">{loadError ?? "Notice not found."}</InlineNotice>
       </div>
     );
   }
@@ -83,6 +92,7 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
   const [scheduleDate, setScheduleDate] = useState(
     detail.defaultScheduleDate ?? detail.scheduleDateOptions[0]?.value ?? "",
   );
+  const [scheduleDateError, setScheduleDateError] = useState<string | null>(null);
 
   const badge = statusBadge(detail);
 
@@ -100,8 +110,9 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
 
   function onSchedule() {
     setActionError(null);
+    setScheduleDateError(null);
     if (!scheduleDate) {
-      setActionError("Please select a scheduled move-out date.");
+      setScheduleDateError("Please select a scheduled move-out date.");
       return;
     }
     startScheduleTransition(async () => {
@@ -117,27 +128,29 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
   return (
     <div className="mx-auto max-w-3xl">
       <p className="mb-4">
-        <Link href="/leasing/notices" className="text-sm font-medium text-neutral-700 underline">
+        <Link href="/leasing/notices" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
           ← Back to notices
         </Link>
       </p>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">{detail.tenantLabel}</h1>
-        <p className="mt-1 text-sm text-neutral-600">
+        <h1 className="text-2xl font-semibold text-foreground">{detail.tenantLabel}</h1>
+        <p className="mt-1 text-sm text-foreground-muted">
           {detail.propertyName} · {detail.unitLabel}
         </p>
       </div>
 
-      {actionError ? <InlineNotice className="mb-4">{actionError}</InlineNotice> : null}
+      {actionError ? (
+        <InlineNotice className="mb-4" tone="danger" role="alert">
+          {actionError}
+        </InlineNotice>
+      ) : null}
 
       <div className={`${SURFACE_CARD} mb-6 px-4 py-4`}>
-        <span
-          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${badge.className}`}
-        >
+        <StatusBadge tone={badge.tone} emphasis={badge.tone === "neutral" ? "strong" : "soft"}>
           {badge.label}
-        </span>
-        <p className="mt-3 text-sm text-neutral-600">
+        </StatusBadge>
+        <p className="mt-3 text-sm text-foreground-muted">
           Tenancy status · {formatTenancyStatus(detail.tenancyStatus)}
         </p>
       </div>
@@ -145,32 +158,33 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
       {detail.canAccept ? (
         <div className="mb-8">
           <FormSection legend="Review">
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm text-foreground-muted">
               Accepting records the notice and updates the tenancy to notice received. You can
               schedule move-out after acceptance.
             </p>
-            <PrimaryButton
-              type="button"
-              className="mt-4 !w-auto px-6"
+            <Button
+              variant="primary"
+              size="lg"
+              className="mt-4"
               disabled={acceptPending}
               onClick={onAccept}
             >
               {acceptPending ? "Accepting…" : "Accept notice"}
-            </PrimaryButton>
+            </Button>
           </FormSection>
         </div>
       ) : null}
 
       {detail.scheduledMoveOutDate && detail.tenancyStatus === "move_out_scheduled" ? (
-        <div className={`${SURFACE_CARD} mb-8 px-4 py-4 text-sm text-neutral-700`}>
-          <p className="font-medium text-neutral-900">Move-out scheduled</p>
+        <div className={`${SURFACE_CARD} mb-8 px-4 py-4 text-sm text-foreground-muted`}>
+          <p className="font-medium text-foreground">Move-out scheduled</p>
           <p className="mt-2">
             Continue on the tenancy to schedule the move-out inspection and complete offboarding.
           </p>
           <p className="mt-3">
             <Link
               href={`/leasing/tenancies/${detail.tenancyId}#offboarding-summary`}
-              className="font-medium text-neutral-900 underline"
+              className={`font-medium text-foreground underline ${FOCUS_RING}`}
             >
               Open tenancy offboarding →
             </Link>
@@ -181,7 +195,7 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
       {detail.canSchedule ? (
         <div className="mb-8">
           <FormSection legend="Schedule move-out">
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm text-foreground-muted">
               Confirm the scheduled move-out date for this tenancy. This sets the tenancy scheduled
               vacate date and updates status to move-out scheduled.
             </p>
@@ -189,12 +203,26 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
               label="Scheduled move-out date"
               htmlFor="schedule-move-out"
               helper="Defaults to the tenant requested date. Override only when valid for notice rules."
+              error={scheduleDateError}
             >
               <select
                 id="schedule-move-out"
                 value={scheduleDate}
-                onChange={(e) => setScheduleDate(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+                onChange={(e) => {
+                  setScheduleDate(e.target.value);
+                  setScheduleDateError(null);
+                }}
+                aria-invalid={scheduleDateError ? true : undefined}
+                aria-describedby={
+                  scheduleDateError
+                    ? "schedule-move-out-helper schedule-move-out-error"
+                    : "schedule-move-out-helper"
+                }
+                className={formControlClasses({
+                  size: "lg",
+                  invalid: Boolean(scheduleDateError),
+                  className: "mt-2",
+                })}
               >
                 {detail.scheduleDateOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -203,14 +231,15 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
                 ))}
               </select>
             </FormField>
-            <PrimaryButton
-              type="button"
-              className="mt-4 !w-auto px-6"
+            <Button
+              variant="primary"
+              size="lg"
+              className="mt-4"
               disabled={schedulePending || detail.scheduleDateOptions.length === 0}
               onClick={onSchedule}
             >
               {schedulePending ? "Scheduling…" : "Schedule move-out"}
-            </PrimaryButton>
+            </Button>
           </FormSection>
         </div>
       ) : null}
@@ -235,7 +264,7 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
         </FormSection>
 
         <FormSection legend="Tenant message">
-          <div className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-700 whitespace-pre-wrap`}>
+          <div className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-foreground-muted whitespace-pre-wrap`}>
             {detail.body}
           </div>
         </FormSection>
@@ -248,7 +277,7 @@ function NoticeDetailBody({ detail }: { detail: NoticeStaffDetail }) {
             <DetailRow label="Tenancy">
               <Link
                 href={`/leasing/tenancies/${detail.tenancyId}`}
-                className="font-medium underline"
+                className={`font-medium underline ${FOCUS_RING}`}
               >
                 View tenancy
               </Link>

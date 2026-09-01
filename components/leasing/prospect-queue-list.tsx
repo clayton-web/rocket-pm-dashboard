@@ -1,10 +1,12 @@
 "use client";
 
+import { Button, buttonClasses } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { statusBadgeClasses } from "@/components/portal/status-badge";
 import {
   FormField,
   FormSection,
   InlineNotice,
-  PrimaryButton,
   SURFACE_CARD,
   SURFACE_PANEL,
   toggleTileClasses,
@@ -77,25 +79,33 @@ export function ProspectQueueList({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">Viewing requests</h1>
-        <p className="mt-1 text-sm text-neutral-600">
+        <h1 className="text-2xl font-semibold text-foreground">Viewing requests</h1>
+        <p className="mt-1 text-sm text-foreground-muted">
           Active viewing requests in the leasing pipeline. Public form:{" "}
-          <Link href="/portal/viewing" className="font-medium underline">
+          <Link href="/portal/viewing" className={`font-medium underline ${FOCUS_RING}`}>
             /portal/viewing
           </Link>
         </p>
       </div>
 
-      {loadError ? <InlineNotice className="mb-4">{loadError}</InlineNotice> : null}
-      {actionError ? <InlineNotice className="mb-4">{actionError}</InlineNotice> : null}
+      {loadError ? (
+        <InlineNotice className="mb-4" tone="danger">
+          {loadError}
+        </InlineNotice>
+      ) : null}
+      {actionError ? (
+        <InlineNotice className="mb-4" tone="danger" role="alert">
+          {actionError}
+        </InlineNotice>
+      ) : null}
 
       <div className="flex flex-col gap-8">
         <FormField label="Queue overview" htmlFor="prospect-queue-summary">
           <output id="prospect-queue-summary" className={`block ${SURFACE_PANEL} px-3.5 py-3 text-sm`}>
-            <span className="font-medium text-neutral-900">
+            <span className="font-medium text-foreground">
               {prospects.length} active request{prospects.length === 1 ? "" : "s"}
             </span>
-            <span className="mt-1 block text-neutral-600">{visible.length} shown with current filter</span>
+            <span className="mt-1 block text-foreground-muted">{visible.length} shown with current filter</span>
           </output>
         </FormField>
 
@@ -139,82 +149,82 @@ export function ProspectQueueList({
                 <li key={prospect.id}>
                   <article className={`${SURFACE_CARD} px-4 py-4`}>
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+                      <span className={statusBadgeClasses("neutral", "strong")}>
                         {prospect.pipelineStageLabel}
                       </span>
-                      <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
+                      <time className="text-xs text-foreground-subtle" dateTime={submitted.dateTime}>
                         {submitted.label}
                       </time>
                     </div>
-                    <h2 className="mt-3 text-sm font-semibold text-neutral-900">
+                    <h2 className="mt-3 text-sm font-semibold text-foreground">
                       <Link
                         href={`/leasing/prospects/${prospect.id}`}
-                        className="underline decoration-neutral-300 underline-offset-2 hover:decoration-neutral-600"
+                        className={`underline decoration-border-strong underline-offset-2 hover:decoration-foreground-muted ${FOCUS_RING}`}
                       >
                         {displayName}
                       </Link>
                     </h2>
-                    <p className="mt-1 text-xs font-medium text-neutral-700">{prospect.propertyName}</p>
-                    <p className="mt-2 text-sm text-neutral-600">
+                    <p className="mt-1 text-xs font-medium text-foreground-muted">{prospect.propertyName}</p>
+                    <p className="mt-2 text-sm text-foreground-muted">
                       {prospect.unitLabel ?? "No specific unit selected"}
                     </p>
-                    <p className="mt-2 text-sm text-neutral-600">
-                      <span className="text-neutral-500">Email · </span>
+                    <p className="mt-2 text-sm text-foreground-muted">
+                      <span className="text-foreground-subtle">Email · </span>
                       {prospect.email}
                     </p>
                     {prospect.phone ? (
-                      <p className="mt-1 text-sm text-neutral-600">
-                        <span className="text-neutral-500">Phone · </span>
+                      <p className="mt-1 text-sm text-foreground-muted">
+                        <span className="text-foreground-subtle">Phone · </span>
                         {prospect.phone}
                       </p>
                     ) : null}
                     {prospect.occupantCount != null ? (
-                      <p className="mt-2 text-sm text-neutral-600">
-                        <span className="text-neutral-500">Occupants · </span>
+                      <p className="mt-2 text-sm text-foreground-muted">
+                        <span className="text-foreground-subtle">Occupants · </span>
                         {prospect.occupantCount}
                         {prospect.hasPets ? " · Pets" : ""}
                       </p>
                     ) : null}
                     {prospect.desiredMoveInDate ? (
-                      <p className="mt-1 text-sm text-neutral-600">
-                        <span className="text-neutral-500">Desired move-in · </span>
+                      <p className="mt-1 text-sm text-foreground-muted">
+                        <span className="text-foreground-subtle">Desired move-in · </span>
                         {formatDate(prospect.desiredMoveInDate)}
                       </p>
                     ) : null}
                     {prospect.householdIncomeRangeLabel ? (
-                      <p className="mt-1 text-sm text-neutral-600">
-                        <span className="text-neutral-500">Income range · </span>
+                      <p className="mt-1 text-sm text-foreground-muted">
+                        <span className="text-foreground-subtle">Income range · </span>
                         {prospect.householdIncomeRangeLabel}
                       </p>
                     ) : null}
                     {prospect.preferredViewingNotes ? (
-                      <p className="mt-2 line-clamp-2 text-sm text-neutral-700" title={prospect.preferredViewingNotes}>
-                        <span className="text-neutral-500">Preferred viewing · </span>
+                      <p className="mt-2 line-clamp-2 text-sm text-foreground-muted" title={prospect.preferredViewingNotes}>
+                        <span className="text-foreground-subtle">Preferred viewing · </span>
                         {prospect.preferredViewingNotes}
                       </p>
                     ) : null}
                     {prospect.messagePreview ? (
-                      <p className="mt-2 line-clamp-2 text-sm text-neutral-700" title={prospect.messagePreview}>
-                        <span className="text-neutral-500">Notes · </span>
+                      <p className="mt-2 line-clamp-2 text-sm text-foreground-muted" title={prospect.messagePreview}>
+                        <span className="text-foreground-subtle">Notes · </span>
                         {prospect.messagePreview}
                       </p>
                     ) : null}
-                    <p className="mt-2 font-mono text-xs text-neutral-500">Ref · {prospect.id}</p>
+                    <p className="mt-2 font-mono text-xs text-foreground-subtle">Ref · {prospect.id}</p>
                     <div className="mt-4 flex flex-wrap gap-3">
                       <Link
                         href={`/leasing/prospects/${prospect.id}`}
-                        className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 no-underline hover:bg-neutral-50"
+                        className={buttonClasses({ variant: "secondary", size: "lg" })}
                       >
                         View details
                       </Link>
-                      <PrimaryButton
-                        type="button"
-                        className="!w-auto px-6"
+                      <Button
+                        variant="primary"
+                        size="lg"
                         disabled={archiving}
                         onClick={() => onArchive(prospect.id)}
                       >
                         {archiving ? "Archiving…" : "Archive"}
-                      </PrimaryButton>
+                      </Button>
                     </div>
                   </article>
                 </li>

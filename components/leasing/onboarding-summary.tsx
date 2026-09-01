@@ -1,5 +1,6 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
 import { InlineNotice, SURFACE_CARD, SURFACE_PANEL } from "@/components/portal/ui";
 import { OnboardingStepper } from "@/components/leasing/onboarding-stepper";
 import type { OnboardingNextStep, OnboardingStep } from "@/lib/leasing/onboarding-progress";
@@ -38,31 +39,31 @@ export function OnboardingSummary({
 
   return (
     <div className={`${SURFACE_CARD} mb-6 px-4 py-4`} id="onboarding-summary">
-      <h2 className="text-sm font-semibold text-neutral-900">Onboarding</h2>
+      <h2 className="text-sm font-semibold text-foreground">Onboarding</h2>
       <div className="mt-4">
         <OnboardingStepper steps={steps} />
       </div>
 
       {overdue ? (
-        <InlineNotice className="mt-4 border-amber-300 bg-amber-50 text-amber-950">
+        <InlineNotice className="mt-4" tone="warning">
           Move-in date has passed. Review this tenancy and mark active when the tenant has moved in.
         </InlineNotice>
       ) : null}
 
-      <div className={`${SURFACE_PANEL} mt-4 flex flex-col gap-2 px-3.5 py-3 text-sm text-neutral-700`}>
+      <div className={`${SURFACE_PANEL} mt-4 flex flex-col gap-2 px-3.5 py-3 text-sm text-foreground-muted`}>
         <p>
-          <span className="text-neutral-500">Move-in · </span>
+          <span className="text-foreground-subtle">Move-in · </span>
           {formatDate(moveInDate)}
         </p>
         <p>
-          <span className="text-neutral-500">Lease start · </span>
+          <span className="text-foreground-subtle">Lease start · </span>
           {formatDate(leaseStartDate)}
         </p>
         <p>
-          <span className="text-neutral-500">Portal access · </span>
+          <span className="text-foreground-subtle">Portal access · </span>
           {portalStatusLabel(portalAccessEnabled)}
           {portalAccessEnabled === true ? (
-            <span className="text-neutral-500">
+            <span className="text-foreground-subtle">
               {" "}
               (sign-in and documents work after tenancy is active; signing uses the email link until
               then)
@@ -72,13 +73,13 @@ export function OnboardingSummary({
       </div>
 
       {nextStep.kind !== "none" ? (
-        <div className="mt-4 border-t border-neutral-200 pt-4">
-          <p className="text-sm font-semibold text-neutral-900">Next step</p>
-          <p className="mt-1 text-sm font-medium text-neutral-800">{nextStep.title}</p>
-          <p className="mt-1 text-sm text-neutral-600">{nextStep.description}</p>
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="text-sm font-semibold text-foreground">Next step</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{nextStep.title}</p>
+          <p className="mt-1 text-sm text-foreground-muted">{nextStep.description}</p>
           {nextStep.href ? (
             <p className="mt-3">
-              <Link href={nextStep.href} className="text-sm font-medium text-neutral-900 underline">
+              <Link href={nextStep.href} className={`text-sm font-medium text-foreground underline ${FOCUS_RING}`}>
                 Go to {nextStep.title} →
               </Link>
             </p>
@@ -86,7 +87,7 @@ export function OnboardingSummary({
             <p className="mt-3">
               <a
                 href={`#${nextStep.anchorId}`}
-                className="text-sm font-medium text-neutral-900 underline"
+                className={`text-sm font-medium text-foreground underline ${FOCUS_RING}`}
               >
                 Go to {nextStep.title} →
               </a>

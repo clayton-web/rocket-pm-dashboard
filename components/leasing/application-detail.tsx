@@ -5,11 +5,14 @@ import {
   convertApprovedApplicationAction,
   setApplicationReviewAction,
 } from "@/app/(dashboard)/leasing/applications/actions";
+import { Button } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
+import { statusBadgeClasses } from "@/components/portal/status-badge";
 import {
   FormField,
   FormSection,
   InlineNotice,
-  PrimaryButton,
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
@@ -53,8 +56,8 @@ function formatSmokerStatus(value: string | null) {
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <p className="text-sm text-neutral-700">
-      <span className="text-neutral-500">{label} · </span>
+    <p className="text-sm text-foreground-muted">
+      <span className="text-foreground-subtle">{label} · </span>
       {children}
     </p>
   );
@@ -71,11 +74,11 @@ export function ApplicationDetail({
     return (
       <div className="mx-auto max-w-3xl">
         <p className="mb-4">
-          <Link href="/leasing/applications" className="text-sm font-medium text-neutral-700 underline">
+          <Link href="/leasing/applications" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
             ← Back to applications
           </Link>
         </p>
-        <InlineNotice>{loadError ?? "Application not found."}</InlineNotice>
+        <InlineNotice tone="danger">{loadError ?? "Application not found."}</InlineNotice>
       </div>
     );
   }
@@ -189,36 +192,40 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
   return (
     <div className="mx-auto max-w-3xl">
       <p className="mb-4">
-        <Link href="/leasing/applications" className="text-sm font-medium text-neutral-700 underline">
+        <Link href="/leasing/applications" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
           ← Back to applications
         </Link>
       </p>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">{displayName}</h1>
-        <p className="mt-1 text-sm text-neutral-600">Rental application review</p>
+        <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
+        <p className="mt-1 text-sm text-foreground-muted">Rental application review</p>
       </div>
 
-      {actionError ? <InlineNotice className="mb-4">{actionError}</InlineNotice> : null}
+      {actionError ? (
+        <InlineNotice className="mb-4" tone="danger" role="alert">
+          {actionError}
+        </InlineNotice>
+      ) : null}
 
       <div className={`${SURFACE_CARD} mb-6 px-4 py-4`}>
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+          <span className={statusBadgeClasses("neutral", "strong")}>
             {formatApplicationDetailStatus(detail.status)}
           </span>
           {detail.submittedAt ? (
-            <time className="text-xs text-neutral-500" dateTime={detail.submittedAt}>
+            <time className="text-xs text-foreground-subtle" dateTime={detail.submittedAt}>
               Submitted {formatDateTime(detail.submittedAt)}
             </time>
           ) : null}
         </div>
         {decided && detail.decisionAt ? (
-          <p className="mt-3 text-sm text-neutral-600">
+          <p className="mt-3 text-sm text-foreground-muted">
             Decision recorded {formatDateTime(detail.decisionAt)}. This application is final.
           </p>
         ) : null}
         {!reviewable && !decided ? (
-          <p className="mt-3 text-sm text-neutral-600">
+          <p className="mt-3 text-sm text-foreground-muted">
             This application is not in the review queue ({formatApplicationDetailStatus(detail.status)}).
           </p>
         ) : null}
@@ -228,30 +235,30 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
         <div className="mb-8">
         <FormSection legend="Review actions">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <PrimaryButton
-              type="button"
-              className="!w-auto px-6"
+            <Button
+              variant="primary"
+              size="lg"
               disabled={isPending}
               onClick={() => runReview("under_review")}
             >
               {isPending && pendingAction === "under_review" ? "Updating…" : "Mark under review"}
-            </PrimaryButton>
-            <PrimaryButton
-              type="button"
-              className="!w-auto px-6"
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
               disabled={isPending}
               onClick={() => runReview("approved")}
             >
               {isPending && pendingAction === "approved" ? "Approving…" : "Approve"}
-            </PrimaryButton>
-            <PrimaryButton
-              type="button"
-              className="!w-auto px-6"
+            </Button>
+            <Button
+              variant="primary"
+              size="lg"
               disabled={isPending}
               onClick={() => runReview("declined")}
             >
               {isPending && pendingAction === "declined" ? "Declining…" : "Decline"}
-            </PrimaryButton>
+            </Button>
           </div>
         </FormSection>
         </div>
@@ -259,23 +266,23 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
 
       {hasTenancy ? (
         <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
-          <h2 className="text-sm font-semibold text-neutral-900">Tenancy created</h2>
-          <p className="mt-2 font-mono text-xs text-neutral-600">
+          <h2 className="text-sm font-semibold text-foreground">Tenancy created</h2>
+          <p className="mt-2 font-mono text-xs text-foreground-muted">
             Tenancy ·{" "}
             <Link
               href={`/leasing/tenancies/${detail.tenancyId}`}
-              className="font-medium underline"
+              className={`font-medium underline ${FOCUS_RING}`}
             >
               {detail.tenancyId}
             </Link>
           </p>
           {detail.tenancyStatus ? (
-            <p className="mt-2 text-sm text-neutral-700">
-              <span className="text-neutral-500">Status · </span>
+            <p className="mt-2 text-sm text-foreground-muted">
+              <span className="text-foreground-subtle">Status · </span>
               {formatTenancyStatus(detail.tenancyStatus)}
             </p>
           ) : null}
-          <p className="mt-3 text-sm text-neutral-600">
+          <p className="mt-3 text-sm text-foreground-muted">
             A primary tenant contact was created with portal access enabled. The tenant signs the
             lease through a secure email link before activation. Portal sign-in and Documents work
             after this tenancy is set to <span className="font-medium">Active</span>.
@@ -286,10 +293,10 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
       {needsFinishLeasing ? (
         <div
           id="finish-leasing"
-          className={`${SURFACE_CARD} mb-8 border border-neutral-900 bg-neutral-50 px-4 py-4`}
+          className="mb-8 rounded-xl border border-primary bg-surface-muted px-4 py-4 shadow-sm"
         >
-          <h2 className="text-sm font-semibold text-neutral-900">Next: finish leasing</h2>
-          <p className="mt-2 text-sm text-neutral-700">
+          <h2 className="text-sm font-semibold text-foreground">Next: finish leasing</h2>
+          <p className="mt-2 text-sm text-foreground-muted">
             {canCompletePlacement
               ? "This application is approved. Complete tenant placement below to close the engagement."
               : beginsManagementOnConvert
@@ -300,9 +307,9 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
       ) : null}
 
       {hasPlacement ? (
-        <div className={`${SURFACE_CARD} mb-8 border border-emerald-200 bg-emerald-50/40 px-4 py-4`}>
-          <h2 className="text-sm font-semibold text-neutral-900">Placement completed</h2>
-          <p className="mt-2 text-sm text-neutral-700">
+        <div className="mb-8 rounded-xl border border-success-border bg-success-surface/40 px-4 py-4 shadow-sm">
+          <h2 className="text-sm font-semibold text-foreground">Placement completed</h2>
+          <p className="mt-2 text-sm text-foreground-muted">
             This placement-only engagement is complete. No managed tenancy or tenant portal access
             was created. The property remains Tenant Placement Only.
           </p>
@@ -328,10 +335,10 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
       {canCompletePlacement ? (
         <div className="mb-8">
           <FormSection legend="Complete tenant placement">
-            <p className="text-sm text-neutral-700">
+            <p className="text-sm text-foreground-muted">
               Service relationship · {detail.serviceRelationshipLabel}
             </p>
-            <p className="mt-2 text-sm text-neutral-600">
+            <p className="mt-2 text-sm text-foreground-muted">
               Completing placement records that the tenant was placed with the landlord. It does{" "}
               <span className="font-medium">not</span> create a managed tenancy, enable tenant portal
               access, or turn on maintenance, notices, inspections, or move-out workflows. The
@@ -339,14 +346,14 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
               this succeeds.
             </p>
             {detail.rentalListingHeadline || detail.rentalListingId ? (
-              <p className="mt-2 text-sm text-neutral-700">
+              <p className="mt-2 text-sm text-foreground-muted">
                 Listing · {detail.rentalListingHeadline ?? detail.rentalListingId}
                 {detail.rentalListingMonthlyRent
                   ? ` · advertised $${detail.rentalListingMonthlyRent}`
                   : ""}
               </p>
             ) : (
-              <p className="mt-2 text-sm text-amber-900">
+              <p className="mt-2 text-sm text-warning-foreground">
                 No listing attribution on this application. If exactly one open listing exists for
                 the unit it will close automatically; otherwise you will be asked to choose.
               </p>
@@ -363,7 +370,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   value={placementLeaseStart}
                   onChange={(e) => setPlacementLeaseStart(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                 />
               </FormField>
               <FormField label="Lease end date (optional)" htmlFor="placement-lease-end">
@@ -372,7 +379,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   type="date"
                   value={placementLeaseEnd}
                   onChange={(e) => setPlacementLeaseEnd(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                 />
               </FormField>
               <FormField
@@ -392,7 +399,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   value={placementRent}
                   onChange={(e) => setPlacementRent(e.target.value)}
                   required
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                 />
               </FormField>
               <FormField label="Landlord handoff notes (optional)" htmlFor="placement-handoff">
@@ -401,7 +408,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   value={landlordHandoffNotes}
                   onChange={(e) => setLandlordHandoffNotes(e.target.value)}
                   rows={3}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                 />
               </FormField>
               <FormField label="Internal notes (optional)" htmlFor="placement-notes">
@@ -410,14 +417,14 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   value={internalNotes}
                   onChange={(e) => setInternalNotes(e.target.value)}
                   rows={2}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                 />
               </FormField>
-              <PrimaryButton type="submit" disabled={placementPending} className="!w-auto px-6">
+              <Button variant="primary" size="lg" type="submit" disabled={placementPending}>
                 {placementPending ? "Completing…" : "Complete placement"}
-              </PrimaryButton>
+              </Button>
             </form>
-            <p className="mt-3 text-xs text-neutral-500">
+            <p className="mt-3 text-xs text-foreground-subtle">
               Managed tenancy conversion remains disabled for this property.
             </p>
           </FormSection>
@@ -427,20 +434,20 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
       {canConvert ? (
         <div className="mb-8" id="finish-leasing-form">
           <FormSection legend="Create tenancy">
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm text-foreground-muted">
               Creates a tenancy in <span className="font-medium">Pending move-in</span> status and a
               primary tenant contact with portal access enabled. The tenant signs via email link;
               portal login works after you mark the tenancy Active.
             </p>
             {beginsManagementOnConvert ? (
-              <p className="mt-2 text-sm text-neutral-700">
+              <p className="mt-2 text-sm text-foreground-muted">
                 This property is <span className="font-medium">Pre-management</span>. Converting
                 will begin ongoing management and set the service relationship to{" "}
                 <span className="font-medium">Managed</span>.
               </p>
             ) : null}
             {detail.rentalListingHeadline || detail.suggestedMonthlyRent ? (
-              <p className="mt-2 text-sm text-neutral-700">
+              <p className="mt-2 text-sm text-foreground-muted">
                 {detail.rentalListingHeadline
                   ? `Listing · ${detail.rentalListingHeadline}. `
                   : ""}
@@ -449,7 +456,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   : "Related listing will close when conversion succeeds."}
               </p>
             ) : (
-              <p className="mt-2 text-sm text-neutral-600">
+              <p className="mt-2 text-sm text-foreground-muted">
                 No listing attribution. If exactly one open listing exists for this unit, it will
                 close on successful conversion.
               </p>
@@ -465,7 +472,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   type="date"
                   value={leaseStartDate}
                   onChange={(e) => setLeaseStartDate(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                   required
                 />
               </FormField>
@@ -483,7 +490,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   type="date"
                   value={moveInDate}
                   onChange={(e) => setMoveInDate(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                   required
                 />
               </FormField>
@@ -493,7 +500,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   type="date"
                   value={leaseEndDate}
                   onChange={(e) => setLeaseEndDate(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                 />
               </FormField>
               <FormField label="Anticipated move-out (optional)" htmlFor="move-out">
@@ -502,7 +509,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   type="date"
                   value={moveOutDate}
                   onChange={(e) => setMoveOutDate(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                 />
               </FormField>
               <FormField
@@ -521,7 +528,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   step="0.01"
                   value={monthlyRent}
                   onChange={(e) => setMonthlyRent(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                   required
                 />
               </FormField>
@@ -533,7 +540,7 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                   step="0.01"
                   value={securityDeposit}
                   onChange={(e) => setSecurityDeposit(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                  className={formControlClasses({ size: "lg" })}
                   required
                 />
               </FormField>
@@ -546,21 +553,21 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
                     step="0.01"
                     value={petDeposit}
                     onChange={(e) => setPetDeposit(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+                    className={formControlClasses({ size: "lg" })}
                   />
                 </FormField>
               ) : null}
-              <div className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-600`}>
-                <p className="font-medium text-neutral-800">Tenant contact (from application)</p>
+              <div className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-foreground-muted`}>
+                <p className="font-medium text-foreground">Tenant contact (from application)</p>
                 <p className="mt-1">
                   {detail.firstName} {detail.lastName} · {detail.email}
                   {detail.phone ? ` · ${detail.phone}` : ""}
                 </p>
                 <p className="mt-2">Role: Tenant · Portal access: Enabled</p>
               </div>
-              <PrimaryButton type="submit" disabled={convertPending} className="!w-auto px-6">
+              <Button variant="primary" size="lg" type="submit" disabled={convertPending}>
                 {convertPending ? "Creating…" : "Create tenancy"}
-              </PrimaryButton>
+              </Button>
             </form>
           </FormSection>
         </div>
@@ -635,15 +642,15 @@ function ApplicationDetailBody({ detail }: { detail: ApplicationStaffDetail }) {
 
         <FormField label="References" htmlFor="application-refs">
           <div id="application-refs" className={`${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-3`}>
-            <p className="font-mono text-xs text-neutral-600">
+            <p className="font-mono text-xs text-foreground-muted">
               Application · {detail.id}
             </p>
             {detail.prospectId ? (
-              <p className="font-mono text-xs text-neutral-600">
+              <p className="font-mono text-xs text-foreground-muted">
                 Linked prospect · {detail.prospectId}
               </p>
             ) : (
-              <p className="text-sm text-neutral-500">No linked prospect</p>
+              <p className="text-sm text-foreground-subtle">No linked prospect</p>
             )}
           </div>
         </FormField>

@@ -78,7 +78,14 @@ export function FormField({
       <label htmlFor={htmlFor} className="text-sm font-semibold text-foreground">
         {label}
       </label>
-      {helper ? <p className="text-sm text-foreground-muted">{helper}</p> : null}
+      {helper ? (
+        <p
+          id={htmlFor ? `${htmlFor}-helper` : undefined}
+          className="text-sm text-foreground-muted"
+        >
+          {helper}
+        </p>
+      ) : null}
       {children}
       {error ? (
         <p

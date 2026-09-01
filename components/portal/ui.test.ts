@@ -116,6 +116,32 @@ describe("FormField validation", () => {
 
     assert.doesNotMatch(html, /role="alert"/);
   });
+
+  /**
+   * Helper and error ids are derived from `htmlFor` so a caller can point `aria-describedby` at both
+   * without this component owning the control.
+   */
+  it("gives helper text a stable id derived from the field", () => {
+    const html = renderToStaticMarkup(
+      FormField({
+        htmlFor: "move-out",
+        label: "Scheduled move-out",
+        helper: "Defaults to the requested date.",
+        children: null,
+      }),
+    );
+
+    assert.match(html, /id="move-out-helper"/);
+  });
+
+  it("omits the helper id when there is no field to describe", () => {
+    const html = renderToStaticMarkup(
+      FormField({ label: "Scheduled move-out", helper: "Defaults to the requested date.", children: null }),
+    );
+
+    assert.match(html, /Defaults to the requested date\./);
+    assert.doesNotMatch(html, /id="/);
+  });
 });
 
 describe("status primitives", () => {
