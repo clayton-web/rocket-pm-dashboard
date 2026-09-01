@@ -136,7 +136,7 @@ export function TenancyEditSection({
     startTransition(async () => {
       const saved = await saveTenancyDetails();
       if (!saved) return;
-      router.push(buildHealthReturnUrl(healthCleanupContext.filters));
+      router.push(buildHealthReturnUrl(healthCleanupContext));
     });
   }
 
@@ -146,17 +146,21 @@ export function TenancyEditSection({
     startTransition(async () => {
       const saved = await saveTenancyDetails();
       if (!saved) return;
-      const filtersParam = serializeCleanupFiltersParam(healthCleanupContext.filters);
-      const next = await resolveNextHealthCleanupTenancyAction(detail.id, filtersParam);
+      const next = await resolveNextHealthCleanupTenancyAction(detail.id, {
+        filters: serializeCleanupFiltersParam(healthCleanupContext.filters),
+        query: healthCleanupContext.query,
+        status: healthCleanupContext.status,
+        sort: healthCleanupContext.sort,
+      });
       if (!next.ok) {
         setError(next.error);
         return;
       }
       if (next.nextTenancyId) {
-        router.push(buildHealthEditTenancyHref(next.nextTenancyId, healthCleanupContext.filters));
+        router.push(buildHealthEditTenancyHref(next.nextTenancyId, healthCleanupContext));
         return;
       }
-      router.push(buildHealthReturnUrl(healthCleanupContext.filters, { cleanupDone: "1" }));
+      router.push(buildHealthReturnUrl(healthCleanupContext, { cleanupDone: "1" }));
     });
   }
 

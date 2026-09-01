@@ -94,6 +94,20 @@ export async function requirePropertyManagerAccess(
   }
 }
 
+/**
+ * Synchronous mirror of `requirePropertyManagerAccess` for list surfaces that have already
+ * loaded org-scoped rows and need a per-row `canEdit` flag without another round trip.
+ * Org membership is assumed to have been established by the caller's loader.
+ */
+export function canManagePropertyFromContext(
+  principal: StaffContext,
+  propertyId: string,
+): boolean {
+  if (isTenantAccount(principal)) return false;
+  if (hasOrgWidePropertyRights(principal)) return true;
+  return Boolean(principal.assignmentRolesByProperty.get(propertyId)?.has("property_manager"));
+}
+
 export function isFieldAgentOnlyOnProperty(principal: StaffContext, propertyId: string): boolean {
   if (hasOrgWidePropertyRights(principal)) return false;
   const roles = principal.assignmentRolesByProperty.get(propertyId);

@@ -113,7 +113,9 @@ export const navigationItems: NavItem[] = [
     href: "/properties/health",
     enabled: true,
     section: "operations",
-    minimumRole: "ADMIN",
+    // The loader scopes rows via `listPropertiesForUser`, so an assigned member sees only their
+    // own properties. ADMIN here hid a page the access model already permits.
+    minimumRole: "MEMBER",
   },
   {
     id: "nav-leasing-dashboard",

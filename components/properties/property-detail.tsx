@@ -3,10 +3,11 @@
 import {
   createUnitAction,
   hardDeletePropertyAction,
-  updatePropertyOwnerStrataAction,
-  updatePropertyProfileAction,
-  updatePropertyServiceRelationshipAction,
 } from "@/app/(dashboard)/properties/actions";
+import { PropertyAddressSection } from "@/components/properties/edit/property-address-section";
+import { PropertyOwnerStrataSection } from "@/components/properties/edit/property-owner-strata-section";
+import { PropertyProfileSection } from "@/components/properties/edit/property-profile-section";
+import { PropertyStatusSection } from "@/components/properties/edit/property-status-section";
 import { PropertyDocumentsSection } from "@/components/properties/property-documents-section";
 import {
   RentalListingsSection,
@@ -26,19 +27,9 @@ import {
   hasOnlyEntirePropertyUnit,
   isEntirePropertyUnit,
 } from "@/lib/property/entire-property-unit";
-import {
-  PROPERTY_PROFILE_TYPES,
-  PROPERTY_PROFILE_TYPE_LABELS,
-  formatPropertyProfileTypeLabel,
-  type PropertyProfileFields,
-} from "@/lib/property/profile";
-import {
-  PROPERTY_SERVICE_RELATIONSHIPS,
-  PROPERTY_SERVICE_RELATIONSHIP_HELPERS,
-  PROPERTY_SERVICE_RELATIONSHIP_LABELS,
-  formatPropertyServiceRelationship,
-  type PropertyServiceRelationshipValue,
-} from "@/lib/property/service-relationship";
+import type { PropertyProfileFields } from "@/lib/property/profile";
+import type { PropertyServiceRelationshipValue } from "@/lib/property/service-relationship";
+import type { HealthViewState } from "@/lib/property/portfolio-health-return";
 import type { PropertyDetailMarketRentResearch } from "@/lib/market-rent-research/access";
 import type { PropertyDocumentsPageData } from "@/lib/property/property-documents-staff";
 import type { PropertyPlacementHistoryRow } from "@/lib/property/property-placements-staff";
@@ -141,424 +132,6 @@ function PropertyPlacementsSection({
   );
 }
 
-function formatProfileSummary(profile: PropertyProfileFields): string {
-  const parts: string[] = [];
-  const typeLabel = formatPropertyProfileTypeLabel(profile.propertyType);
-  if (typeLabel) parts.push(typeLabel);
-  if (profile.bedrooms != null) parts.push(`${profile.bedrooms} bed`);
-  if (profile.bathrooms != null) parts.push(`${profile.bathrooms} bath`);
-  if (profile.approxSqft != null) parts.push(`${profile.approxSqft.toLocaleString("en-CA")} sqft`);
-  return parts.length > 0 ? parts.join(" · ") : "No profile details saved yet";
-}
-
-function PropertyStatusSection({
-  propertyId,
-  isActive,
-  serviceRelationship,
-  canEdit,
-}: {
-  propertyId: string;
-  isActive: boolean;
-  serviceRelationship: PropertyServiceRelationshipValue;
-  canEdit: boolean;
-}) {
-  const router = useRouter();
-  const serviceRelationshipId = useId();
-  const [showEdit, setShowEdit] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [value, setValue] = useState(serviceRelationship);
-
-  function onSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await updatePropertyServiceRelationshipAction(propertyId, {
-        serviceRelationship: value,
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setShowEdit(false);
-      router.refresh();
-    });
-  }
-
-  return (
-    <div className={`${SURFACE_CARD} mb-4 px-4 py-4`}>
-      <p className="text-sm text-neutral-700">
-        <span className="text-neutral-500">Operational status · </span>
-        {isActive ? "Active" : "Inactive"}
-      </p>
-      <p className="mt-2 text-sm text-neutral-700">
-        <span className="text-neutral-500">Service relationship · </span>
-        {formatPropertyServiceRelationship(serviceRelationship)}
-      </p>
-      <p className="mt-2 text-xs text-neutral-500">
-        Active means the property record is available in the system. Service relationship describes
-        Axford&apos;s engagement (managed, leasing then manage, or placement only). Public advertising
-        is controlled separately by a published rental listing below — not by Active status.
-      </p>
-      {serviceRelationship === "PRE_MANAGEMENT" ? (
-        <p className="mt-2 text-xs text-neutral-600">
-          Pre-management: leasing now with the intention to begin ongoing management after placement.
-          Converting an approved application to a managed tenancy sets this property to Managed in the
-          same step.
-        </p>
-      ) : null}
-      {serviceRelationship === "PLACEMENT_ONLY" ? (
-        <p className="mt-2 text-xs text-neutral-600">
-          Placement only: advertise and place a tenant; do not treat this as an ongoing managed
-          property after placement. Leasing history is retained.
-        </p>
-      ) : null}
-      {canEdit ? (
-        <div className="mt-3">
-          {!showEdit ? (
-            <button
-              type="button"
-              onClick={() => {
-                setValue(serviceRelationship);
-                setShowEdit(true);
-              }}
-              className="text-sm font-medium text-neutral-800 underline"
-            >
-              Edit service relationship
-            </button>
-          ) : (
-            <form className="mt-3 flex flex-col gap-3 border-t border-neutral-200 pt-3" onSubmit={onSave}>
-              {error ? <InlineNotice>{error}</InlineNotice> : null}
-              <FormField
-                label="Service relationship"
-                htmlFor={serviceRelationshipId}
-                helper={PROPERTY_SERVICE_RELATIONSHIP_HELPERS[value]}
-              >
-                <select
-                  id={serviceRelationshipId}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value as PropertyServiceRelationshipValue)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                >
-                  {PROPERTY_SERVICE_RELATIONSHIPS.map((option) => (
-                    <option key={option} value={option}>
-                      {PROPERTY_SERVICE_RELATIONSHIP_LABELS[option]}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              {serviceRelationship === "PLACEMENT_ONLY" &&
-              (value === "MANAGED" || value === "PRE_MANAGEMENT") ? (
-                <InlineNotice>
-                  Changing away from Tenant Placement Only enables managed tenancy conversion and
-                  ongoing management workflows. Do not change this merely to bypass the placement
-                  conversion guard. Confirm this matches the real business relationship.
-                </InlineNotice>
-              ) : null}
-              <div className="flex flex-wrap gap-3">
-                <PrimaryButton type="submit" disabled={pending} className="!w-auto px-5">
-                  {pending
-                    ? "Saving…"
-                    : serviceRelationship === "PLACEMENT_ONLY" &&
-                        (value === "MANAGED" || value === "PRE_MANAGEMENT")
-                      ? "Confirm relationship change"
-                      : "Save"}
-                </PrimaryButton>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    setShowEdit(false);
-                    setError(null);
-                    setValue(serviceRelationship);
-                  }}
-                  className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function PropertyProfileSection({
-  propertyId,
-  profile,
-  canEdit,
-}: {
-  propertyId: string;
-  profile: PropertyProfileFields;
-  canEdit: boolean;
-}) {
-  const router = useRouter();
-  const propertyTypeId = useId();
-  const bedroomsId = useId();
-  const bathroomsId = useId();
-  const approxSqftId = useId();
-  const [showEdit, setShowEdit] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [propertyType, setPropertyType] = useState(profile.propertyType ?? "");
-  const [bedrooms, setBedrooms] = useState(
-    profile.bedrooms != null ? String(profile.bedrooms) : "",
-  );
-  const [bathrooms, setBathrooms] = useState(
-    profile.bathrooms != null ? String(profile.bathrooms) : "",
-  );
-  const [approxSqft, setApproxSqft] = useState(
-    profile.approxSqft != null ? String(profile.approxSqft) : "",
-  );
-
-  function onSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await updatePropertyProfileAction(propertyId, {
-        propertyType: propertyType || null,
-        bedrooms: bedrooms === "" ? null : bedrooms,
-        bathrooms: bathrooms === "" ? null : bathrooms,
-        approxSqft: approxSqft === "" ? null : approxSqft,
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setShowEdit(false);
-      router.refresh();
-    });
-  }
-
-  return (
-    <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
-      <p className="text-sm text-neutral-700">
-        <span className="text-neutral-500">Profile · </span>
-        {formatProfileSummary(profile)}
-      </p>
-      <p className="mt-1 text-xs text-neutral-500">
-        Rental profile for management and market research — not official rent or lease data.
-      </p>
-      {canEdit ? (
-        <div className="mt-3">
-          {!showEdit ? (
-            <button
-              type="button"
-              onClick={() => setShowEdit(true)}
-              className="text-sm font-medium text-neutral-800 underline"
-            >
-              Edit property profile
-            </button>
-          ) : (
-            <form className="mt-3 flex flex-col gap-4 border-t border-neutral-200 pt-4" onSubmit={onSave}>
-              {error ? <InlineNotice>{error}</InlineNotice> : null}
-              <FormField label="Property type (optional)" htmlFor={propertyTypeId}>
-                <select
-                  id={propertyTypeId}
-                  value={propertyType}
-                  onChange={(e) => setPropertyType(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                >
-                  <option value="">Not specified</option>
-                  {PROPERTY_PROFILE_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {PROPERTY_PROFILE_TYPE_LABELS[type]}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              <FormField label="Bedrooms (optional)" htmlFor={bedroomsId}>
-                <input
-                  id={bedroomsId}
-                  type="number"
-                  min={0}
-                  max={50}
-                  value={bedrooms}
-                  onChange={(e) => setBedrooms(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <FormField label="Bathrooms (optional)" htmlFor={bathroomsId}>
-                <input
-                  id={bathroomsId}
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={bathrooms}
-                  onChange={(e) => setBathrooms(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <FormField label="Approx. sqft (optional)" htmlFor={approxSqftId}>
-                <input
-                  id={approxSqftId}
-                  type="number"
-                  min={1}
-                  value={approxSqft}
-                  onChange={(e) => setApproxSqft(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <div className="flex flex-wrap gap-3">
-                <PrimaryButton type="submit" disabled={pending} className="!w-auto px-5">
-                  {pending ? "Saving…" : "Save profile"}
-                </PrimaryButton>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    setShowEdit(false);
-                    setError(null);
-                    setPropertyType(profile.propertyType ?? "");
-                    setBedrooms(profile.bedrooms != null ? String(profile.bedrooms) : "");
-                    setBathrooms(profile.bathrooms != null ? String(profile.bathrooms) : "");
-                    setApproxSqft(profile.approxSqft != null ? String(profile.approxSqft) : "");
-                  }}
-                  className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function PropertyOwnerStrataSection({
-  propertyId,
-  ownerEmail,
-  ownerPhone,
-  strataNotes,
-  canEdit,
-}: {
-  propertyId: string;
-  ownerEmail: string | null;
-  ownerPhone: string | null;
-  strataNotes: string | null;
-  canEdit: boolean;
-}) {
-  const router = useRouter();
-  const ownerEmailId = useId();
-  const ownerPhoneId = useId();
-  const strataNotesId = useId();
-  const [showEdit, setShowEdit] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  const [ownerEmailValue, setOwnerEmailValue] = useState(ownerEmail ?? "");
-  const [ownerPhoneValue, setOwnerPhoneValue] = useState(ownerPhone ?? "");
-  const [strataNotesValue, setStrataNotesValue] = useState(strataNotes ?? "");
-
-  function onSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const result = await updatePropertyOwnerStrataAction(propertyId, {
-        ownerEmail: ownerEmailValue || null,
-        ownerPhone: ownerPhoneValue || null,
-        strataNotes: strataNotesValue || null,
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setShowEdit(false);
-      router.refresh();
-    });
-  }
-
-  return (
-    <div className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
-      <p className="text-sm font-medium text-neutral-900">Owner &amp; strata</p>
-      <div className={`${SURFACE_PANEL} mt-3 space-y-2 px-3.5 py-3`}>
-        <p className="text-sm text-neutral-700">
-          <span className="text-neutral-500">Owner Email · </span>
-          {ownerEmail ?? "—"}
-        </p>
-        <p className="text-sm text-neutral-700">
-          <span className="text-neutral-500">Owner Phone · </span>
-          {ownerPhone ?? "—"}
-        </p>
-        <p className="text-sm text-neutral-700">
-          <span className="text-neutral-500">Strata Notes · </span>
-          {strataNotes ? (
-            <span className="whitespace-pre-wrap">{strataNotes}</span>
-          ) : (
-            "—"
-          )}
-        </p>
-      </div>
-      {canEdit ? (
-        <div className="mt-3">
-          {!showEdit ? (
-            <button
-              type="button"
-              onClick={() => setShowEdit(true)}
-              className="text-sm font-medium text-neutral-800 underline"
-            >
-              Edit owner &amp; strata
-            </button>
-          ) : (
-            <form className="mt-3 flex flex-col gap-4 border-t border-neutral-200 pt-4" onSubmit={onSave}>
-              {error ? <InlineNotice>{error}</InlineNotice> : null}
-              <FormField label="Owner Email" htmlFor={ownerEmailId}>
-                <input
-                  id={ownerEmailId}
-                  type="email"
-                  value={ownerEmailValue}
-                  onChange={(e) => setOwnerEmailValue(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <FormField label="Owner Phone" htmlFor={ownerPhoneId}>
-                <input
-                  id={ownerPhoneId}
-                  type="tel"
-                  value={ownerPhoneValue}
-                  onChange={(e) => setOwnerPhoneValue(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <FormField label="Strata Notes" htmlFor={strataNotesId}>
-                <textarea
-                  id={strataNotesId}
-                  rows={4}
-                  value={strataNotesValue}
-                  onChange={(e) => setStrataNotesValue(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
-                />
-              </FormField>
-              <div className="flex flex-wrap gap-3">
-                <PrimaryButton type="submit" disabled={pending} className="!w-auto px-5">
-                  {pending ? "Saving…" : "Save"}
-                </PrimaryButton>
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => {
-                    setShowEdit(false);
-                    setError(null);
-                    setOwnerEmailValue(ownerEmail ?? "");
-                    setOwnerPhoneValue(ownerPhone ?? "");
-                    setStrataNotesValue(strataNotes ?? "");
-                  }}
-                  className="rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function renderMarketRentPanel(
   detail: PropertyDetailData,
   unit: PropertyDetailUnit,
@@ -595,12 +168,15 @@ export function PropertyDetail({
   canDeleteProperty,
   loadError,
   marketRentResearch,
+  healthContext = null,
 }: {
   detail: PropertyDetailData | null;
   canAddUnit: boolean;
   canDeleteProperty: boolean;
   loadError: string | null;
   marketRentResearch?: PropertyDetailMarketRentResearch;
+  /** Carried Property Health worklist state; non-null only when opened from that page. */
+  healthContext?: HealthViewState | null;
 }) {
   if (loadError || !detail) {
     return (
@@ -621,6 +197,7 @@ export function PropertyDetail({
       canAddUnit={canAddUnit}
       canDeleteProperty={canDeleteProperty}
       marketRentResearch={marketRentResearch}
+      healthContext={healthContext}
     />
   );
 }
@@ -800,16 +377,27 @@ function PropertyDetailBody({
   canAddUnit,
   canDeleteProperty,
   marketRentResearch,
+  healthContext,
 }: {
   detail: PropertyDetailData;
   canAddUnit: boolean;
   canDeleteProperty: boolean;
   marketRentResearch?: PropertyDetailMarketRentResearch;
+  healthContext: HealthViewState | null;
 }) {
   const additionalUnits = getAdditionalUnits(detail.units);
   const onlyDefaultUnit = hasOnlyEntirePropertyUnit(detail.units);
   const entirePropertyUnit = detail.units.find((unit) => isEntirePropertyUnit(unit.unitNumber));
   const [showAddForm, setShowAddForm] = useState(false);
+
+  /**
+   * Derived from the tenancies already loaded for this page rather than a fresh query, so the
+   * address editor's active-tenancy warning costs nothing and cannot disagree with the tenancies
+   * rendered below it.
+   */
+  const hasActiveTenancy = Boolean(
+    detail.tenancies?.units.some((unit) => unit.occupancyStatus === "occupied"),
+  );
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -823,6 +411,21 @@ function PropertyDetailBody({
         <h1 className="text-2xl font-semibold text-neutral-900">{formatStreetLine(detail)}</h1>
         <p className="mt-1 text-sm text-neutral-600">{formatCityLine(detail)}</p>
       </div>
+
+      <PropertyAddressSection
+        propertyId={detail.id}
+        address={{
+          streetLine1: detail.streetLine1,
+          streetLine2: detail.streetLine2,
+          city: detail.city,
+          province: detail.province,
+          postalCode: detail.postalCode,
+          country: detail.country,
+        }}
+        canEdit={canAddUnit}
+        hasActiveTenancy={hasActiveTenancy}
+        healthContext={healthContext}
+      />
 
       <PropertyStatusSection
         propertyId={detail.id}
@@ -843,6 +446,7 @@ function PropertyDetailBody({
         ownerPhone={detail.ownerPhone}
         strataNotes={detail.strataNotes}
         canEdit={canAddUnit}
+        healthContext={healthContext}
       />
 
       <RentalListingsSection

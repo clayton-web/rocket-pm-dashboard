@@ -8,8 +8,9 @@ import { loadPropertyDocumentsForStaff } from "@/lib/property/property-documents
 import { loadPropertyPlacementsForStaff } from "@/lib/property/property-placements-staff";
 import { loadPropertyTenanciesForStaff } from "@/lib/property/property-tenancies-staff";
 import { propertyProfileFromRecord } from "@/lib/property/profile";
+import { parseHealthCleanupContext } from "@/lib/property/portfolio-health-return";
 import { isPropertyServiceRelationship } from "@/lib/property/service-relationship";
-import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
+import { canManagePropertyFromContext } from "@/lib/services/property-access";
 import { getPropertyById } from "@/lib/services/property.service";
 import { listUnitsForProperty } from "@/lib/services/unit.service";
 import { ForbiddenError, NotFoundError } from "@/lib/services/errors";
@@ -17,24 +18,17 @@ import { redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ propertyId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function canManagePropertyUnits(
-  ctx: NonNullable<Awaited<ReturnType<typeof getStaffContextFromSession>>>,
-  propertyId: string,
-): boolean {
-  if (hasOrgWidePropertyRights(ctx)) return true;
-  const roles = ctx.assignmentRolesByProperty.get(propertyId);
-  return Boolean(roles?.has("property_manager"));
-}
-
-export default async function PropertyDetailPage({ params }: PageProps) {
+export default async function PropertyDetailPage({ params, searchParams }: PageProps) {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/login");
   }
 
   const { propertyId } = await params;
+  const healthContext = parseHealthCleanupContext(await searchParams);
   const ctx = await getStaffContextFromSession();
   if (!ctx) {
     return (
@@ -127,7 +121,9 @@ export default async function PropertyDetailPage({ params }: PageProps) {
       placementsLoadError,
     };
 
-    const canManageProperty = canManagePropertyUnits(ctx, propertyId);
+    // Shared with Property Health's per-row `canEdit`, so the two surfaces cannot disagree about
+    // who may edit a property.
+    const canManageProperty = canManagePropertyFromContext(ctx, propertyId);
     const marketRentResearch = safeResolvePropertyDetailMarketRentResearch({
       canManagePropertyUnits: canManageProperty,
     });
@@ -139,6 +135,7 @@ export default async function PropertyDetailPage({ params }: PageProps) {
         canDeleteProperty={canManageProperty}
         loadError={null}
         marketRentResearch={marketRentResearch}
+        healthContext={healthContext}
       />
     );
   } catch (e) {

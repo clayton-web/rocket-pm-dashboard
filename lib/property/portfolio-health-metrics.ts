@@ -32,7 +32,13 @@ export type PortfolioHealthSummary = {
   /** Occupied units with a current tenancy. Excludes vacant units and archived tenancies. */
   activeTenancies: number;
   total: number;
+  /** Primary status counts, driven by the blocking tier alone. */
+  needsAttention: number;
+  minor: number;
+  clear: number;
+  /** @deprecated Same value as `clear`; retained for existing callers. */
   complete: number;
+  /** @deprecated `needsAttention + minor`; retained for existing callers. */
   needsReview: number;
   missingDocuments: number;
   missingOwnerContact: number;
@@ -138,13 +144,19 @@ export function buildPortfolioHealthIssueSnapshot(
 
 export function summarizePortfolioHealth(rows: PortfolioHealthRow[]): PortfolioHealthSummary {
   const issueSnapshot = buildPortfolioHealthIssueSnapshot(rows);
+  const needsAttention = rows.filter((row) => row.attentionStatus === "needs_attention").length;
+  const minor = rows.filter((row) => row.attentionStatus === "minor").length;
+  const clear = rows.filter((row) => row.attentionStatus === "clear").length;
 
   return {
     activeProperties: rows.length,
     activeTenancies: countActiveTenancies(rows),
     total: rows.length,
-    complete: rows.filter((row) => row.overallStatus === "complete").length,
-    needsReview: rows.filter((row) => row.overallStatus === "needs_review").length,
+    needsAttention,
+    minor,
+    clear,
+    complete: clear,
+    needsReview: needsAttention + minor,
     needsTenantCleanup: rows.filter((row) => propertyNeedsTenantCleanup(row)).length,
     needsPropertyCleanup: rows.filter((row) => propertyNeedsPropertyCleanup(row)).length,
     missingDocuments: issueSnapshot.propertyIssues.missingDocuments,
