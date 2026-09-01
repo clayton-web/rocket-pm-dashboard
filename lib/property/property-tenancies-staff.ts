@@ -1,5 +1,6 @@
 import type { PrismaClient, TenancyStatus } from "@prisma/client";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
+import { isCurrentTenancyStatus } from "@/lib/leasing/tenancy-occupancy";
 import { formatUnitLabelOrDash } from "@/lib/property/display";
 import {
   pickPrimaryTenancy,
@@ -8,15 +9,6 @@ import {
 import { getPropertyById } from "@/lib/services/property.service";
 import { listTenanciesForProperty } from "@/lib/services/tenancy.service";
 import type { StaffContext } from "@/lib/services/staff-context";
-
-const CURRENT_TENANCY_STATUSES: TenancyStatus[] = [
-  "pending_move_in",
-  "active",
-  "notice_received",
-  "move_out_scheduled",
-  "inspection_scheduled",
-  "inspection_completed",
-];
 
 export type PropertyTenancyUnitInput = {
   id: string;
@@ -187,11 +179,7 @@ export async function loadPropertyTenanciesForStaff(
   const unitIds = new Set(units.map((unit) => unit.id));
   const allTenancies = await listTenanciesForProperty(prisma, ctx, propertyId);
   const tenancies = allTenancies
-    .filter(
-      (row) =>
-        unitIds.has(row.unitId) &&
-        CURRENT_TENANCY_STATUSES.includes(row.status as TenancyStatus),
-    )
+    .filter((row) => unitIds.has(row.unitId) && isCurrentTenancyStatus(row.status))
     .map((row) => ({
       id: row.id,
       unitId: row.unitId,
