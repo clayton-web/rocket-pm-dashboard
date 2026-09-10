@@ -151,6 +151,8 @@ describe("inbox-thread-display", () => {
             isOutbound: false,
             isUnread: false,
             sentAt: new Date("2026-06-09T12:00:00.000Z"),
+            fromAddr: "strata@example.com",
+            latestInboundFromAddr: "strata@example.com",
           },
         ],
       ]),

@@ -16,7 +16,7 @@ describe("recordInboxClassificationAttempt", () => {
     prisma.emailThread.updateMany = (async (args: UpdateManyCall) => {
       calls.push(args);
       return { count: 1 };
-    }) as typeof prisma.emailThread.updateMany;
+    }) as unknown as typeof prisma.emailThread.updateMany;
 
     try {
       await recordInboxClassificationAttempt({

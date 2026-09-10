@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { BackgroundJobStatus, Prisma } from "@prisma/client";
+import type prisma from "@/lib/db/prisma";
 import {
   RECLAIM_REASON,
   STALE_PENDING_MS,
@@ -12,6 +13,9 @@ import { JOB_TYPES } from "@/lib/jobs/types";
 const ORG_ID = "org_test";
 const ACCOUNT_A = "acct_a";
 const ACCOUNT_B = "acct_b";
+
+/** Mirrors the db client surface `reclaimStaleGmailSyncJobs` depends on. */
+type MockDbClient = Pick<typeof prisma, "backgroundJob" | "$transaction">;
 
 type JobRow = {
   id: string;
@@ -76,8 +80,8 @@ function createJobStore() {
     return job;
   }
 
-  function createDb() {
-    const db = {
+  function createDb(): MockDbClient {
+    const db: MockDbClient = {
       backgroundJob: {
         findMany: async ({
           where,
@@ -190,7 +194,7 @@ function createJobStore() {
         create: async () => ({}),
       },
       $transaction: async <T>(fn: (tx: typeof db) => Promise<T>) => fn(db),
-    };
+    } as unknown as MockDbClient;
 
     return db;
   }

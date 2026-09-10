@@ -9,6 +9,9 @@ import { classifyWorkItem } from "../classify-work-item";
 import { labelForProspectPipelineNextAction } from "../next-action-labels";
 import type { ProspectQueueRow } from "@/lib/leasing/staff-queue";
 
+/** Fixed reference so showing overdue/upcoming does not drift with the wall clock. */
+const REFERENCE_DATE = new Date("2026-07-10T12:00:00.000Z");
+
 function baseRow(overrides: Partial<ProspectQueueRow> = {}): ProspectQueueRow {
   return {
     id: "pros_1",
@@ -78,6 +81,7 @@ describe("adaptProspectToWorkItemDraft", () => {
         pipelineNextAction: action,
         nextScheduledShowingStart: "2026-07-12T18:00:00.000Z",
       }),
+      { referenceDate: REFERENCE_DATE },
     );
     assert.ok(draft);
     assert.equal(draft.nextActionLabel, "Send application");

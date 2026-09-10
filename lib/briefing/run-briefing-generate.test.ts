@@ -96,7 +96,7 @@ describe("runBriefingGenerate", () => {
 
     const auditCreates: unknown[] = [];
     const itemCreates: unknown[] = [];
-    let runUpdateData: Record<string, unknown> | null = null;
+    let runUpdateData = null as Record<string, unknown> | null;
 
     const result = await withMockPrisma(
       {

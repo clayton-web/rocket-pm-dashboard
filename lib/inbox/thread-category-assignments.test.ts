@@ -10,6 +10,7 @@ import {
   isUncategorizedForClassification,
   legacyStringToAssignmentSourceLabel,
   LEGACY_CATEGORY_PRIORITY,
+  type ThreadCategoryAssignment,
 } from "./thread-category-assignments";
 
 describe("thread-category-assignments", () => {
@@ -56,7 +57,7 @@ describe("thread-category-assignments", () => {
   });
 
   it("detects manual locks and uncategorized eligibility", () => {
-    const manual = [{ category: "STRATA", source: "MANUAL" as const }];
+    const manual: ThreadCategoryAssignment[] = [{ category: "STRATA", source: "MANUAL" }];
     assert.equal(isManualClassificationLocked(manual), true);
     assert.equal(
       isUncategorizedForClassification({

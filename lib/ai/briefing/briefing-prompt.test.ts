@@ -36,6 +36,7 @@ const sampleContext: BriefingContext = {
       dataProvenance: "EMAIL_MENTION",
       lastMessageAt: "2026-06-26T12:00:00.000Z",
       isUnread: true,
+      latestMessageIsInbound: true,
     },
   ],
 };

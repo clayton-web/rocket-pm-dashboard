@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Prisma } from "@prisma/client";
 import type { PrismaClient, Tenancy, TenancyContact } from "@prisma/client";
 import {
   applyTenancyDetailsUpdate,
@@ -11,6 +12,7 @@ import { parseTenancyOptionalEmail } from "@/lib/validation/tenancy-fields";
 
 const ORG_ID = "org_test";
 const PROPERTY_ID = "prop_test";
+const UNIT_ID = "unit_test";
 const TENANCY_ID = "tenancy_test";
 const CONTACT_ID = "contact_test";
 const APPLICATION_ID = "app_test";
@@ -25,8 +27,14 @@ function adminContext(): StaffContext {
   };
 }
 
+/**
+ * Prisma types `Tenancy.applicationId` as required, but applyTenancyDetailsUpdate branches on
+ * `if (tenancy.applicationId)` — these fixtures cover that absent-application path.
+ */
+type MockTenancy = Omit<Tenancy, "applicationId"> & { applicationId: string | null };
+
 type MockState = {
-  tenancy: Tenancy;
+  tenancy: MockTenancy;
   contact: TenancyContact;
   contactUpdates: Array<{ where: { id: string }; data: Record<string, unknown> }>;
   tenancyUpdates: Array<{ where: { id: string }; data: Record<string, unknown> }>;
@@ -144,9 +152,13 @@ describe("applyTenancyDetailsUpdate", () => {
         moveInDate: new Date("2020-03-03T12:00:00.000Z"),
         leaseEndDate: null,
         moveOutDate: null,
+        unitId: UNIT_ID,
+        inspectionDate: null,
+        inspectionReportUrl: null,
+        inspectionNotes: null,
         rentDueDay: 3,
-        monthlyRent: 0,
-        securityDeposit: 0,
+        monthlyRent: new Prisma.Decimal(0),
+        securityDeposit: new Prisma.Decimal(0),
         petDeposit: null,
         leaseSetupJson: { parkingDescription: "Old parking" },
         buildiumResidentCenterUrl: null,
@@ -222,9 +234,13 @@ describe("applyTenancyDetailsUpdate", () => {
         moveInDate: new Date("2020-03-03T12:00:00.000Z"),
         leaseEndDate: null,
         moveOutDate: null,
+        unitId: UNIT_ID,
+        inspectionDate: null,
+        inspectionReportUrl: null,
+        inspectionNotes: null,
         rentDueDay: 3,
-        monthlyRent: 0,
-        securityDeposit: 0,
+        monthlyRent: new Prisma.Decimal(0),
+        securityDeposit: new Prisma.Decimal(0),
         petDeposit: null,
         leaseSetupJson: null,
         buildiumResidentCenterUrl: null,
@@ -294,9 +310,13 @@ describe("applyTenancyDetailsUpdate", () => {
         moveInDate: new Date("2020-03-03T12:00:00.000Z"),
         leaseEndDate: null,
         moveOutDate: null,
+        unitId: UNIT_ID,
+        inspectionDate: null,
+        inspectionReportUrl: null,
+        inspectionNotes: null,
         rentDueDay: 3,
-        monthlyRent: 0,
-        securityDeposit: 0,
+        monthlyRent: new Prisma.Decimal(0),
+        securityDeposit: new Prisma.Decimal(0),
         petDeposit: null,
         leaseSetupJson: null,
         buildiumResidentCenterUrl: null,

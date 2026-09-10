@@ -1,10 +1,22 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import prisma from "@/lib/db/prisma";
+import type { ThreadCategoryAssignment } from "@/lib/inbox/thread-category-assignments";
 import { updateEmailThreadCategory } from "./update-thread-category";
 
 const THREAD_ID = "thread_test";
 const ORG_ID = "org_test";
+
+type MockTransactionClient = {
+  emailThreadCategoryAssignment: {
+    deleteMany: () => Promise<{ count: number }>;
+    create: () => Promise<{ id: string }>;
+    findMany: () => Promise<ThreadCategoryAssignment[]>;
+  };
+  emailThread: {
+    update: () => Promise<{ id: string }>;
+  };
+};
 
 describe("update-thread-category", () => {
   it("replaces assignments when manually reclassifying", async () => {
@@ -15,7 +27,7 @@ describe("update-thread-category", () => {
     const originalUpdate = prisma.emailThread.update;
 
     prisma.emailThread.findFirst = (async () => ({ id: THREAD_ID })) as typeof originalFindFirst;
-    prisma.$transaction = (async (callback) => {
+    prisma.$transaction = (async (callback: (tx: MockTransactionClient) => Promise<unknown>) => {
       manualReplaceCalled = true;
       return callback({
         emailThreadCategoryAssignment: {
@@ -27,7 +39,7 @@ describe("update-thread-category", () => {
           update: async () => ({ id: THREAD_ID }),
         },
       });
-    }) as typeof originalTransaction;
+    }) as unknown as typeof originalTransaction;
     prisma.emailThread.update = originalUpdate;
 
     try {
