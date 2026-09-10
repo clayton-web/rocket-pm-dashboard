@@ -1,8 +1,14 @@
 import {
   isAgentJobType,
   isBriefingJobType,
+  JOB_TYPES,
   PHASE1_ALLOWED_JOB_TYPES,
 } from "@/lib/jobs/types";
+
+export const BRIEFING_SCHEDULE_DECOMMISSIONED_REASON = "briefing_schedule_decommissioned";
+
+export const BRIEFING_SCHEDULE_DECOMMISSIONED_MESSAGE =
+  "Automated Daily Briefing scheduling is decommissioned.";
 
 /**
  * When false (default), agent.* jobs cannot be enqueued or processed.
@@ -14,14 +20,29 @@ export function isAgentAutomationEnabled(): boolean {
 }
 
 /**
- * When false (default), briefing.* jobs cannot be enqueued or processed.
+ * Master switch for manual briefing.generate (Run Now) and Briefing gates.
+ * Does not revive automated briefing.schedule — that path is code-decommissioned.
  */
 export function isBriefingAutomationEnabled(): boolean {
   const raw = process.env.BRIEFING_AUTOMATION_ENABLED?.trim().toLowerCase();
   return raw === "true" || raw === "1";
 }
 
+/**
+ * Automated briefing.schedule is permanently off in this slice.
+ * BRIEFING_AUTOMATION_ENABLED cannot re-enable cron/schedule enqueue.
+ */
+export function isAutomatedBriefingScheduleEnabled(): boolean {
+  return false;
+}
+
 export function assertJobTypeAllowedForPhase(jobType: string): void {
+  if (jobType === JOB_TYPES.BRIEFING_SCHEDULE) {
+    throw new Error(
+      `Job type "${jobType}" is decommissioned: ${BRIEFING_SCHEDULE_DECOMMISSIONED_MESSAGE}`,
+    );
+  }
+
   if (isAgentJobType(jobType) && !isAgentAutomationEnabled()) {
     throw new Error(
       `Job type "${jobType}" is blocked: AGENT_AUTOMATION_ENABLED is not true.`,

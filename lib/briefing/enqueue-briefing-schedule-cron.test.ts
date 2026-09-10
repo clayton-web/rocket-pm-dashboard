@@ -5,6 +5,8 @@ import {
   enqueueBriefingScheduleForCron,
   enqueueBriefingScheduleForEligibleOrgs,
 } from "@/lib/briefing/enqueue-briefing-schedule-cron";
+import { enqueueBriefingScheduleJob } from "@/lib/briefing/enqueue-briefing-schedule";
+import { BRIEFING_SCHEDULE_DECOMMISSIONED_REASON } from "@/lib/jobs/policy";
 
 const ORG_ID = "org_cron_test";
 
@@ -32,21 +34,9 @@ describe("enqueueBriefingScheduleForCron", () => {
     else process.env.BRIEFING_AUTOMATION_ENABLED = prevBriefingEnv;
   });
 
-  it("returns briefing_automation_disabled when env gate is off", async () => {
+  it("does not enqueue when the env gate is off", async () => {
     process.env.BRIEFING_AUTOMATION_ENABLED = "false";
-
-    const result = await enqueueBriefingScheduleForCron({
-      slot: BriefingSlot.MORNING,
-      triggeredByUserId: "user_1",
-    });
-
-    assert.deepEqual(result, { ok: false, reason: "briefing_automation_disabled" });
-  });
-
-  it("enqueues briefing.schedule for each eligible org and slot", async () => {
-    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
-
-    const enqueued: Array<{ organizationId: string; slot: BriefingSlot }> = [];
+    let called = 0;
 
     const result = await enqueueBriefingScheduleForCron(
       {
@@ -54,18 +44,57 @@ describe("enqueueBriefingScheduleForCron", () => {
         triggeredByUserId: "user_1",
       },
       {
-        listEligibleOrganizations: async () => [eligibleOrg],
-        enqueueScheduleJob: async (args) => {
-          enqueued.push({ organizationId: args.organizationId, slot: args.slot });
-          return { jobId: "job_schedule_1", created: true };
+        listEligibleOrganizations: async () => {
+          called += 1;
+          return [eligibleOrg];
+        },
+        enqueueScheduleJob: async () => {
+          throw new Error("must not enqueue briefing.schedule");
         },
       },
     );
 
-    assert.equal(result.ok, true);
-    if (!result.ok) return;
-    assert.equal(result.enqueued, 1);
-    assert.deepEqual(enqueued, [{ organizationId: ORG_ID, slot: BriefingSlot.MORNING }]);
+    assert.deepEqual(result, { ok: false, reason: BRIEFING_SCHEDULE_DECOMMISSIONED_REASON });
+    assert.equal(called, 0);
+  });
+
+  it("does not enqueue even when BRIEFING_AUTOMATION_ENABLED is true", async () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+    let called = 0;
+
+    const result = await enqueueBriefingScheduleForCron(
+      {
+        slot: BriefingSlot.MORNING,
+        triggeredByUserId: "user_1",
+        dryRun: true,
+      },
+      {
+        listEligibleOrganizations: async () => {
+          called += 1;
+          return [eligibleOrg];
+        },
+        enqueueScheduleJob: async () => {
+          throw new Error("must not enqueue briefing.schedule");
+        },
+      },
+    );
+
+    assert.deepEqual(result, { ok: false, reason: BRIEFING_SCHEDULE_DECOMMISSIONED_REASON });
+    assert.equal(called, 0);
+  });
+});
+
+describe("enqueueBriefingScheduleJob", () => {
+  it("refuses to create briefing.schedule jobs", async () => {
+    await assert.rejects(
+      () =>
+        enqueueBriefingScheduleJob({
+          organizationId: ORG_ID,
+          slot: BriefingSlot.MORNING,
+          triggeredByUserId: "user_1",
+        }),
+      /decommissioned/i,
+    );
   });
 });
 

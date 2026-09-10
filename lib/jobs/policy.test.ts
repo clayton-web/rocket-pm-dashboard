@@ -4,6 +4,7 @@ import {
   assertJobTypeAllowedForPhase,
   getJobProcessorSecret,
   isAgentAutomationEnabled,
+  isAutomatedBriefingScheduleEnabled,
   verifyJobProcessorRequest,
 } from "@/lib/jobs/policy";
 import { JOB_TYPES } from "@/lib/jobs/types";
@@ -33,6 +34,15 @@ describe("job policy", () => {
 
   it("allows gmail.sync in Phase 1", () => {
     assert.doesNotThrow(() => assertJobTypeAllowedForPhase(JOB_TYPES.GMAIL_SYNC));
+  });
+
+  it("decommissions automated briefing.schedule regardless of env flag", () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+    assert.equal(isAutomatedBriefingScheduleEnabled(), false);
+    assert.throws(
+      () => assertJobTypeAllowedForPhase(JOB_TYPES.BRIEFING_SCHEDULE),
+      /decommissioned/,
+    );
   });
 
   it("blocks agent.triage when automation is disabled", () => {

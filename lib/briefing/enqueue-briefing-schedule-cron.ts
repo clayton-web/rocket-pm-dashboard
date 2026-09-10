@@ -5,7 +5,10 @@ import {
   type EligibleBriefingOrganization,
 } from "@/lib/briefing/briefing-gates";
 import { enqueueBriefingScheduleJob } from "@/lib/briefing/enqueue-briefing-schedule";
-import { isBriefingAutomationEnabled } from "@/lib/jobs/policy";
+import {
+  BRIEFING_SCHEDULE_DECOMMISSIONED_REASON,
+  isAutomatedBriefingScheduleEnabled,
+} from "@/lib/jobs/policy";
 
 export type BriefingScheduleCronOrgResult = {
   organizationId: string;
@@ -43,8 +46,8 @@ export async function enqueueBriefingScheduleForCron(
   },
   deps: EnqueueBriefingScheduleCronDeps = {},
 ): Promise<EnqueueBriefingScheduleCronResult> {
-  if (!isBriefingAutomationEnabled()) {
-    return { ok: false, reason: "briefing_automation_disabled" };
+  if (!isAutomatedBriefingScheduleEnabled()) {
+    return { ok: false, reason: BRIEFING_SCHEDULE_DECOMMISSIONED_REASON };
   }
 
   const listEligibleOrganizations =

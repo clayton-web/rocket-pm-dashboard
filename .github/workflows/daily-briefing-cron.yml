@@ -1,13 +1,14 @@
-# Twice-daily Daily Briefing scheduler (external cron).
+# Twice-daily Inbox Gmail scheduler (external cron).
 #
 # UTC times below match America/Vancouver during PDT (UTC-7):
-#   07:00 local = 14:00 UTC (MORNING)
-#   14:00 local = 21:00 UTC (AFTERNOON)
+#   07:00 local = 14:00 UTC
+#   14:00 local = 21:00 UTC
 # During PST (UTC-8), shift cron to 15:00 / 22:00 UTC unless made timezone-aware later.
 #
-# Vercel cron (vercel.json, 0 6 * * * UTC) remains a once-daily safety-net job drain only;
-# it does not enqueue briefings. This workflow enqueues and drains the twice-daily pipeline.
-name: Daily Briefing cron
+# Automated Daily Briefing scheduling is decommissioned (P0-B). This workflow
+# only enqueues independent gmail.sync and drains the shared job queue.
+# Vercel cron (vercel.json, 0 6 * * * UTC) remains a once-daily safety-net drain.
+name: Scheduled Gmail sync
 
 on:
   schedule:
@@ -15,14 +16,6 @@ on:
     - cron: "0 21 * * *"
   workflow_dispatch:
     inputs:
-      slot:
-        description: Briefing slot to schedule
-        required: true
-        default: MORNING
-        type: choice
-        options:
-          - MORNING
-          - AFTERNOON
       dry_run:
         description: Dry run only (no jobs enqueued, no queue drain)
         required: true
@@ -39,26 +32,17 @@ env:
 jobs:
   schedule-and-drain:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
-      - name: Resolve briefing slot and dry-run mode
+      - name: Resolve dry-run mode
         id: config
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "slot=${{ inputs.slot }}" >> "$GITHUB_OUTPUT"
             echo "dry_run=${{ inputs.dry_run }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.schedule }}" = "0 14 * * *" ]; then
-            echo "slot=MORNING" >> "$GITHUB_OUTPUT"
-            echo "dry_run=false" >> "$GITHUB_OUTPUT"
           else
-            echo "slot=AFTERNOON" >> "$GITHUB_OUTPUT"
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Independent Gmail schedule runs first so Inbox sync no longer depends on
-      # briefing.schedule. Existing enqueueGmailSyncJob dedupes if Briefing later
-      # also requests sync for the same connected account in this slice.
-      # Later Briefing decommission removes only the briefing enqueue step below.
       - name: Enqueue independent Gmail schedule
         env:
           JOB_PROCESSOR_SECRET: ${{ secrets.JOB_PROCESSOR_SECRET }}
@@ -88,37 +72,10 @@ jobs:
             exit 1
           fi
 
-      - name: Enqueue briefing schedule
-        env:
-          JOB_PROCESSOR_SECRET: ${{ secrets.JOB_PROCESSOR_SECRET }}
-        run: |
-          set -euo pipefail
-          SLOT="${{ steps.config.outputs.slot }}"
-          DRY_RUN="${{ steps.config.outputs.dry_run }}"
-          BASE="${APP_BASE_URL}/dashboard/api/internal/briefing/schedule"
-
-          if [ "$DRY_RUN" = "true" ]; then
-            URL="${BASE}?slot=${SLOT}&dryRun=true"
-          else
-            URL="${BASE}?slot=${SLOT}"
-          fi
-
-          echo "POST ${URL}"
-          HTTP_CODE=$(curl -sS -o /tmp/schedule-response.json -w "%{http_code}" \
-            -X POST "$URL" \
-            -H "Authorization: Bearer ${JOB_PROCESSOR_SECRET}")
-
-          echo "HTTP status: ${HTTP_CODE}"
-          echo "Response body:"
-          cat /tmp/schedule-response.json
-          echo ""
-
-          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "Schedule request failed."
-            exit 1
-          fi
-
-      - name: Drain job queue (initial)
+      # One drain claims gmail.sync. A second immediate drain picks up active
+      # follow-on work created while the first batch ran (e.g. agent.triage).
+      # The previous 360s wait existed only for delayed briefing.generate.
+      - name: Drain job queue
         if: steps.config.outputs.dry_run != 'true'
         env:
           JOB_PROCESSOR_SECRET: ${{ secrets.JOB_PROCESSOR_SECRET }}
@@ -143,13 +100,7 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for delayed briefing.generate after Gmail sync
-        if: steps.config.outputs.dry_run != 'true'
-        run: |
-          echo "Waiting 360 seconds for briefing.generate jobs scheduled after gmail.sync..."
-          sleep 360
-
-      - name: Drain job queue (post-delay)
+      - name: Drain job queue (follow-on)
         if: steps.config.outputs.dry_run != 'true'
         env:
           JOB_PROCESSOR_SECRET: ${{ secrets.JOB_PROCESSOR_SECRET }}
@@ -170,6 +121,6 @@ jobs:
           echo ""
 
           if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "Post-delay job processor request failed."
+            echo "Follow-on job processor request failed."
             exit 1
           fi
