@@ -40,7 +40,8 @@ export async function middleware(req: NextRequest) {
   const isInternalCronRoute =
     pathname === "/api/internal/jobs/process" ||
     pathname === "/api/internal/gemini-probe" ||
-    pathname === "/api/internal/briefing/schedule";
+    pathname === "/api/internal/briefing/schedule" ||
+    pathname === "/api/internal/gmail/schedule";
   const isPortal = pathname.startsWith("/portal");
   const isSignLease = pathname.startsWith("/sign/lease");
   const isSignLeaseApi = pathname.startsWith("/api/sign/lease");

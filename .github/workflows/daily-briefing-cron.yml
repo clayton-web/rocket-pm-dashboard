@@ -55,6 +55,39 @@ jobs:
             echo "dry_run=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Independent Gmail schedule runs first so Inbox sync no longer depends on
+      # briefing.schedule. Existing enqueueGmailSyncJob dedupes if Briefing later
+      # also requests sync for the same connected account in this slice.
+      # Later Briefing decommission removes only the briefing enqueue step below.
+      - name: Enqueue independent Gmail schedule
+        env:
+          JOB_PROCESSOR_SECRET: ${{ secrets.JOB_PROCESSOR_SECRET }}
+        run: |
+          set -euo pipefail
+          DRY_RUN="${{ steps.config.outputs.dry_run }}"
+          BASE="${APP_BASE_URL}/dashboard/api/internal/gmail/schedule"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            URL="${BASE}?dryRun=true"
+          else
+            URL="${BASE}"
+          fi
+
+          echo "POST ${URL}"
+          HTTP_CODE=$(curl -sS -o /tmp/gmail-schedule-response.json -w "%{http_code}" \
+            -X POST "$URL" \
+            -H "Authorization: Bearer ${JOB_PROCESSOR_SECRET}")
+
+          echo "HTTP status: ${HTTP_CODE}"
+          echo "Response body:"
+          cat /tmp/gmail-schedule-response.json
+          echo ""
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Independent Gmail schedule request failed."
+            exit 1
+          fi
+
       - name: Enqueue briefing schedule
         env:
           JOB_PROCESSOR_SECRET: ${{ secrets.JOB_PROCESSOR_SECRET }}
