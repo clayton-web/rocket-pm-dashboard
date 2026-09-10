@@ -1,6 +1,10 @@
 import type { BriefingSlot } from "@prisma/client";
 import { calculateBriefingWindow } from "@/lib/briefing/briefing-window";
 import { enqueueBriefingGenerateJob } from "@/lib/briefing/enqueue-briefing-generate";
+import {
+  BRIEFING_DECOMMISSIONED_MESSAGE,
+  isBriefingExecutionEnabled,
+} from "@/lib/jobs/policy";
 import { JOB_TYPES } from "@/lib/jobs/types";
 
 export type ManualBriefingGenerateEnqueueInput = {
@@ -43,6 +47,9 @@ export function buildManualBriefingGenerateEnqueueInput(args: {
 }
 
 export async function enqueueManualBriefingGenerate(args: ManualBriefingGenerateEnqueueInput) {
+  if (!isBriefingExecutionEnabled()) {
+    throw new Error(BRIEFING_DECOMMISSIONED_MESSAGE);
+  }
   return enqueueBriefingGenerateJob(args);
 }
 

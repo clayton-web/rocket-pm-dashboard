@@ -1,6 +1,10 @@
 import type { BriefingSlot } from "@prisma/client";
 import { buildBriefingGenerateIdempotencyKey } from "@/lib/briefing/briefing-idempotency";
 import { enqueueJob } from "@/lib/jobs/enqueue";
+import {
+  BRIEFING_DECOMMISSIONED_MESSAGE,
+  isBriefingExecutionEnabled,
+} from "@/lib/jobs/policy";
 import { JOB_TYPES } from "@/lib/jobs/types";
 
 export type EnqueueBriefingGenerateResult = {
@@ -20,6 +24,10 @@ export async function enqueueBriefingGenerateJob(args: {
   dryRun?: boolean;
   scheduledAt?: Date;
 }): Promise<EnqueueBriefingGenerateResult> {
+  if (!isBriefingExecutionEnabled()) {
+    throw new Error(BRIEFING_DECOMMISSIONED_MESSAGE);
+  }
+
   const triggerSource = args.triggerSource ?? "SYSTEM";
 
   const { jobId, created } = await enqueueJob({

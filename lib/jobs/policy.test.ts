@@ -5,8 +5,10 @@ import {
   getJobProcessorSecret,
   isAgentAutomationEnabled,
   isAutomatedBriefingScheduleEnabled,
+  isBriefingExecutionEnabled,
   verifyJobProcessorRequest,
 } from "@/lib/jobs/policy";
+import { enqueueJob } from "@/lib/jobs/enqueue";
 import { JOB_TYPES } from "@/lib/jobs/types";
 
 describe("job policy", () => {
@@ -53,11 +55,39 @@ describe("job policy", () => {
     );
   });
 
-  it("blocks briefing.generate when briefing automation is disabled", () => {
-    process.env.BRIEFING_AUTOMATION_ENABLED = "false";
+  it("decommissions briefing.generate regardless of env flag", () => {
+    process.env.BRIEFING_AUTOMATION_ENABLED = "true";
+    assert.equal(isBriefingExecutionEnabled(), false);
     assert.throws(
       () => assertJobTypeAllowedForPhase(JOB_TYPES.BRIEFING_GENERATE),
-      /BRIEFING_AUTOMATION_ENABLED/,
+      /decommissioned/,
+    );
+  });
+
+  it("generic enqueue rejects briefing.generate before creating a job", async () => {
+    await assert.rejects(
+      () =>
+        enqueueJob({
+          organizationId: "org_1",
+          jobType: JOB_TYPES.BRIEFING_GENERATE,
+          idempotencyKey: "p0c-generate-should-not-create",
+          triggerSource: "USER",
+          triggeredByUserId: "user_1",
+        }),
+      /decommissioned/,
+    );
+  });
+
+  it("generic enqueue still rejects briefing.schedule", async () => {
+    await assert.rejects(
+      () =>
+        enqueueJob({
+          organizationId: "org_1",
+          jobType: JOB_TYPES.BRIEFING_SCHEDULE,
+          idempotencyKey: "p0c-schedule-should-not-create",
+          triggerSource: "CRON",
+        }),
+      /decommissioned/,
     );
   });
 
@@ -135,7 +165,17 @@ describe("job policy — briefing automation enabled", () => {
     else process.env.BRIEFING_AUTOMATION_ENABLED = prevBriefing;
   });
 
-  it("allows briefing.generate when briefing automation is enabled", () => {
-    assert.doesNotThrow(() => assertJobTypeAllowedForPhase(JOB_TYPES.BRIEFING_GENERATE));
+  it("still rejects briefing.generate when the legacy env flag is on", () => {
+    assert.throws(
+      () => assertJobTypeAllowedForPhase(JOB_TYPES.BRIEFING_GENERATE),
+      /decommissioned/,
+    );
+  });
+
+  it("still rejects briefing.schedule when the legacy env flag is on", () => {
+    assert.throws(
+      () => assertJobTypeAllowedForPhase(JOB_TYPES.BRIEFING_SCHEDULE),
+      /decommissioned/,
+    );
   });
 });

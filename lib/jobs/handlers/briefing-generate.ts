@@ -1,39 +1,15 @@
-import { runBriefingGenerate } from "@/lib/briefing/run-briefing-generate";
-import {
-  parseBriefingGeneratePayload,
-  parseOptionalIsoDateFromPayload,
-} from "@/lib/jobs/handlers/briefing-payloads";
+import { BRIEFING_DECOMMISSIONED_REASON } from "@/lib/jobs/policy";
 import type { JobHandler } from "@/lib/jobs/handlers/types";
-import { getJobProcessorActorUserId } from "@/lib/jobs/policy";
 
-export const handleBriefingGenerate: JobHandler = async (ctx) => {
-  const payload = parseBriefingGeneratePayload(ctx.job.payload);
-  const organizationId = payload.organizationId ?? ctx.job.organizationId;
-  const actorUserId = getJobProcessorActorUserId(ctx.job.triggeredByUserId);
-
-  const windowStart = parseOptionalIsoDateFromPayload(payload.windowStartIso) ?? undefined;
-  const windowEnd = parseOptionalIsoDateFromPayload(payload.windowEndIso) ?? undefined;
-
-  const result = await runBriefingGenerate({
-    organizationId,
-    slot: payload.slot,
-    backgroundJobId: ctx.job.id,
-    triggeredByUserId: actorUserId,
-    windowStart,
-    windowEnd,
-    force: payload.force,
-    dryRun: payload.dryRun,
-  });
-
-  if (result.status === "failed") {
-    throw new Error(result.errorMessage);
-  }
-
+/**
+ * briefing.generate is decommissioned (P0-C).
+ * Stale queued jobs complete without Gemini, persistence, or email.
+ */
+export const handleBriefingGenerate: JobHandler = async () => {
   return {
     metadata: {
-      organizationId,
-      slot: payload.slot,
-      ...result,
+      skippedReason: BRIEFING_DECOMMISSIONED_REASON,
+      decommissioned: true,
     },
   };
 };

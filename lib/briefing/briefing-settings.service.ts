@@ -1,6 +1,10 @@
 import type { BriefingSlot } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { resolveMvpActiveSourceTypes } from "@/lib/briefing/briefing-gates";
+import {
+  BRIEFING_DECOMMISSIONED_MESSAGE,
+  isBriefingExecutionEnabled,
+} from "@/lib/jobs/policy";
 import type { StaffContext } from "@/lib/services/staff-context";
 import { hasOrgWidePropertyRights } from "@/lib/services/property-access";
 import { ForbiddenError } from "@/lib/services/errors";
@@ -28,6 +32,10 @@ export async function upsertBriefingSettings(
   ctx: StaffContext,
   input: BriefingSettingsInput,
 ): Promise<void> {
+  if (!isBriefingExecutionEnabled()) {
+    throw new Error(BRIEFING_DECOMMISSIONED_MESSAGE);
+  }
+
   assertCanEditBriefingSettings(ctx);
 
   await prisma.$transaction([
