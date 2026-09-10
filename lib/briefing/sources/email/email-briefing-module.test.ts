@@ -11,6 +11,7 @@ import {
 import { BRIEFING_DATA_PROVENANCE } from "@/lib/briefing/briefing-sources";
 import { BRIEFING_ATTENTION_SECTION } from "@/lib/briefing/sources/email/briefing-attention-constants";
 import { collectEmailBriefingSource } from "@/lib/briefing/sources/email/email-briefing-module";
+import type { BriefingEmailThreadCandidate } from "@/lib/briefing/briefing-types";
 import type { BriefingSourceRunContext } from "@/lib/briefing/sources/types";
 
 const baseCtx: BriefingSourceRunContext = {
@@ -36,7 +37,7 @@ const emptyActiveAttention = async () => ({
   clearedCount: 0,
 });
 
-const windowCandidate = {
+const windowCandidate: BriefingEmailThreadCandidate = {
   id: "thread_1",
   organizationId: "org_1",
   providerThreadId: "gmail_1",
@@ -59,7 +60,7 @@ const windowCandidate = {
   ],
 };
 
-function includeAllFilters(threads: typeof windowCandidate[]) {
+function includeAllFilters(threads: BriefingEmailThreadCandidate[]) {
   return threads.map((thread) => ({
     threadId: thread.id,
     include: true,

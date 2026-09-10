@@ -50,10 +50,11 @@ export function resolveOffboardingNextStep(row: OffboardingAttentionRow): Offboa
 export function adaptOffboardingToWorkItemDraft(
   row: OffboardingAttentionRow,
   nextStep: OffboardingNextStep = resolveOffboardingNextStep(row),
+  opts?: { today?: string },
 ): OperationalWorkItemDraft {
   const dueAt = row.dateLabel !== "—" ? row.dateLabel : null;
-  const dateOverdue = isDateOverdue(dueAt);
-  const dateComingUp = isDateWithinUpcomingWindow(dueAt);
+  const dateOverdue = isDateOverdue(dueAt, opts?.today);
+  const dateComingUp = isDateWithinUpcomingWindow(dueAt, { today: opts?.today });
 
   let recordType: OperationalWorkItemDraft["recordType"];
   let recordId: string;

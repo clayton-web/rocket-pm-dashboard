@@ -36,19 +36,19 @@ afterEach(() => {
 
 describe("email provider selection", () => {
   it("defaults to console in development", () => {
-    process.env.NODE_ENV = "development";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "development";
     delete process.env.EMAIL_PROVIDER;
     assert.equal(getEmailProviderName(), "console");
   });
 
   it("defaults to resend in production", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
     delete process.env.EMAIL_PROVIDER;
     assert.equal(getEmailProviderName(), "resend");
   });
 
   it("respects explicit EMAIL_PROVIDER", () => {
-    process.env.NODE_ENV = "development";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "development";
     process.env.EMAIL_PROVIDER = "resend";
     assert.equal(getEmailProviderName(), "resend");
   });
@@ -183,7 +183,7 @@ describe("lease signing request email template", () => {
 
 describe("production email guard", () => {
   it("flags missing production email configuration", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
     process.env.EMAIL_ENABLED = "false";
     process.env.EMAIL_PROVIDER = "console";
     delete process.env.RESEND_API_KEY;
@@ -201,7 +201,7 @@ describe("production email guard", () => {
   });
 
   it("flags TENANT_AUTH_DEV_SHOW_CODE in production", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
     process.env.TENANT_AUTH_DEV_SHOW_CODE = "true";
     process.env.EMAIL_ENABLED = "true";
     process.env.EMAIL_PROVIDER = "resend";
@@ -217,7 +217,7 @@ describe("production email guard", () => {
   });
 
   it("passes when production email configuration is complete", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
     process.env.EMAIL_ENABLED = "true";
     process.env.EMAIL_PROVIDER = "resend";
     process.env.RESEND_API_KEY = "re_test";

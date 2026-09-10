@@ -5,6 +5,7 @@ import {
   saveBuildiumCredentialsAction,
   testBuildiumConnectionAction,
 } from "@/app/(dashboard)/settings/integrations/buildium/actions";
+import { formControlClasses } from "@/components/portal/form-control";
 import {
   FormField,
   FormSection,
@@ -33,8 +34,7 @@ export function BuildiumSettingsForm({ initialSettings }: { initialSettings: Bui
   const [clientId, setClientId] = useState(initialSettings.connection.clientId);
   const [clientSecret, setClientSecret] = useState("");
 
-  const inputClass =
-    "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-neutral-500 focus:outline-none";
+  const inputClass = formControlClasses({ className: "shadow-sm" });
 
   function onSaveCredentials() {
     setError(null);

@@ -1,12 +1,38 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { EmailThreadCategory, EmailThreadCategoryAssignmentSource } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { classifyInboxThread } from "./classify-thread";
 
 const ORG_ID = "org_test";
 const THREAD_ID = "thread_test";
 
-const baseThread = {
+type ThreadFixture = {
+  id: string;
+  organizationId: string;
+  connectedAccountId: string;
+  subject: string;
+  snippet: string;
+  participantEmails: string[];
+  contextLinks: unknown[];
+  category: EmailThreadCategory;
+  categorySource: string | null;
+  lastClassificationAttemptAt: Date | null;
+  categoryAssignments: Array<{
+    category: EmailThreadCategory;
+    source: EmailThreadCategoryAssignmentSource;
+    reason: string | null;
+    assignedAt: Date;
+  }>;
+  messages: Array<{
+    fromAddr: string;
+    isOutbound: boolean;
+    sentAt: Date;
+    bodyText: string;
+  }>;
+};
+
+const baseThread: ThreadFixture = {
   id: THREAD_ID,
   organizationId: ORG_ID,
   connectedAccountId: "mailbox_test",
@@ -14,15 +40,10 @@ const baseThread = {
   snippet: "Can I see the unit this week?",
   participantEmails: ["tenant@example.com"],
   contextLinks: [],
-  category: "UNCATEGORIZED" as const,
+  category: "UNCATEGORIZED",
   categorySource: null,
   lastClassificationAttemptAt: null,
-  categoryAssignments: [] as Array<{
-    category: "UNCATEGORIZED";
-    source: "RULE";
-    reason: string | null;
-    assignedAt: Date;
-  }>,
+  categoryAssignments: [],
   messages: [
     {
       fromAddr: "tenant@example.com",
@@ -48,8 +69,8 @@ type TransactionCall = {
 
 function withMockPrisma<T>(
   mocks: {
-    findFirst: () => Promise<typeof baseThread | null>;
-    transaction?: (call: TransactionCall) => Promise<unknown>;
+    findFirst: () => Promise<ThreadFixture | null>;
+    transaction?: (callback: TransactionCall["callback"]) => Promise<unknown>;
     propertyFindFirst?: () => Promise<{ id: string; name: string } | null>;
     tenancyContactFindFirst?: () => Promise<{ firstName: string; lastName: string } | null>;
     updateMany?: (args: unknown) => Promise<{ count: number }>;

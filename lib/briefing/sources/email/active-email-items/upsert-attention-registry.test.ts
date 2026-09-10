@@ -4,12 +4,14 @@ import {
   BriefingAttentionStatus,
   BriefingItemCategory,
   BriefingItemUrgency,
+  type Prisma,
 } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import {
   applyAttentionEvaluation,
   markAttentionResolved,
   upsertAttentionRegistry,
+  type UpsertAttentionRegistryDeps,
 } from "@/lib/briefing/sources/email/active-email-items/upsert-attention-registry";
 
 describe("upsertAttentionRegistry", () => {
@@ -30,10 +32,10 @@ describe("upsertAttentionRegistry", () => {
         messages: [{ isOutbound: true, sentAt: new Date("2026-06-26T09:00:00.000Z") }],
       },
       {
-        upsert: async (args) => {
+        upsert: (async (args: Prisma.EmailThreadBriefingAttentionUpsertArgs) => {
           calls.push(args);
           return { id: "attn_1", ...(args.create as object) };
-        },
+        }) as unknown as UpsertAttentionRegistryDeps["upsert"],
       },
     );
 
@@ -65,11 +67,11 @@ describe("upsertAttentionRegistry", () => {
       urgency: BriefingItemUrgency.NORMAL,
     };
 
-    const deps = {
-      upsert: async () => {
+    const deps: UpsertAttentionRegistryDeps = {
+      upsert: (async () => {
         upsertCount += 1;
         return { id: "attn_1" };
-      },
+      }) as unknown as UpsertAttentionRegistryDeps["upsert"],
     };
 
     await upsertAttentionRegistry(input, deps);
@@ -94,10 +96,10 @@ describe("markAttentionResolved", () => {
         resolutionReason: "manual",
       },
       {
-        update: async (args) => {
+        update: (async (args: Prisma.EmailThreadBriefingAttentionUpdateArgs) => {
           calls.push(args);
           return { id: "attn_1" };
-        },
+        }) as unknown as UpsertAttentionRegistryDeps["update"],
       },
     );
 
@@ -121,10 +123,10 @@ describe("applyAttentionEvaluation", () => {
         lastOutboundAt,
       },
       {
-        update: async (args) => {
+        update: (async (args: Prisma.EmailThreadBriefingAttentionUpdateArgs) => {
           calls.push(args);
           return { id: "attn_1" };
-        },
+        }) as unknown as UpsertAttentionRegistryDeps["update"],
       },
     );
 

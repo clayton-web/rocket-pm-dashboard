@@ -1,10 +1,9 @@
 "use client";
 
-import {
-  FormField,
-  InlineNotice,
-  PrimaryButton,
-} from "@/components/portal/ui";
+import { Button } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
+import { FormField, InlineNotice } from "@/components/portal/ui";
 import { SignaturePad } from "@/components/signing/signature-pad";
 import { useState, useTransition } from "react";
 
@@ -66,19 +65,25 @@ export function LeaseSigningForm({
 
   if (done) {
     return (
-      <InlineNotice>{successMessage ?? "Your signature has been recorded."}</InlineNotice>
+      <InlineNotice tone="success" role="status">
+        {successMessage ?? "Your signature has been recorded."}
+      </InlineNotice>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error ? <InlineNotice>{error}</InlineNotice> : null}
+      {error ? (
+        <InlineNotice tone="danger" role="alert">
+          {error}
+        </InlineNotice>
+      ) : null}
 
       <FormField label="Legal name" htmlFor="signer-name">
         <input
           id="signer-name"
           type="text"
-          className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className={formControlClasses()}
           value={signerName}
           disabled={disabled || pending}
           onChange={(e) => setSignerName(e.target.value)}
@@ -86,10 +91,10 @@ export function LeaseSigningForm({
         />
       </FormField>
 
-      <label className="flex items-start gap-2 text-sm text-neutral-700">
+      <label className="flex items-start gap-2 text-sm text-foreground-muted">
         <input
           type="checkbox"
-          className="mt-1"
+          className={`mt-1 h-4 w-4 rounded border-border-strong ${FOCUS_RING}`}
           checked={acknowledgedReview}
           disabled={disabled || pending}
           onChange={(e) => setAcknowledgedReview(e.target.checked)}
@@ -104,9 +109,9 @@ export function LeaseSigningForm({
         />
       </FormField>
 
-      <PrimaryButton type="submit" disabled={disabled || pending} className="!w-auto px-6">
+      <Button variant="primary" size="lg" type="submit" disabled={disabled || pending}>
         {pending ? "Submitting…" : submitLabel}
-      </PrimaryButton>
+      </Button>
     </form>
   );
 }

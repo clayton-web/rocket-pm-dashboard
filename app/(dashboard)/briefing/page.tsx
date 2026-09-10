@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BriefingRunCard } from "@/components/briefing/briefing-run-card";
 import { BriefingRunNowButton } from "@/components/briefing/briefing-run-now-button";
-import { InlineNotice } from "@/components/portal/ui";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { InlineAlert, InlineNotice, SURFACE_DASHED } from "@/components/portal/ui";
 import { getStaffContextFromSession } from "@/lib/auth/staff-from-session";
 import { getBriefingOverview, BRIEFING_SLOT_LABELS } from "@/lib/briefing/briefing-queries";
 import { BriefingSlot } from "@prisma/client";
@@ -36,15 +37,15 @@ export default async function BriefingPage({ searchParams }: PageProps) {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold text-neutral-900">Daily Briefing</h1>
-          <p className="mt-1 text-sm leading-relaxed text-neutral-600">
+          <h1 className="text-lg font-semibold text-foreground">Daily Briefing</h1>
+          <p className="mt-1 text-sm leading-relaxed text-foreground-muted">
             A twice-daily summary of property-management activity.
           </p>
         </div>
         <Link
           href="/briefing/settings"
           prefetch={false}
-          className="text-sm font-medium text-neutral-700 hover:text-neutral-900"
+          className={`rounded-sm text-sm font-medium text-foreground-muted hover:text-foreground ${FOCUS_RING}`}
         >
           Settings
         </Link>
@@ -53,7 +54,11 @@ export default async function BriefingPage({ searchParams }: PageProps) {
       {briefingDisabled ? (
         <InlineNotice>
           Daily Briefing is disabled for this organization. Enable it in{" "}
-          <Link href="/briefing/settings" prefetch={false} className="font-medium underline-offset-2 hover:underline">
+          <Link
+            href="/briefing/settings"
+            prefetch={false}
+            className={`rounded-sm font-medium underline-offset-2 hover:underline ${FOCUS_RING}`}
+          >
             settings
           </Link>{" "}
           to generate summaries.
@@ -68,19 +73,15 @@ export default async function BriefingPage({ searchParams }: PageProps) {
       ) : null}
 
       {params.run === "enqueued" ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+        <InlineNotice tone="success" role="status">
           Briefing run queued. Processing begins when background jobs run.
-        </div>
+        </InlineNotice>
       ) : null}
 
-      {params.run_error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-          {params.run_error}
-        </div>
-      ) : null}
+      {params.run_error ? <InlineAlert>{params.run_error}</InlineAlert> : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-lg border border-neutral-200 bg-neutral-50 p-1">
+        <div className="inline-flex rounded-lg border border-border bg-surface-muted p-1">
           {[BriefingSlot.MORNING, BriefingSlot.AFTERNOON].map((slot) => {
             const selected = slot === activeSlot;
             return (
@@ -88,10 +89,11 @@ export default async function BriefingPage({ searchParams }: PageProps) {
                 key={slot}
                 href={`/briefing?slot=${slot}`}
                 prefetch={false}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                aria-current={selected ? "true" : undefined}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${FOCUS_RING} ${
                   selected
-                    ? "bg-white text-neutral-900 shadow-sm"
-                    : "text-neutral-600 hover:text-neutral-900"
+                    ? "bg-surface text-foreground shadow-sm"
+                    : "text-foreground-muted hover:text-foreground"
                 }`}
               >
                 {BRIEFING_SLOT_LABELS[slot]}
@@ -106,9 +108,9 @@ export default async function BriefingPage({ searchParams }: PageProps) {
       {activeRun ? (
         <BriefingRunCard run={activeRun} />
       ) : (
-        <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-6 py-10 text-center">
-          <p className="text-sm font-medium text-neutral-900">No {BRIEFING_SLOT_LABELS[activeSlot].toLowerCase()} runs yet</p>
-          <p className="mt-1 text-sm text-neutral-600">
+        <div className={`${SURFACE_DASHED} px-6 py-10 text-center`}>
+          <p className="text-sm font-medium text-foreground">No {BRIEFING_SLOT_LABELS[activeSlot].toLowerCase()} runs yet</p>
+          <p className="mt-1 text-sm text-foreground-muted">
             Run a briefing manually or wait for the scheduled job once automation is enabled.
           </p>
         </div>

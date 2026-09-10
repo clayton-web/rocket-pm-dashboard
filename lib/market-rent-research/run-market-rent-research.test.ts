@@ -102,7 +102,7 @@ describe("runMarketRentResearch", () => {
     else process.env.OPENAI_API_KEY = originalOpenAi;
     if (originalFixture === undefined) delete process.env.MARKET_RENT_USE_FIXTURE_COMPS;
     else process.env.MARKET_RENT_USE_FIXTURE_COMPS = originalFixture;
-    process.env.NODE_ENV = originalNodeEnv;
+    (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
   });
 
   it("returns no_providers when Craigslist flag is off", async () => {
@@ -195,7 +195,7 @@ describe("runMarketRentResearch", () => {
   it("uses fixture comps when fixture flag is enabled in non-production", async () => {
     process.env.MARKET_RENT_SCRAPE_CRAIGSLIST_ENABLED = "true";
     process.env.MARKET_RENT_USE_FIXTURE_COMPS = "true";
-    process.env.NODE_ENV = "development";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "development";
     delete process.env.OPENAI_API_KEY;
 
     const result = await runMarketRentResearch({

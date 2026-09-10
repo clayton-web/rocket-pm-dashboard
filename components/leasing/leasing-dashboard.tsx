@@ -7,6 +7,13 @@ import {
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { StatusBadge } from "@/components/portal/status-badge";
+import { SummaryPill } from "@/components/portal/summary-pill";
+import {
+  OFFBOARDING_ATTENTION_TONES,
+  ONBOARDING_ATTENTION_TONES,
+} from "@/components/leasing/leasing-status-tones";
 import { formatApplicationQueueStatus } from "@/lib/leasing/application-staff-queue";
 import type { ApplicationConversionQueueRow } from "@/lib/leasing/application-conversion-staff-queue";
 import type { ApplicationQueueRow } from "@/lib/leasing/application-staff-queue";
@@ -53,30 +60,17 @@ function SectionHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 id={id} className="scroll-mt-6 text-lg font-semibold text-neutral-900">
+        <h2 id={id} className="scroll-mt-6 text-lg font-semibold text-foreground">
           {title}
         </h2>
-        <p className="mt-1 text-sm text-neutral-600">
+        <p className="mt-1 text-sm text-foreground-muted">
           {total} item{total === 1 ? "" : "s"} need attention
         </p>
       </div>
-      <Link href={viewAllHref} className="text-sm font-medium text-neutral-900 underline">
+      <Link href={viewAllHref} className={`text-sm font-medium text-foreground underline ${FOCUS_RING}`}>
         View all →
       </Link>
     </div>
-  );
-}
-
-function SummaryPill({ href, label, count }: { href: string; label: string; count: number }) {
-  if (count === 0) return null;
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 transition-colors hover:border-neutral-400"
-    >
-      <span className="font-semibold tabular-nums text-neutral-900">{count}</span>
-      <span>{label}</span>
-    </Link>
   );
 }
 
@@ -87,23 +81,21 @@ function ViewingRequestPreview({ prospect }: { prospect: ProspectQueueRow }) {
   return (
     <Link
       href="/leasing/prospects"
-      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <span className="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-900">
-          New request
-        </span>
-        <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
+        <StatusBadge tone="info">New request</StatusBadge>
+        <time className="text-xs text-foreground-subtle" dateTime={submitted.dateTime}>
           {submitted.label}
         </time>
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-neutral-900">{displayName}</h3>
-      <p className="mt-1 text-xs font-medium text-neutral-700">{prospect.propertyName}</p>
+      <h3 className="mt-3 text-sm font-semibold text-foreground">{displayName}</h3>
+      <p className="mt-1 text-xs font-medium text-foreground-muted">{prospect.propertyName}</p>
       {prospect.unitLabel ? (
-        <p className="mt-2 text-sm text-neutral-600">{prospect.unitLabel}</p>
+        <p className="mt-2 text-sm text-foreground-muted">{prospect.unitLabel}</p>
       ) : null}
-      <p className="mt-2 text-sm text-neutral-600">
-        <span className="text-neutral-500">Desired move-in · </span>
+      <p className="mt-2 text-sm text-foreground-muted">
+        <span className="text-foreground-subtle">Desired move-in · </span>
         {formatMoveInDate(prospect.desiredMoveInDate)}
       </p>
     </Link>
@@ -117,19 +109,17 @@ function ApplicationPreview({ application }: { application: ApplicationQueueRow 
   return (
     <Link
       href={`/leasing/applications/${application.id}`}
-      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
-          {formatApplicationQueueStatus(application.status)}
-        </span>
-        <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
+        <StatusBadge emphasis="strong">{formatApplicationQueueStatus(application.status)}</StatusBadge>
+        <time className="text-xs text-foreground-subtle" dateTime={submitted.dateTime}>
           {submitted.label}
         </time>
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-neutral-900">{displayName}</h3>
-      <p className="mt-1 text-xs font-medium text-neutral-700">{application.propertyName}</p>
-      <p className="mt-2 text-sm text-neutral-600">{application.unitLabel}</p>
+      <h3 className="mt-3 text-sm font-semibold text-foreground">{displayName}</h3>
+      <p className="mt-1 text-xs font-medium text-foreground-muted">{application.propertyName}</p>
+      <p className="mt-2 text-sm text-foreground-muted">{application.unitLabel}</p>
     </Link>
   );
 }
@@ -141,50 +131,37 @@ function ConversionPreview({ application }: { application: ApplicationConversion
   return (
     <Link
       href={`/leasing/applications/${application.id}`}
-      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-900">
-          Ready to convert
-        </span>
-        <time className="text-xs text-neutral-500" dateTime={approved.dateTime}>
+        <StatusBadge tone="success">Ready to convert</StatusBadge>
+        <time className="text-xs text-foreground-subtle" dateTime={approved.dateTime}>
           {approved.label}
         </time>
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-neutral-900">{displayName}</h3>
-      <p className="mt-1 text-xs font-medium text-neutral-700">{application.propertyName}</p>
-      <p className="mt-2 text-sm text-neutral-600">{application.unitLabel}</p>
+      <h3 className="mt-3 text-sm font-semibold text-foreground">{displayName}</h3>
+      <p className="mt-1 text-xs font-medium text-foreground-muted">{application.propertyName}</p>
+      <p className="mt-2 text-sm text-foreground-muted">{application.unitLabel}</p>
     </Link>
   );
-}
-
-function onboardingBadgeClass(kind: OnboardingAttentionRow["kind"]) {
-  if (kind === "overdue") return "border-red-200 bg-red-50 text-red-900";
-  if (kind === "upcoming") return "border-sky-200 bg-sky-50 text-sky-900";
-  if (kind === "portal_not_ready") return "border-amber-200 bg-amber-50 text-amber-900";
-  return "border-violet-200 bg-violet-50 text-violet-900";
 }
 
 function OnboardingPreview({ row }: { row: OnboardingAttentionRow }) {
   return (
     <Link
       href={row.href}
-      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <span
-          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${onboardingBadgeClass(row.kind)}`}
-        >
-          {row.badgeLabel}
-        </span>
+        <StatusBadge tone={ONBOARDING_ATTENTION_TONES[row.kind]}>{row.badgeLabel}</StatusBadge>
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-neutral-900">
+      <h3 className="mt-3 text-sm font-semibold text-foreground">
         {row.tenantLabel ?? "No contact on file"}
       </h3>
-      <p className="mt-1 text-xs font-medium text-neutral-700">{row.propertyName}</p>
-      <p className="mt-2 text-sm text-neutral-600">{row.unitLabel}</p>
-      <p className="mt-2 text-sm text-neutral-600">
-        <span className="text-neutral-500">Move-in · </span>
+      <p className="mt-1 text-xs font-medium text-foreground-muted">{row.propertyName}</p>
+      <p className="mt-2 text-sm text-foreground-muted">{row.unitLabel}</p>
+      <p className="mt-2 text-sm text-foreground-muted">
+        <span className="text-foreground-subtle">Move-in · </span>
         {formatMoveInDate(row.moveInDate)}
       </p>
     </Link>
@@ -202,38 +179,27 @@ function offboardingRowKey(row: OffboardingAttentionRow): string {
   }
 }
 
-function offboardingBadgeClass(kind: OffboardingAttentionRow["kind"]) {
-  if (kind === "pending_notice") return "border-amber-200 bg-amber-50 text-amber-900";
-  if (kind === "awaiting_schedule") return "border-sky-200 bg-sky-50 text-sky-900";
-  if (kind === "awaiting_inspection_schedule") return "border-violet-200 bg-violet-50 text-violet-900";
-  return "border-indigo-200 bg-indigo-50 text-indigo-900";
-}
-
 function OffboardingPreview({ row }: { row: OffboardingAttentionRow }) {
   const submitted = formatSubmittedAt(row.sortAt);
 
   return (
     <Link
       href={row.href}
-      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+      className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <span
-          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${offboardingBadgeClass(row.kind)}`}
-        >
-          {row.badgeLabel}
-        </span>
-        <time className="text-xs text-neutral-500" dateTime={submitted.dateTime}>
+        <StatusBadge tone={OFFBOARDING_ATTENTION_TONES[row.kind]}>{row.badgeLabel}</StatusBadge>
+        <time className="text-xs text-foreground-subtle" dateTime={submitted.dateTime}>
           {submitted.label}
         </time>
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-neutral-900">
+      <h3 className="mt-3 text-sm font-semibold text-foreground">
         {row.tenantLabel ?? "Tenant"}
       </h3>
-      <p className="mt-1 text-xs font-medium text-neutral-700">{row.propertyName}</p>
-      <p className="mt-2 text-sm text-neutral-600">{row.unitLabel}</p>
-      <p className="mt-2 text-sm text-neutral-600">
-        <span className="text-neutral-500">{row.datePrefix}</span>
+      <p className="mt-1 text-xs font-medium text-foreground-muted">{row.propertyName}</p>
+      <p className="mt-2 text-sm text-foreground-muted">{row.unitLabel}</p>
+      <p className="mt-2 text-sm text-foreground-muted">
+        <span className="text-foreground-subtle">{row.datePrefix}</span>
         {row.dateLabel}
       </p>
     </Link>
@@ -289,13 +255,17 @@ export function LeasingDashboard({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">Leasing</h1>
-        <p className="mt-1 text-sm text-neutral-600">
+        <h1 className="text-2xl font-semibold text-foreground">Leasing</h1>
+        <p className="mt-1 text-sm text-foreground-muted">
           What needs attention across intake, applications, move-ins, and offboarding.
         </p>
       </div>
 
-      {loadError ? <InlineNotice className="mb-4">{loadError}</InlineNotice> : null}
+      {loadError ? (
+        <InlineNotice className="mb-4" tone="danger">
+          {loadError}
+        </InlineNotice>
+      ) : null}
 
       {summary ? (
         <FormField label="Attention summary" htmlFor="leasing-dashboard-summary">
@@ -303,7 +273,7 @@ export function LeasingDashboard({
             id="leasing-dashboard-summary"
             className={`block ${SURFACE_PANEL} px-3.5 py-3 text-sm`}
           >
-            <span className="font-medium text-neutral-900">
+            <span className="font-medium text-foreground">
               {summary.total} item{summary.total === 1 ? "" : "s"} need attention
             </span>
             {summary.total > 0 ? (
@@ -335,7 +305,7 @@ export function LeasingDashboard({
                 />
               </div>
             ) : (
-              <span className="mt-1 block text-neutral-600">Nothing needs attention right now.</span>
+              <span className="mt-1 block text-foreground-muted">Nothing needs attention right now.</span>
             )}
           </output>
         </FormField>

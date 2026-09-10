@@ -10,7 +10,7 @@ describe("applyPromptSyncAfterEnqueue", () => {
   it("schedules prompt processing when a new job is enqueued", () => {
     let scheduled = 0;
     applyPromptSyncAfterEnqueue(
-      { jobId: "job_1", alreadyQueued: false },
+      { alreadyQueued: false },
       { schedule: () => { scheduled += 1; } },
     );
     assert.equal(scheduled, 1);
@@ -19,7 +19,7 @@ describe("applyPromptSyncAfterEnqueue", () => {
   it("does not schedule processing when job is already queued", () => {
     let scheduled = 0;
     applyPromptSyncAfterEnqueue(
-      { jobId: "job_1", alreadyQueued: true },
+      { alreadyQueued: true },
       { schedule: () => { scheduled += 1; } },
     );
     assert.equal(scheduled, 0);
@@ -30,7 +30,7 @@ describe("applyPromptSyncAfterRestart", () => {
   it("schedules prompt processing when restart creates a new job", () => {
     let scheduled = 0;
     applyPromptSyncAfterRestart(
-      { restarted: true, jobId: "job_2" },
+      { restarted: true, jobId: "job_2", created: true, cancelledJobIds: [] },
       { schedule: () => { scheduled += 1; } },
     );
     assert.equal(scheduled, 1);

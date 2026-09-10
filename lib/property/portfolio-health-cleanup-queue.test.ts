@@ -1,16 +1,22 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PORTFOLIO_PDF_IMPORT_PLACEHOLDER_DATE_KEY } from "@/lib/portfolio/import-row";
+import { PORTFOLIO_IMPORT_UNKNOWN_CITY } from "@/lib/portfolio/parse-portfolio-address";
 import {
   assessPortfolioHealthProperty,
   type PortfolioHealthUnitInput,
 } from "@/lib/property/portfolio-health";
 import { filterPortfolioHealthCleanupQueue } from "@/lib/property/portfolio-health-cleanup-filters";
 import {
+  flattenHealthCleanupPropertyQueue,
   flattenHealthCleanupTenancyQueue,
+  selectNextPropertyInCleanupQueue,
   selectNextTenancyInCleanupQueue,
 } from "@/lib/property/portfolio-health-cleanup-queue";
-import { buildHealthReturnUrl } from "@/lib/property/portfolio-health-return";
+import {
+  buildHealthReturnUrl,
+  emptyHealthViewState,
+} from "@/lib/property/portfolio-health-return";
 
 function occupiedUnit(
   overrides: {
@@ -99,6 +105,35 @@ function buildTwoTenantEmailIssuesRow() {
   });
 }
 
+/** A clean, editable property; each override introduces exactly one property-level issue. */
+function editableRow(
+  overrides: {
+    id?: string;
+    city?: string;
+    postalCode?: string;
+    ownerEmail?: string | null;
+    ownerPhone?: string | null;
+    strataNotes?: string | null;
+    documentCount?: number;
+  } = {},
+) {
+  return assessPortfolioHealthProperty({
+    id: overrides.id ?? "prop-editable",
+    name: "100 Oak St",
+    streetLine1: "100 Oak St",
+    streetLine2: null,
+    city: overrides.city ?? "Vancouver",
+    province: "BC",
+    postalCode: overrides.postalCode ?? "V6P 2C2",
+    ownerEmail: overrides.ownerEmail === undefined ? "owner@example.com" : overrides.ownerEmail,
+    ownerPhone: overrides.ownerPhone === undefined ? "604-555-0100" : overrides.ownerPhone,
+    strataNotes: overrides.strataNotes === undefined ? "Strata notes" : overrides.strataNotes,
+    documentCount: overrides.documentCount ?? 1,
+    canEdit: true,
+    units: [occupiedUnit()],
+  });
+}
+
 describe("portfolio health cleanup queue", () => {
   it("flattens occupied tenancies from filtered health rows in order", () => {
     const filtered = filterPortfolioHealthCleanupQueue([buildTwoTenantEmailIssuesRow()], ["tenant_email"]);
@@ -126,9 +161,86 @@ describe("portfolio health cleanup queue", () => {
 
   it("builds health return url with cleanupDone when queue is exhausted", () => {
     assert.equal(
-      buildHealthReturnUrl(["tenant_email"], { cleanupDone: "1" }),
+      buildHealthReturnUrl(
+        { ...emptyHealthViewState(), filters: ["tenant_email"] },
+        { cleanupDone: "1" },
+      ),
       "/properties/health?filters=tenant_email&cleanupDone=1",
     );
+  });
+
+  it("queues editable properties in list order and carries their repairable issues", () => {
+    const rows = filterPortfolioHealthCleanupQueue(
+      [
+        editableRow({ id: "prop-a", city: PORTFOLIO_IMPORT_UNKNOWN_CITY }),
+        editableRow({ id: "prop-b", ownerEmail: null, ownerPhone: null }),
+      ],
+      [],
+    );
+    const queue = flattenHealthCleanupPropertyQueue(rows);
+
+    assert.deepEqual(
+      queue.map((entry) => entry.propertyId),
+      ["prop-a", "prop-b"],
+    );
+    assert.ok(queue[0]?.editableIssueKeys.includes("missing_city"));
+    assert.ok(queue[1]?.editableIssueKeys.includes("owner_contact"));
+  });
+
+  it("omits properties the viewer cannot edit", () => {
+    const rows = filterPortfolioHealthCleanupQueue(
+      [
+        { ...editableRow({ id: "prop-readonly", city: PORTFOLIO_IMPORT_UNKNOWN_CITY }), canEdit: false },
+        editableRow({ id: "prop-editable", city: PORTFOLIO_IMPORT_UNKNOWN_CITY }),
+      ],
+      [],
+    );
+
+    assert.deepEqual(
+      flattenHealthCleanupPropertyQueue(rows).map((entry) => entry.propertyId),
+      ["prop-editable"],
+    );
+  });
+
+  it("omits properties whose only issue is repaired outside the property editor", () => {
+    // Missing documents is an upload workflow, and tenant data belongs to the tenancy editor.
+    const rows = filterPortfolioHealthCleanupQueue(
+      [editableRow({ id: "prop-docs", documentCount: 0 })],
+      [],
+    );
+
+    assert.equal(flattenHealthCleanupPropertyQueue(rows).length, 0);
+  });
+
+  it("narrows the property queue to the active cleanup filter", () => {
+    const rows = filterPortfolioHealthCleanupQueue(
+      [
+        editableRow({ id: "prop-city", city: PORTFOLIO_IMPORT_UNKNOWN_CITY }),
+        editableRow({ id: "prop-owner", ownerEmail: null, ownerPhone: null }),
+      ],
+      ["missing_city"],
+    );
+
+    assert.deepEqual(
+      flattenHealthCleanupPropertyQueue(rows).map((entry) => entry.propertyId),
+      ["prop-city"],
+    );
+  });
+
+  it("advances through the property queue and reports exhaustion", () => {
+    const rows = filterPortfolioHealthCleanupQueue(
+      [
+        editableRow({ id: "prop-a", city: PORTFOLIO_IMPORT_UNKNOWN_CITY }),
+        editableRow({ id: "prop-b", city: PORTFOLIO_IMPORT_UNKNOWN_CITY }),
+      ],
+      [],
+    );
+    const queue = flattenHealthCleanupPropertyQueue(rows);
+
+    assert.equal(selectNextPropertyInCleanupQueue(queue, "prop-a")?.propertyId, "prop-b");
+    assert.equal(selectNextPropertyInCleanupQueue(queue, "prop-b"), null);
+    // Already fixed and no longer in the queue: restart from the front rather than dead-end.
+    assert.equal(selectNextPropertyInCleanupQueue(queue, "prop-gone")?.propertyId, "prop-a");
   });
 
   it("skips vacant units without tenancy ids", () => {

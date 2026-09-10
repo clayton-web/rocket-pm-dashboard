@@ -43,11 +43,14 @@ import {
   flattenHealthCleanupTenancyQueue,
   selectNextTenancyInCleanupQueue,
 } from "@/lib/property/portfolio-health-cleanup-queue";
-import {
-  filterPortfolioHealthCleanupQueue,
-  parseCleanupFiltersParam,
-} from "@/lib/property/portfolio-health-cleanup-filters";
+import { parseCleanupFiltersParam } from "@/lib/property/portfolio-health-cleanup-filters";
 import { loadPortfolioHealthForStaff } from "@/lib/property/portfolio-health-staff";
+import { parsePortfolioHealthSort } from "@/lib/property/portfolio-health-ranking";
+import { parseSearchQueryParam } from "@/lib/property/portfolio-health-search";
+import {
+  buildPortfolioHealthView,
+  parsePortfolioHealthStatusFilter,
+} from "@/lib/property/portfolio-health-view";
 import { parseTenancyEditFormInput } from "@/lib/validation/tenancy-edit";
 import type { TenancyStatus } from "@prisma/client";
 
@@ -588,9 +591,17 @@ export async function updateTenancyDetailsAction(
   }
 }
 
+/**
+ * Next tenancy in the cleanup queue.
+ *
+ * The queue is built through `buildPortfolioHealthView` so it walks the same order the staff
+ * member is looking at — filters, then search, then status, then sort. Previously only the cleanup
+ * filters were applied here, so with a search or an alternate sort active "next" could jump to a
+ * tenancy that was not in the visible list at all.
+ */
 export async function resolveNextHealthCleanupTenancyAction(
   currentTenancyId: string,
-  healthFiltersRaw: string,
+  context: { filters: string; query: string; status: string; sort: string },
 ): Promise<{ ok: true; nextTenancyId: string | null } | { ok: false; error: string }> {
   const trimmedId = currentTenancyId.trim();
   if (!trimmedId) {
@@ -599,10 +610,15 @@ export async function resolveNextHealthCleanupTenancyAction(
 
   try {
     const ctx = await requireStaffContextFromSession();
-    const filters = parseCleanupFiltersParam(healthFiltersRaw);
     const { rows } = await loadPortfolioHealthForStaff(ctx);
-    const filteredRows = filterPortfolioHealthCleanupQueue(rows, filters);
-    const queue = flattenHealthCleanupTenancyQueue(filteredRows);
+    const view = buildPortfolioHealthView({
+      rows,
+      filters: parseCleanupFiltersParam(context.filters),
+      query: parseSearchQueryParam(context.query),
+      status: parsePortfolioHealthStatusFilter(context.status),
+      sort: parsePortfolioHealthSort(context.sort),
+    });
+    const queue = flattenHealthCleanupTenancyQueue(view.rows);
     const next = selectNextTenancyInCleanupQueue(queue, trimmedId);
     return { ok: true, nextTenancyId: next?.tenancyId ?? null };
   } catch (e) {

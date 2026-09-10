@@ -4,6 +4,10 @@ import {
   isPortfolioImportUnknownPostal,
 } from "@/lib/portfolio/parse-portfolio-address";
 import { formatPropertyAddress, formatUnitLabelOrDash } from "@/lib/property/display";
+import {
+  portfolioHealthAttentionStatusFromKeys,
+  type PortfolioHealthAttentionStatus,
+} from "@/lib/property/portfolio-health-ranking";
 
 export type PortfolioHealthOverallStatus = "complete" | "needs_review";
 
@@ -12,7 +16,6 @@ export type PortfolioHealthCategoryStatus = "ok" | "missing" | "recommended" | "
 export type PortfolioHealthMissingItemKey =
   | "property_address"
   | "owner_contact"
-  | "active_tenancy"
   | "tenant_name"
   | "tenant_email"
   | "tenant_phone"
@@ -29,7 +32,6 @@ export type PortfolioHealthMissingItemKey =
 export const PORTFOLIO_HEALTH_MISSING_LABELS: Record<PortfolioHealthMissingItemKey, string> = {
   property_address: "Missing property address",
   owner_contact: "Missing owner email/phone",
-  active_tenancy: "Missing active tenancy",
   tenant_name: "Missing tenant name",
   tenant_email: "Missing tenant email",
   tenant_phone: "Missing tenant phone",
@@ -93,6 +95,14 @@ export type PortfolioHealthPropertyInput = {
   strataNotes: string | null;
   documentCount: number;
   units: PortfolioHealthUnitInput[];
+  /** Property row `updatedAt`; already loaded, surfaced for the operations list. */
+  updatedAt?: Date | null;
+  /**
+   * Whether the requesting staff member may edit this property. Resolved by the loader from
+   * the staff context so list surfaces do not have to re-check authorization per row.
+   * Presentation metadata only — the service layer remains the authority on every write.
+   */
+  canEdit?: boolean;
 };
 
 export type PortfolioHealthUnitSlot = {
@@ -114,7 +124,25 @@ export type PortfolioHealthRow = {
   propertyId: string;
   propertyLabel: string;
   cityLine: string;
+  /** Discrete address parts, so search and the operations list do not re-parse `propertyLabel`. */
+  streetLine1: string;
+  streetLine2: string | null;
+  city: string;
+  province: string;
+  postalCode: string;
+  /** ISO date string; null when the loader did not supply `updatedAt`. */
+  updatedAt: string | null;
+  unitCount: number;
+  occupiedUnitCount: number;
+  vacantUnitCount: number;
+  canEdit: boolean;
   isVacant: boolean;
+  /** Primary status, driven by the blocking tier alone. */
+  attentionStatus: PortfolioHealthAttentionStatus;
+  /**
+   * @deprecated Compatibility view of `attentionStatus` for existing summary counters and the
+   * legacy single-select filter. Derived, never independently computed.
+   */
   overallStatus: PortfolioHealthOverallStatus;
   ownerInfoStatus: PortfolioHealthCategoryStatus;
   strataNotesStatus: PortfolioHealthCategoryStatus;
@@ -143,6 +171,11 @@ export {
   PORTFOLIO_HEALTH_SNAPSHOT_LABELS,
   summarizePortfolioHealth,
 } from "@/lib/property/portfolio-health-metrics";
+export type {
+  PortfolioHealthAttentionStatus,
+  PortfolioHealthIssueTier,
+  PortfolioHealthIssueTierCounts,
+} from "@/lib/property/portfolio-health-ranking";
 
 const CURRENT_TENANCY_STATUSES = new Set([
   "pending_move_in",
@@ -172,7 +205,6 @@ const PROPERTY_LEVEL_MISSING_KEYS = new Set<PortfolioHealthMissingItemKey>([
 ]);
 
 const UNIT_LEVEL_MISSING_KEYS = new Set<PortfolioHealthMissingItemKey>([
-  "active_tenancy",
   "tenant_name",
   "tenant_email",
   "tenant_phone",
@@ -187,6 +219,11 @@ function isNonEmpty(value: string | null | undefined): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+/**
+ * `streetLine1` is `NOT NULL` and both `createProperty` and `updateProperty` trim-and-require it,
+ * so a blank value only reaches here from seeds, imports, or direct SQL. Kept as a data-integrity
+ * backstop rather than retired, and treated as blocking when it does fire.
+ */
 function hasPropertyAddress(property: PortfolioHealthPropertyInput): boolean {
   return isNonEmpty(property.streetLine1);
 }
@@ -243,16 +280,6 @@ function formatTenantDisplayName(contact: PortfolioHealthTenantContactInput | nu
   return name || null;
 }
 
-export function isRequiredPortfolioHealthMissingKey(key: PortfolioHealthMissingItemKey): boolean {
-  return (
-    key !== "strata_notes" &&
-    key !== "tenant_phone" &&
-    key !== "security_deposit_zero" &&
-    key !== "import_placeholder_dates" &&
-    key !== "missing_postal_code" &&
-    key !== "missing_city"
-  );
-}
 
 export function assessPortfolioHealthUnitSlot(unit: PortfolioHealthUnitInput): PortfolioHealthUnitSlot {
   const tenancy = unit.tenancy;
@@ -395,7 +422,7 @@ export function assessPortfolioHealthProperty(
   const occupiedSlots = unitSlots.filter((slot) => !slot.isVacant);
   const isVacant = unitSlots.length === 0 || unitSlots.every((slot) => slot.isVacant);
 
-  const requiredMissingKeys = missingItemKeys.filter(isRequiredPortfolioHealthMissingKey);
+  const attentionStatus = portfolioHealthAttentionStatusFromKeys(missingItemKeys);
 
   const ownerInfoStatus: PortfolioHealthCategoryStatus = hasOwnerContact(property)
     ? "ok"
@@ -435,8 +462,19 @@ export function assessPortfolioHealthProperty(
     propertyId: property.id,
     propertyLabel: formatPropertyAddress(property),
     cityLine: formatCityLine(property),
+    streetLine1: property.streetLine1,
+    streetLine2: property.streetLine2,
+    city: property.city,
+    province: property.province,
+    postalCode: property.postalCode,
+    updatedAt: property.updatedAt ? property.updatedAt.toISOString() : null,
+    unitCount: unitSlots.length,
+    occupiedUnitCount: occupiedSlots.length,
+    vacantUnitCount: unitSlots.length - occupiedSlots.length,
+    canEdit: property.canEdit ?? false,
     isVacant,
-    overallStatus: requiredMissingKeys.length === 0 ? "complete" : "needs_review",
+    attentionStatus,
+    overallStatus: attentionStatus === "clear" ? "complete" : "needs_review",
     ownerInfoStatus,
     strataNotesStatus,
     activeTenantStatus,

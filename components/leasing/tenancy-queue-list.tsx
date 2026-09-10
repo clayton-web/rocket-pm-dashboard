@@ -1,5 +1,7 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
+import { statusBadgeClasses } from "@/components/portal/status-badge";
 import {
   FormField,
   FormSection,
@@ -49,14 +51,14 @@ export function TenancyQueueList({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-neutral-900">
+        <h1 className="text-2xl font-semibold text-foreground">
           {isPendingMoveIn ? "Pending move-ins" : "Tenancies"}
         </h1>
-        <p className="mt-1 text-sm text-neutral-600">
+        <p className="mt-1 text-sm text-foreground-muted">
           {isPendingMoveIn ? (
             <>
               Tenancies awaiting move-in.{" "}
-              <Link href="/leasing/tenancies" className="font-medium underline">
+              <Link href="/leasing/tenancies" className={`font-medium underline ${FOCUS_RING}`}>
                 View all tenancies
               </Link>
             </>
@@ -65,7 +67,7 @@ export function TenancyQueueList({
               Manage lease lifecycle and tenant portal access for properties you oversee.{" "}
               <Link
                 href="/leasing/tenancies?status=pending_move_in"
-                className="font-medium underline"
+                className={`font-medium underline ${FOCUS_RING}`}
               >
                 View pending move-ins
               </Link>
@@ -74,15 +76,19 @@ export function TenancyQueueList({
         </p>
       </div>
 
-      {loadError ? <InlineNotice className="mb-4">{loadError}</InlineNotice> : null}
+      {loadError ? (
+        <InlineNotice className="mb-4" tone="danger">
+          {loadError}
+        </InlineNotice>
+      ) : null}
 
       <div className="flex flex-col gap-8">
         <FormField label="Overview" htmlFor="tenancy-queue-summary">
           <output id="tenancy-queue-summary" className={`block ${SURFACE_PANEL} px-3.5 py-3 text-sm`}>
-            <span className="font-medium text-neutral-900">
+            <span className="font-medium text-foreground">
               {tenancies.length} tenanc{tenancies.length === 1 ? "y" : "ies"}
             </span>
-            <span className="mt-1 block text-neutral-600">{visible.length} shown with current filter</span>
+            <span className="mt-1 block text-foreground-muted">{visible.length} shown with current filter</span>
           </output>
         </FormField>
 
@@ -126,26 +132,26 @@ export function TenancyQueueList({
               <li key={t.id}>
                 <Link
                   href={`/leasing/tenancies/${t.id}`}
-                  className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-neutral-400`}
+                  className={`block ${SURFACE_CARD} px-4 py-4 transition-colors hover:border-foreground-subtle ${FOCUS_RING}`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+                    <span className={statusBadgeClasses("neutral", "strong")}>
                       {formatTenancyStatus(t.status)}
                     </span>
                   </div>
-                  <h2 className="mt-3 text-sm font-semibold text-neutral-900">
+                  <h2 className="mt-3 text-sm font-semibold text-foreground">
                     {t.tenantLabel ?? "No contact on file"}
                   </h2>
-                  <p className="mt-1 text-xs font-medium text-neutral-700">{t.propertyName}</p>
-                  <p className="mt-2 text-sm text-neutral-600">{t.unitLabel}</p>
-                  <p className="mt-2 text-sm text-neutral-600">
-                    <span className="text-neutral-500">Move-in · </span>
+                  <p className="mt-1 text-xs font-medium text-foreground-muted">{t.propertyName}</p>
+                  <p className="mt-2 text-sm text-foreground-muted">{t.unitLabel}</p>
+                  <p className="mt-2 text-sm text-foreground-muted">
+                    <span className="text-foreground-subtle">Move-in · </span>
                     {formatMoveInDate(t.moveInDate)}
                   </p>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    <span className="text-neutral-500">Rent · </span>${t.monthlyRent}
+                  <p className="mt-1 text-sm text-foreground-muted">
+                    <span className="text-foreground-subtle">Rent · </span>${t.monthlyRent}
                   </p>
-                  <p className="mt-2 font-mono text-xs text-neutral-500">Ref · {t.id}</p>
+                  <p className="mt-2 font-mono text-xs text-foreground-subtle">Ref · {t.id}</p>
                 </Link>
               </li>
             ))}

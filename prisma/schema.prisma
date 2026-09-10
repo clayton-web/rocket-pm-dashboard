@@ -69,6 +69,8 @@ model User {
   rentalListingsCreated                 RentalListing[]                @relation("RentalListingCreatedBy")
   rentalListingsUpdated                 RentalListing[]                @relation("RentalListingUpdatedBy")
   tenantPlacementsCompleted             TenantPlacement[]              @relation("TenantPlacementCompletedBy")
+  integrationCredentialsCreated         IntegrationCredential[]        @relation("IntegrationCredentialCreatedBy")
+  integrationCredentialsRevoked         IntegrationCredential[]        @relation("IntegrationCredentialRevokedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -118,6 +120,7 @@ model Organization {
   briefingItems                 BriefingItem[]
   emailThreadBriefingAttentions EmailThreadBriefingAttention[]
   buildiumConnection            BuildiumConnection?
+  integrationCredentials        IntegrationCredential[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1145,22 +1148,93 @@ model MaintenanceAttachment {
 }
 
 /// Security and integration audit (Gmail connect/sync, AI drafts, OAuth). Separate from ActivityLog.
+///
+/// Exactly one actor is expected: `actorUserId` for human/staff-triggered events, or
+/// `integrationCredentialId` for server-to-server machine principals that have no staff user.
 model AuditLog {
-  id             String  @id @default(cuid())
-  organizationId String?
-  actorUserId    String
-  action         String
-  resourceType   String
-  resourceId     String?
-  metadata       Json?
+  id                      String  @id @default(cuid())
+  organizationId          String?
+  /// Null when the actor is a machine principal — see integrationCredentialId.
+  actorUserId             String?
+  /// Set when the actor is a server-to-server integration credential.
+  integrationCredentialId String?
+  action                  String
+  resourceType            String
+  resourceId              String?
+  metadata                Json?
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  actor        User          @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  organization          Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor                 User?                  @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  integrationCredential IntegrationCredential? @relation(fields: [integrationCredentialId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
   @@index([organizationId, createdAt])
   @@index([actorUserId, createdAt])
+  @@index([integrationCredentialId, createdAt])
+}
+
+// --- First-party integration credentials (server-to-server, read-only PM context) ---
+
+/// First-party Rocket application allowed to hold an integration credential.
+/// Deliberately an enum, not free text: this is not a public developer platform.
+enum IntegrationApp {
+  ROCKET_COMMUNICATOR
+}
+
+/// Keeps production and development credentials separable for the same organization.
+enum IntegrationCredentialEnvironment {
+  PRODUCTION
+  DEVELOPMENT
+}
+
+/// Granted capabilities. PM_CONTEXT_READ is the read-only `pm:context:read` scope.
+/// No write scopes exist in this phase; maintenance writes are not authorized.
+enum IntegrationCredentialScope {
+  PM_CONTEXT_READ
+}
+
+/// Machine-to-machine credential bound to exactly one Organization.
+///
+/// The raw token (`pmctx_<live|test>_<keyId>_<secret>`) is returned once at creation and never
+/// persisted; only `keyId` (public lookup handle) and `secretHash` (SHA-256 of the full raw token)
+/// are stored. The environment segment is `live` for PRODUCTION and `test` for DEVELOPMENT.
+model IntegrationCredential {
+  id             String @id @default(cuid())
+  organizationId String
+
+  app         IntegrationApp
+  environment IntegrationCredentialEnvironment @default(PRODUCTION)
+
+  /// Human-readable admin label. Never contains secret material.
+  name String
+
+  /// Public lookup handle embedded in the raw token.
+  keyId      String @unique
+  /// SHA-256 (hex) of the full raw token.
+  secretHash String
+
+  scopes IntegrationCredentialScope[] @default([])
+
+  createdByUserId String?
+  revokedByUserId String?
+
+  /// Throttled write on successful authentication (see docs/pm-context-integration.md).
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("IntegrationCredentialCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  revokedBy    User?        @relation("IntegrationCredentialRevokedBy", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+  auditLogs    AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, app, environment])
+  @@index([revokedAt])
 }
 
 // --- Buildium (read-first integration; Phase 1: connection + test only) ---

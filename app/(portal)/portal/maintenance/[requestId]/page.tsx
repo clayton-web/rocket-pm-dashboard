@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "@/components/portal/focus";
 import Link from "next/link";
 import { PortalBackLink } from "@/components/portal/portal-nav";
 import { TenantMaintenanceDetailPanel } from "@/components/portal/tenant-maintenance-card";
@@ -35,8 +36,8 @@ export default async function TenantMaintenanceDetailPage({ params }: PageProps)
         <TenantMaintenanceDetailPanel request={request} />
       </div>
 
-      <p className="mt-6 text-sm text-neutral-600">
-        <Link href="/portal/maintenance/new" className="font-medium underline">
+      <p className="mt-6 text-sm text-foreground-muted">
+        <Link href="/portal/maintenance/new" className={`font-medium underline ${FOCUS_RING}`}>
           Report another issue
         </Link>
       </p>

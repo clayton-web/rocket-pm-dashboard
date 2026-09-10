@@ -27,8 +27,8 @@ export default async function ThreadDetailPage({ params, searchParams }: PagePro
   if (!active) {
     return (
       <div className="mx-auto max-w-3xl space-y-3">
-        <h1 className="text-lg font-semibold text-neutral-900">Thread</h1>
-        <p className="text-sm text-neutral-600">Select an organization to read mail.</p>
+        <h1 className="text-lg font-semibold text-foreground">Thread</h1>
+        <p className="text-sm text-foreground-muted">Select an organization to read mail.</p>
       </div>
     );
   }

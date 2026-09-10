@@ -1,9 +1,157 @@
 @import "tailwindcss";
+@import "./brand/rocket-logic.tokens.css";
 
+/*
+ * Rocket PM Dashboard — portal semantic theme (PRODUCT layer).
+ *
+ * Architecture, one direction only:
+ *   Rocket corporate primitive (--rl-*)  ->  portal semantic token (--portal-*)  ->  Tailwind utility
+ *
+ * Corporate primitives live in app/brand/rocket-logic.tokens.css, vendored from the
+ * rocket-logic-brand repository. Nothing here may redefine a corporate value, and no
+ * corporate value may be made to depend on a token defined below.
+ *
+ * Master PM Portal is a LIGHT application. There is deliberately no dark token set and no
+ * theme toggle. Rocket dark is available as ink, not as an application background.
+ *
+ * Colour values below intentionally reproduce the Tailwind palette entries the portal already
+ * shipped (named in the trailing comments). This layer is an architectural normalization, not a
+ * recolouring: introducing the tokens must not change what the existing pages render.
+ * See docs/branding.md.
+ */
 :root {
   color-scheme: light;
+
+  /* Typeface — Inter, per corporate D-004, injected by next/font in app/layout.tsx.
+     --rl-font-family-sans supplies the corporate fallback chain when the webfont is absent. */
+  --portal-font-sans: var(--font-inter, var(--rl-font-family-sans));
+
+  /* Canvas and surfaces */
+  --portal-background: oklch(98.5% 0 0); /* neutral-50 */
+  --portal-surface: #ffffff;
+  --portal-surface-muted: oklch(98.5% 0 0); /* neutral-50 */
+
+  /* Ink */
+  --portal-foreground: oklch(20.5% 0 0); /* neutral-900 */
+  --portal-foreground-muted: oklch(43.9% 0 0); /* neutral-600 */
+  --portal-foreground-subtle: oklch(55.6% 0 0); /* neutral-500 */
+
+  /* Borders */
+  --portal-border: oklch(92.2% 0 0); /* neutral-200 */
+  --portal-border-strong: oklch(87% 0 0); /* neutral-300 */
+
+  /* Primary filled action — deliberately dark ink, not Rocket red.
+     Product exception to the corporate D-011 default. Documented in docs/branding.md, and not yet
+     registered in the corporate DECISIONS.md. */
+  --portal-primary: oklch(20.5% 0 0); /* neutral-900 */
+  --portal-primary-hover: oklch(26.9% 0 0); /* neutral-800 */
+  --portal-primary-foreground: #ffffff;
+
+  /* Rocket identity accent — corporate red, reserved for identity, active navigation and
+     restrained emphasis. Not the default action colour in this product. */
+  --portal-brand: var(--rl-color-brand-red);
+
+  /* Selected state. Never colour alone: pair with the brand indicator and weight change. */
+  --portal-selected: oklch(97% 0 0); /* neutral-100 */
+  --portal-selected-foreground: oklch(20.5% 0 0); /* neutral-900 */
+
+  /* Keyboard focus. High-contrast ink rather than red, so focus never reads as an error. */
+  --portal-focus: oklch(20.5% 0 0); /* neutral-900 */
+
+  /* Status. Product-level per corporate 07 § What is not defined — no corporate hue exists.
+     Each tone carries a soft treatment (-surface/-border/-foreground) for routine status and a
+     strong treatment (-border-strong/-foreground-strong) for the attention-carrying cases the
+     portal already distinguishes — overdue, emergency, blocking review. */
+  --portal-success: oklch(59.6% 0.145 163.225); /* emerald-600 */
+  --portal-success-surface: oklch(97.9% 0.021 166.113); /* emerald-50 */
+  --portal-success-border: oklch(90.5% 0.093 164.15); /* emerald-200 */
+  --portal-success-border-strong: oklch(84.5% 0.143 164.978); /* emerald-300 */
+  --portal-success-foreground: oklch(37.8% 0.077 168.94); /* emerald-900 */
+  --portal-success-foreground-strong: oklch(26.2% 0.051 172.552); /* emerald-950 */
+
+  --portal-warning: oklch(66.6% 0.179 58.318); /* amber-600 */
+  --portal-warning-surface: oklch(98.7% 0.022 95.277); /* amber-50 */
+  --portal-warning-border: oklch(92.4% 0.12 95.746); /* amber-200 */
+  --portal-warning-border-strong: oklch(87.9% 0.169 91.605); /* amber-300 */
+  --portal-warning-foreground: oklch(41.4% 0.112 45.904); /* amber-900 */
+  --portal-warning-foreground-strong: oklch(27.9% 0.077 45.635); /* amber-950 */
+
+  --portal-danger: oklch(57.7% 0.245 27.325); /* red-600 */
+  --portal-danger-hover: oklch(50.5% 0.213 27.518); /* red-700 */
+  --portal-danger-surface: oklch(97.1% 0.013 17.38); /* red-50 */
+  --portal-danger-border: oklch(88.5% 0.062 18.334); /* red-200 */
+  --portal-danger-border-strong: oklch(80.8% 0.114 19.571); /* red-300 */
+  --portal-danger-foreground: oklch(39.6% 0.141 25.723); /* red-900 */
+  --portal-danger-foreground-strong: oklch(25.8% 0.092 26.042); /* red-950 */
+
+  --portal-info: oklch(58.8% 0.158 241.966); /* sky-600 */
+  --portal-info-surface: oklch(97.7% 0.013 236.62); /* sky-50 */
+  --portal-info-border: oklch(90.1% 0.058 230.902); /* sky-200 */
+  --portal-info-border-strong: oklch(82.8% 0.111 230.318); /* sky-300 */
+  --portal-info-foreground: oklch(39.1% 0.09 240.876); /* sky-900 */
+  --portal-info-foreground-strong: oklch(29.3% 0.066 243.157); /* sky-950 */
+}
+
+/*
+ * Expose the semantic tokens as Tailwind utilities. `inline` is required so that utilities
+ * resolve --portal-* (and, through it, the next/font --font-inter variable) at use time rather
+ * than snapshotting a value into Tailwind's own :root block.
+ */
+@theme inline {
+  --font-sans: var(--portal-font-sans);
+
+  --color-background: var(--portal-background);
+  --color-surface: var(--portal-surface);
+  --color-surface-muted: var(--portal-surface-muted);
+
+  --color-foreground: var(--portal-foreground);
+  --color-foreground-muted: var(--portal-foreground-muted);
+  --color-foreground-subtle: var(--portal-foreground-subtle);
+
+  --color-border: var(--portal-border);
+  --color-border-strong: var(--portal-border-strong);
+
+  --color-primary: var(--portal-primary);
+  --color-primary-hover: var(--portal-primary-hover);
+  --color-primary-foreground: var(--portal-primary-foreground);
+
+  --color-brand: var(--portal-brand);
+
+  --color-selected: var(--portal-selected);
+  --color-selected-foreground: var(--portal-selected-foreground);
+
+  --color-focus: var(--portal-focus);
+
+  --color-success: var(--portal-success);
+  --color-success-surface: var(--portal-success-surface);
+  --color-success-border: var(--portal-success-border);
+  --color-success-border-strong: var(--portal-success-border-strong);
+  --color-success-foreground: var(--portal-success-foreground);
+  --color-success-foreground-strong: var(--portal-success-foreground-strong);
+
+  --color-warning: var(--portal-warning);
+  --color-warning-surface: var(--portal-warning-surface);
+  --color-warning-border: var(--portal-warning-border);
+  --color-warning-border-strong: var(--portal-warning-border-strong);
+  --color-warning-foreground: var(--portal-warning-foreground);
+  --color-warning-foreground-strong: var(--portal-warning-foreground-strong);
+
+  --color-danger: var(--portal-danger);
+  --color-danger-hover: var(--portal-danger-hover);
+  --color-danger-surface: var(--portal-danger-surface);
+  --color-danger-border: var(--portal-danger-border);
+  --color-danger-border-strong: var(--portal-danger-border-strong);
+  --color-danger-foreground: var(--portal-danger-foreground);
+  --color-danger-foreground-strong: var(--portal-danger-foreground-strong);
+
+  --color-info: var(--portal-info);
+  --color-info-surface: var(--portal-info-surface);
+  --color-info-border: var(--portal-info-border);
+  --color-info-border-strong: var(--portal-info-border-strong);
+  --color-info-foreground: var(--portal-info-foreground);
+  --color-info-foreground-strong: var(--portal-info-foreground-strong);
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: var(--portal-font-sans);
 }

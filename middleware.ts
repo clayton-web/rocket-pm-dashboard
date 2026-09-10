@@ -3,6 +3,7 @@ import {
   unauthenticatedStaffRedirect,
 } from "@/lib/auth/staff-middleware-redirect";
 import { stripBasePath } from "@/lib/app-path";
+import { isIntegrationApiV1Path } from "@/lib/integrations/pm-context/integration-route";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
@@ -39,18 +40,24 @@ export async function middleware(req: NextRequest) {
   const isInternalCronRoute =
     pathname === "/api/internal/jobs/process" ||
     pathname === "/api/internal/gemini-probe" ||
-    pathname === "/api/internal/briefing/schedule";
+    pathname === "/api/internal/briefing/schedule" ||
+    pathname === "/api/internal/gmail/schedule";
   const isPortal = pathname.startsWith("/portal");
   const isSignLease = pathname.startsWith("/sign/lease");
   const isSignLeaseApi = pathname.startsWith("/api/sign/lease");
   const isPublicMaintenance = isPublicMaintenanceApi(req);
   const isPublicLeasing = isPublicLeasingApi(req);
   const isPublicPortalApiRoute = isPublicPortalApi(pathname);
+  // Server-to-server integration APIs: no staff browser session exists, so the session check is
+  // skipped here. These are NOT public — each route authenticates its own bearer credential.
+  // Kept separate from the cron exemption: cron and integrations use different credentials.
+  const isIntegrationApi = isIntegrationApiV1Path(pathname);
 
   if (
     isAuthApi ||
     isHealth ||
     isInternalCronRoute ||
+    isIntegrationApi ||
     isPortal ||
     isSignLease ||
     isSignLeaseApi ||

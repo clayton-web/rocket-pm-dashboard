@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "@/components/portal/focus";
 import Link from "next/link";
 import { PortalBackLink } from "@/components/portal/portal-nav";
 import { TenantMaintenanceCard } from "@/components/portal/tenant-maintenance-card";
@@ -25,9 +26,9 @@ export default async function TenantMaintenanceListPage() {
       />
 
       {requests.length === 0 ? (
-        <p className={`${SURFACE_CARD} mt-6 px-4 py-5 text-sm text-neutral-600`}>
+        <p className={`${SURFACE_CARD} mt-6 px-4 py-5 text-sm text-foreground-muted`}>
           No requests yet.{" "}
-          <Link href="/portal/maintenance/new" className="font-medium text-neutral-900 underline">
+          <Link href="/portal/maintenance/new" className={`font-medium text-foreground underline ${FOCUS_RING}`}>
             Submit maintenance
           </Link>
         </p>
@@ -44,9 +45,9 @@ export default async function TenantMaintenanceListPage() {
         </ul>
       )}
 
-      <p className="mt-6 text-sm text-neutral-600">
+      <p className="mt-6 text-sm text-foreground-muted">
         Prefer reference lookup?{" "}
-        <Link href="/portal/maintenance/status" className="font-medium underline">
+        <Link href="/portal/maintenance/status" className={`font-medium underline ${FOCUS_RING}`}>
           Check status by reference
         </Link>
       </p>

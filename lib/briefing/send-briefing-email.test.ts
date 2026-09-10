@@ -126,7 +126,7 @@ describe("sendBriefingEmail", () => {
     process.env.APP_PUBLIC_URL = "https://app.example.com";
 
     const sentTo: string[] = [];
-    let emailSentAt: Date | null = null;
+    let emailSentAt = null as Date | null;
     const auditCreates: Array<{ action: string }> = [];
 
     const result = await withMockPrisma(

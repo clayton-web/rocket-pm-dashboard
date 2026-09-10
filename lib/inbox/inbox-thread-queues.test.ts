@@ -38,6 +38,9 @@ function row(
     actionState: "no_action",
     stakeholderLabel: "Unsorted",
     primaryContextLabel: "Test",
+    senderLabel: "Unknown sender",
+    senderEmail: null,
+    metaLine: "Unlinked",
     ...overrides,
   };
 }

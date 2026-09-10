@@ -1,11 +1,14 @@
 "use client";
 
 import { closeOutShowingAction } from "@/app/(dashboard)/leasing/showings/actions";
+import { Button } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
+import { statusBadgeClasses } from "@/components/portal/status-badge";
 import {
   FormField,
   FormSection,
   InlineNotice,
-  PrimaryButton,
   SURFACE_CARD,
   SURFACE_PANEL,
 } from "@/components/portal/ui";
@@ -25,8 +28,8 @@ function formatDateTime(iso: string | null) {
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <p className="text-sm text-neutral-700">
-      <span className="text-neutral-500">{label} · </span>
+    <p className="text-sm text-foreground-muted">
+      <span className="text-foreground-subtle">{label} · </span>
       {children}
     </p>
   );
@@ -43,11 +46,11 @@ export function ShowingDetail({
     return (
       <div className="mx-auto max-w-3xl">
         <p className="mb-4">
-          <Link href="/leasing/prospects" className="text-sm font-medium text-neutral-700 underline">
+          <Link href="/leasing/prospects" className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
             ← Back to viewing requests
           </Link>
         </p>
-        <InlineNotice>{loadError ?? "Showing not found."}</InlineNotice>
+        <InlineNotice tone="danger">{loadError ?? "Showing not found."}</InlineNotice>
       </div>
     );
   }
@@ -88,29 +91,33 @@ function ShowingDetailBody({ detail }: { detail: ShowingStaffDetail }) {
   return (
     <div className="mx-auto max-w-3xl">
       <p className="mb-4">
-        <Link href={detail.prospectHref} className="text-sm font-medium text-neutral-700 underline">
+        <Link href={detail.prospectHref} className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}>
           ← Back to prospect
         </Link>
       </p>
 
       <div className="mb-6">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold text-neutral-900">Showing</h1>
-          <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+          <h1 className="text-2xl font-semibold text-foreground">Showing</h1>
+          <span className={statusBadgeClasses("neutral", "strong")}>
             {detail.statusLabel}
           </span>
         </div>
-        <p className="mt-1 text-sm text-neutral-600">{formatDateTime(detail.scheduledStart)}</p>
-        <p className="mt-1 font-mono text-xs text-neutral-500">Ref · {detail.id}</p>
+        <p className="mt-1 text-sm text-foreground-muted">{formatDateTime(detail.scheduledStart)}</p>
+        <p className="mt-1 font-mono text-xs text-foreground-subtle">Ref · {detail.id}</p>
       </div>
 
-      {actionError ? <InlineNotice className="mb-4">{actionError}</InlineNotice> : null}
+      {actionError ? (
+        <InlineNotice className="mb-4" tone="danger" role="alert">
+          {actionError}
+        </InlineNotice>
+      ) : null}
 
       <div className="flex flex-col gap-8">
         <FormSection legend="Showing details">
           <div className={`${SURFACE_PANEL} space-y-2 px-3.5 py-3`}>
             <DetailRow label="Prospect">
-              <Link href={detail.prospectHref} className="font-medium underline">
+              <Link href={detail.prospectHref} className={`font-medium underline ${FOCUS_RING}`}>
                 {detail.prospectName}
               </Link>
             </DetailRow>
@@ -137,7 +144,7 @@ function ShowingDetailBody({ detail }: { detail: ShowingStaffDetail }) {
                   required
                   value={choice}
                   onChange={(e) => setChoice(e.target.value)}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 >
                   <option value="">Select a result…</option>
                   {detail.closeOutChoices.map((option) => (
@@ -153,12 +160,12 @@ function ShowingDetailBody({ detail }: { detail: ShowingStaffDetail }) {
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 />
               </FormField>
-              <PrimaryButton type="submit" className="!w-auto px-6" disabled={closeOutPending}>
+              <Button variant="primary" size="lg" type="submit" disabled={closeOutPending}>
                 {closeOutPending ? "Saving…" : "Save close-out"}
-              </PrimaryButton>
+              </Button>
             </form>
           </FormSection>
         ) : null}
@@ -166,7 +173,7 @@ function ShowingDetailBody({ detail }: { detail: ShowingStaffDetail }) {
         {showRescheduleNotice ? (
           <InlineNotice>
             Schedule a new showing from the{" "}
-            <Link href={detail.prospectHref} className="font-medium underline">
+            <Link href={detail.prospectHref} className={`font-medium underline ${FOCUS_RING}`}>
               prospect detail page
             </Link>
             . This record stays closed for audit history.
@@ -189,14 +196,14 @@ function ShowingDetailBody({ detail }: { detail: ShowingStaffDetail }) {
             <ul className="flex list-none flex-col gap-3 p-0">
               {detail.linkedApplications.map((app) => (
                 <li key={app.id}>
-                  <Link href={app.href} className={`block ${SURFACE_CARD} px-4 py-4 no-underline`}>
+                  <Link href={app.href} className={`block ${SURFACE_CARD} px-4 py-4 no-underline ${FOCUS_RING}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-neutral-900">Application</span>
-                      <span className="inline-flex items-center rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs font-medium text-neutral-800">
+                      <span className="text-sm font-semibold text-foreground">Application</span>
+                      <span className={statusBadgeClasses("neutral", "strong")}>
                         {app.statusLabel}
                       </span>
                     </div>
-                    <p className="mt-1 font-mono text-xs text-neutral-500">Ref · {app.id}</p>
+                    <p className="mt-1 font-mono text-xs text-foreground-subtle">Ref · {app.id}</p>
                   </Link>
                 </li>
               ))}

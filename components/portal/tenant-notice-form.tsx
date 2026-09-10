@@ -1,5 +1,7 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
 import { submitTenantNoticeAction } from "@/app/(portal)/portal/notice/actions";
 import {
   FormField,
@@ -46,22 +48,22 @@ export function TenantNoticePendingView({
         title="Notice submitted"
         description="Your property manager will review this notice and follow up with you."
       />
-      <div className={`mt-6 ${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-4 text-sm text-neutral-700`}>
+      <div className={`mt-6 ${SURFACE_PANEL} flex flex-col gap-2 px-3.5 py-4 text-sm text-foreground-muted`}>
         <p>
-          <span className="text-neutral-500">Requested tenancy end · </span>
+          <span className="text-foreground-subtle">Requested tenancy end · </span>
           {formatDisplayDate(pending.tenantRequestedMoveOutDate)}
         </p>
         <p>
-          <span className="text-neutral-500">Submitted · </span>
+          <span className="text-foreground-subtle">Submitted · </span>
           {formatSubmittedAt(pending.createdAt)}
         </p>
         <p>
-          <span className="text-neutral-500">Reference · </span>
+          <span className="text-foreground-subtle">Reference · </span>
           <span className="font-mono text-xs">{pending.id}</span>
         </p>
       </div>
       <p className="mt-6 text-sm">
-        <Link href="/portal/dashboard" className="font-medium text-neutral-800 underline">
+        <Link href="/portal/dashboard" className={`font-medium text-foreground underline ${FOCUS_RING}`}>
           Back to dashboard
         </Link>
       </p>
@@ -95,7 +97,7 @@ export function TenantNoticeForm({
           description="Your notice to end tenancy has been submitted. Your property manager will review it and follow up with you."
         />
         <p className="mt-6 text-sm">
-          <Link href="/portal/dashboard" className="font-medium text-neutral-800 underline">
+          <Link href="/portal/dashboard" className={`font-medium text-foreground underline ${FOCUS_RING}`}>
             Back to dashboard
           </Link>
         </p>
@@ -132,7 +134,7 @@ export function TenantNoticeForm({
       />
 
       <form className="flex flex-col gap-8" onSubmit={onSubmit} noValidate>
-        <div className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-neutral-700`}>
+        <div className={`${SURFACE_PANEL} px-3.5 py-3 text-sm text-foreground-muted`}>
           <p>
             Rent is due on day <span className="font-medium">{context.rentDueDay}</span> of each
             month. The earliest date you can select is{" "}
@@ -149,7 +151,7 @@ export function TenantNoticeForm({
             id={moveOutId}
             value={moveOutDate}
             onChange={(e) => setMoveOutDate(e.target.value)}
-            className="w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg" })}
             required
           >
             {context.allowedMoveOutDates.length === 0 ? (
@@ -174,14 +176,14 @@ export function TenantNoticeForm({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
-            className="min-h-[6rem] w-full resize-y rounded-xl border border-neutral-300 px-3.5 py-3 text-sm"
+            className={formControlClasses({ size: "lg", className: "min-h-[6rem] resize-y" })}
           />
         </FormField>
 
         {error ? <InlineAlert>{error}</InlineAlert> : null}
 
         <FormSection legend="Before you submit">
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-foreground-muted">
             Submitting this form sends your notice to your property manager for review. They will
             confirm next steps with you.
           </p>

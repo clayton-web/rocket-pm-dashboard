@@ -1,6 +1,8 @@
 "use client";
 
-import { FormField, InlineNotice, PrimaryButton, SURFACE_CARD } from "@/components/portal/ui";
+import { Button } from "@/components/portal/button";
+import { formControlClasses } from "@/components/portal/form-control";
+import { FormField, InlineNotice, SURFACE_CARD } from "@/components/portal/ui";
 import { useId, useState } from "react";
 import type { MaintenanceWorkflowStatus } from "./types";
 
@@ -32,7 +34,10 @@ export function MaintenanceActionCard({
 
   return (
     <section className={`${SURFACE_CARD} p-4`} aria-labelledby="actions-heading" aria-busy={actionsDisabled}>
-      <h2 id="actions-heading" className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+      <h2
+        id="actions-heading"
+        className="text-xs font-semibold uppercase tracking-wide text-foreground-subtle"
+      >
         Actions
       </h2>
 
@@ -46,8 +51,8 @@ export function MaintenanceActionCard({
         <div className="mt-4 flex flex-col gap-6">
           {workflowStatus === "new" ? (
             <div>
-              <p className="text-sm font-semibold text-neutral-900">Mark as dispatched</p>
-              <p className="mt-1 text-sm text-neutral-600">
+              <p className="text-sm font-semibold text-foreground">Mark as dispatched</p>
+              <p className="mt-1 text-sm text-foreground-muted">
                 Record that someone is attending (optional assignee name).
               </p>
               <div className="mt-3">
@@ -58,18 +63,19 @@ export function MaintenanceActionCard({
                     value={assignee}
                     onChange={(e) => setAssignee(e.target.value)}
                     disabled={actionsDisabled}
-                    className="mt-1 w-full rounded-xl border border-neutral-300 bg-white px-3.5 py-3 text-sm disabled:opacity-60"
+                    className={formControlClasses({ size: "lg" })}
                   />
                 </FormField>
               </div>
-              <PrimaryButton
-                type="button"
+              <Button
+                variant="primary"
+                size="lg"
                 className="mt-3"
                 disabled={actionsDisabled}
                 onClick={() => void onDispatched(assignee.trim())}
               >
                 {actionsDisabled ? "Saving…" : "Mark as dispatched"}
-              </PrimaryButton>
+              </Button>
             </div>
           ) : (
             <InlineNotice>Dispatched — mark complete when work is finished, or cancel if void.</InlineNotice>
@@ -77,46 +83,50 @@ export function MaintenanceActionCard({
 
           {workflowStatus === "dispatched" ? (
             <div>
-              <p className="text-sm font-semibold text-neutral-900">Mark as completed</p>
-              <textarea
-                id={completeId}
-                value={completeNote}
-                onChange={(e) => setCompleteNote(e.target.value)}
-                rows={3}
-                disabled={buttonsLocked}
-                className="mt-3 min-h-[5.5rem] w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm disabled:opacity-60"
-              />
-              <PrimaryButton
-                type="button"
+              <FormField htmlFor={completeId} label="Mark as completed" helper="Completion note (optional).">
+                <textarea
+                  id={completeId}
+                  value={completeNote}
+                  onChange={(e) => setCompleteNote(e.target.value)}
+                  rows={3}
+                  disabled={buttonsLocked}
+                  className={formControlClasses({ size: "lg", className: "min-h-[5.5rem]" })}
+                />
+              </FormField>
+              <Button
+                variant="primary"
+                size="lg"
                 className="mt-3"
                 disabled={buttonsLocked}
                 onClick={() => void onCompleted(completeNote.trim())}
               >
                 {actionsDisabled ? "Saving…" : "Mark as completed"}
-              </PrimaryButton>
+              </Button>
             </div>
           ) : workflowStatus === "new" ? (
-            <p className="text-sm text-neutral-600">Complete is available after dispatch.</p>
+            <p className="text-sm text-foreground-muted">Complete is available after dispatch.</p>
           ) : null}
 
-          <div className="border-t border-neutral-200 pt-6">
-            <p className="text-sm font-semibold text-neutral-900">Cancel request</p>
-            <textarea
-              id={cancelId}
-              value={cancelNote}
-              onChange={(e) => setCancelNote(e.target.value)}
-              rows={2}
-              disabled={buttonsLocked}
-              className="mt-3 w-full rounded-xl border border-neutral-300 px-3.5 py-3 text-sm disabled:opacity-60"
-            />
-            <PrimaryButton
-              type="button"
+          <div className="border-t border-border pt-6">
+            <FormField htmlFor={cancelId} label="Cancel request" helper="Reason (optional).">
+              <textarea
+                id={cancelId}
+                value={cancelNote}
+                onChange={(e) => setCancelNote(e.target.value)}
+                rows={2}
+                disabled={buttonsLocked}
+                className={formControlClasses({ size: "lg" })}
+              />
+            </FormField>
+            <Button
+              variant="primary"
+              size="lg"
               className="mt-3"
               disabled={buttonsLocked}
               onClick={() => void onCancelled(cancelNote.trim())}
             >
               {actionsDisabled ? "Saving…" : "Cancel request"}
-            </PrimaryButton>
+            </Button>
           </div>
         </div>
       )}

@@ -347,6 +347,35 @@ describe("assessPortfolioHealthProperty", () => {
   });
 });
 
+describe("portfolio health row contract", () => {
+  it("exposes discrete address parts for search and the operations list", () => {
+    const row = assessPortfolioHealthProperty(
+      baseProperty({ streetLine1: "831 W 24th Ave", streetLine2: "Upper", city: "Vancouver" }),
+    );
+    assert.equal(row.streetLine1, "831 W 24th Ave");
+    assert.equal(row.streetLine2, "Upper");
+    assert.equal(row.city, "Vancouver");
+    assert.equal(row.province, "BC");
+    assert.equal(row.postalCode, "V6B 1A1");
+  });
+
+  it("passes updatedAt through as an ISO string and tolerates its absence", () => {
+    const withDate = assessPortfolioHealthProperty(
+      baseProperty({ updatedAt: new Date("2026-08-30T17:04:05.000Z") }),
+    );
+    assert.equal(withDate.updatedAt, "2026-08-30T17:04:05.000Z");
+
+    assert.equal(assessPortfolioHealthProperty(baseProperty()).updatedAt, null);
+    assert.equal(assessPortfolioHealthProperty(baseProperty({ updatedAt: null })).updatedAt, null);
+  });
+
+  it("defaults canEdit to false when the loader does not supply it", () => {
+    assert.equal(assessPortfolioHealthProperty(baseProperty()).canEdit, false);
+    assert.equal(assessPortfolioHealthProperty(baseProperty({ canEdit: true })).canEdit, true);
+    assert.equal(assessPortfolioHealthProperty(baseProperty({ canEdit: false })).canEdit, false);
+  });
+});
+
 describe("portfolio health helpers", () => {
   it("summarizes portfolio counts", () => {
     const rows = [

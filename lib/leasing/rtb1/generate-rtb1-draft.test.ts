@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { Prisma } from "@prisma/client";
 import { emptyServicesIncluded } from "@/lib/leasing/lease-setup";
 import { assessLeaseSetupReadiness } from "@/lib/leasing/lease-setup-readiness";
 import { RTB1_DOCUMENT_TYPE, RTB1_TEMPLATE_VERSION } from "./constants";
@@ -114,8 +115,8 @@ describe("fillRtb1PdfTemplate", () => {
         leaseStartDate: new Date("2026-07-01T12:00:00.000Z"),
         leaseEndDate: null,
         rentDueDay: 1,
-        monthlyRent: 2000,
-        securityDeposit: 1000,
+        monthlyRent: new Prisma.Decimal(2000),
+        securityDeposit: new Prisma.Decimal(1000),
         petDeposit: null,
       },
       leaseSetup: {

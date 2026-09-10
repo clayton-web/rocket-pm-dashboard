@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { BriefingItemView } from "@/lib/briefing/briefing-queries";
 import { groupBriefingItemsByCategory } from "@/lib/briefing/briefing-queries";
 import { BriefingCategoryBadge } from "@/components/briefing/briefing-category-badge";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { InlineNotice, SURFACE_DASHED, SURFACE_PANEL } from "@/components/portal/ui";
 
 function formatDueDate(value: Date | null): string | null {
   if (!value) return null;
@@ -15,36 +17,36 @@ function BriefingItemCard({ item }: { item: BriefingItemView }) {
   const dueLabel = formatDueDate(item.dueDate);
 
   return (
-    <article className="rounded-lg border border-neutral-200 bg-white p-4">
+    <article className={`${SURFACE_PANEL} p-4`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-neutral-900">{item.summaryTitle}</h3>
-        <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        <h3 className="text-sm font-semibold text-foreground">{item.summaryTitle}</h3>
+        <span className="text-xs font-medium uppercase tracking-wide text-foreground-subtle">
           {item.urgency}
         </span>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <BriefingCategoryBadge category={item.category} />
-        <span className="text-xs text-neutral-500">Source: {item.sourceType}</span>
+        <span className="text-xs text-foreground-subtle">Source: {item.sourceType}</span>
         {item.summary.dataProvenance ? (
-          <span className="text-xs text-neutral-500">Provenance: {item.summary.dataProvenance}</span>
+          <span className="text-xs text-foreground-subtle">Provenance: {item.summary.dataProvenance}</span>
         ) : null}
       </div>
 
       {item.showEmailMentionLabel ? (
-        <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <InlineNotice tone="warning" size="compact" className="mt-2">
           Email mention only — verify in Buildium once integrated.
-        </p>
+        </InlineNotice>
       ) : null}
 
       {item.subject ? (
-        <p className="mt-2 text-sm text-neutral-700">
-          <span className="font-medium text-neutral-900">Subject:</span> {item.subject}
+        <p className="mt-2 text-sm text-foreground-muted">
+          <span className="font-medium text-foreground">Subject:</span> {item.subject}
         </p>
       ) : null}
 
       {item.summary.keyFacts && item.summary.keyFacts.length > 0 ? (
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-neutral-700">
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-foreground-muted">
           {item.summary.keyFacts.map((fact) => (
             <li key={fact}>{fact}</li>
           ))}
@@ -52,20 +54,20 @@ function BriefingItemCard({ item }: { item: BriefingItemView }) {
       ) : null}
 
       {item.summary.requiredAction ? (
-        <p className="mt-3 text-sm text-neutral-800">
+        <p className="mt-3 text-sm text-foreground">
           <span className="font-medium">Required action:</span> {item.summary.requiredAction}
         </p>
       ) : null}
 
       {item.summary.suggestedReplyNotes ? (
-        <p className="mt-2 text-sm text-neutral-600">
-          <span className="font-medium text-neutral-800">Suggested reply notes:</span>{" "}
+        <p className="mt-2 text-sm text-foreground-muted">
+          <span className="font-medium text-foreground">Suggested reply notes:</span>{" "}
           {item.summary.suggestedReplyNotes}
         </p>
       ) : null}
 
       {dueLabel ? (
-        <p className="mt-2 text-sm text-neutral-700">
+        <p className="mt-2 text-sm text-foreground-muted">
           <span className="font-medium">Due:</span> {dueLabel}
         </p>
       ) : null}
@@ -75,7 +77,7 @@ function BriefingItemCard({ item }: { item: BriefingItemView }) {
           <Link
             href={`/inbox/${item.emailThreadId}`}
             prefetch={false}
-            className="text-sm font-medium text-neutral-900 underline-offset-2 hover:underline"
+            className={`rounded-sm text-sm font-medium text-foreground underline-offset-2 hover:underline ${FOCUS_RING}`}
           >
             Open inbox thread
           </Link>
@@ -94,7 +96,7 @@ export function BriefingItemList({
 }) {
   if (items.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 py-6 text-sm text-neutral-600">
+      <p className={`${SURFACE_DASHED} px-4 py-6 text-sm text-foreground-muted`}>
         No briefing items in this run.
       </p>
     );
@@ -116,11 +118,11 @@ export function BriefingItemList({
     <div className="space-y-6">
       {groups.map((group) => (
         <section key={group.category} className="space-y-3">
-          <h3 className="text-sm font-semibold text-neutral-900">
+          <h3 className="text-sm font-semibold text-foreground">
             {group.category === "RENT_DEPOSIT" ? (
               <>
                 Rent / deposit{" "}
-                <span className="font-normal text-neutral-500">(email mentions)</span>
+                <span className="font-normal text-foreground-subtle">(email mentions)</span>
               </>
             ) : (
               group.category.replaceAll("_", " ")

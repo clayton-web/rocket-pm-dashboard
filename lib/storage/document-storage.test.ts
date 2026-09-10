@@ -191,7 +191,7 @@ describe("createDocumentStorage factory", () => {
 
 describe("production document storage guard", () => {
   it("flags missing or local backend in production", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
     delete process.env.DOCUMENT_STORAGE_BACKEND;
     assert.equal(isProductionDocumentStorageMisconfigured(), true);
 
@@ -203,7 +203,7 @@ describe("production document storage guard", () => {
   });
 
   it("includes storage guidance in validateProductionRuntimeConfig", () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
     process.env.DOCUMENT_STORAGE_BACKEND = "local";
     assert.throws(() => validateProductionRuntimeConfig(), /DOCUMENT_STORAGE_BACKEND must be set to "s3"/);
     assert.match(productionDocumentStorageViolationMessage(), /executed RTB-1/i);

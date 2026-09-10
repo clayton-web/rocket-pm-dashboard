@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusBadge } from "@/components/portal/status-badge";
 import { FormSection, InlineNotice, SURFACE_PANEL } from "@/components/portal/ui";
 import type { PropertyTenanciesPageData, PropertyTenancyUnitRow } from "@/lib/property/property-tenancies-staff";
 import Link from "next/link";
@@ -17,15 +18,12 @@ function DetailField({ label, value }: { label: string; value: string | null }) 
 }
 
 function OccupancyBadge({ status }: { status: PropertyTenancyUnitRow["occupancyStatus"] }) {
-  const classes =
-    status === "occupied"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-      : "border-neutral-200 bg-neutral-50 text-neutral-700";
+  const occupied = status === "occupied";
 
   return (
-    <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-medium ${classes}`}>
-      {status === "occupied" ? "Occupied" : "Vacant"}
-    </span>
+    <StatusBadge tone={occupied ? "success" : "neutral"}>
+      {occupied ? "Occupied" : "Vacant"}
+    </StatusBadge>
   );
 }
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { removeThreadPmContextLinkAction } from "@/app/(dashboard)/inbox/[threadId]/actions";
+import { FOCUS_RING } from "@/components/portal/focus";
 import type { PmLinkDisplay } from "@/lib/inbox/pm-link-display";
 
 function kindTitle(kind: PmLinkDisplay["kind"]) {
@@ -14,11 +15,16 @@ function kindTitle(kind: PmLinkDisplay["kind"]) {
   return "Record";
 }
 
+/**
+ * Record kind is colour-coded, not status-coded: violet/emerald/orange identify property, tenancy
+ * and maintenance rather than carrying urgency. That convention has no semantic-tone equivalent, so
+ * it stays owned here; only the neutral fallback uses the shared surface.
+ */
 function cardClassName(kind: PmLinkDisplay["kind"]) {
   if (kind === "property") return "border-violet-200 bg-violet-50/40";
   if (kind === "tenancy") return "border-emerald-200 bg-emerald-50/40";
   if (kind === "maintenance_request") return "border-orange-200 bg-orange-50/40";
-  return "border-neutral-200 bg-neutral-50/40";
+  return "border-border bg-surface-muted/40";
 }
 
 export function ThreadContextLinkCards(props: { threadId: string; links: PmLinkDisplay[] }) {
@@ -29,10 +35,10 @@ export function ThreadContextLinkCards(props: { threadId: string; links: PmLinkD
       {props.links.map((link) => {
         const body = (
           <>
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground-subtle">
               {kindTitle(link.kind)}
             </div>
-            <div className="mt-1 text-sm font-medium text-neutral-900">{link.label}</div>
+            <div className="mt-1 text-sm font-medium text-foreground">{link.label}</div>
           </>
         );
 
@@ -44,9 +50,12 @@ export function ThreadContextLinkCards(props: { threadId: string; links: PmLinkD
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 {link.href ? (
-                  <Link href={link.href} className="block transition-colors hover:text-neutral-700">
+                  <Link
+                    href={link.href}
+                    className={`block rounded-sm transition-colors hover:text-foreground-muted ${FOCUS_RING}`}
+                  >
                     {body}
-                    <span className="mt-2 inline-block text-xs font-medium text-neutral-700 underline">
+                    <span className="mt-2 inline-block text-xs font-medium text-foreground-muted underline">
                       Open record →
                     </span>
                   </Link>
@@ -60,7 +69,7 @@ export function ThreadContextLinkCards(props: { threadId: string; links: PmLinkD
                 <input type="hidden" name="entityId" value={link.id} />
                 <button
                   type="submit"
-                  className="text-xs text-neutral-600 underline hover:text-neutral-900"
+                  className={`rounded-sm text-xs text-foreground-muted underline hover:text-foreground ${FOCUS_RING}`}
                 >
                   Remove
                 </button>

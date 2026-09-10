@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Prisma } from "@prisma/client";
 import { emptyServicesIncluded } from "@/lib/leasing/lease-setup";
 import { RTB1_FIELD_MAP } from "./field-map";
 import {
@@ -32,9 +33,9 @@ const sampleInput = {
     leaseStartDate: new Date("2026-07-01T12:00:00.000Z"),
     leaseEndDate: new Date("2027-06-30T12:00:00.000Z"),
     rentDueDay: 1,
-    monthlyRent: 2500,
-    securityDeposit: 1250,
-    petDeposit: 250,
+    monthlyRent: new Prisma.Decimal(2500),
+    securityDeposit: new Prisma.Decimal(1250),
+    petDeposit: new Prisma.Decimal(250),
   },
   leaseSetup: {
     tenancyType: "fixed_term" as const,

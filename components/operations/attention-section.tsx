@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FOCUS_RING } from "@/components/portal/focus";
 import { InlineNotice } from "@/components/portal/ui";
 import { WorkItemRow } from "@/components/operations/work-item-row";
 import type { OperationsCentreSection } from "@/lib/operations/operations-centre.service";
@@ -18,18 +19,18 @@ export function AttentionSection({
         <div className="min-w-0">
           <h2
             id={`ops-section-${section.id}`}
-            className="scroll-mt-6 text-lg font-semibold text-neutral-900"
+            className="scroll-mt-6 text-lg font-semibold text-foreground"
           >
             {section.label}
           </h2>
-          <p className="mt-1 text-sm text-neutral-600">
+          <p className="mt-1 text-sm text-foreground-muted">
             {section.total} item{section.total === 1 ? "" : "s"}
           </p>
         </div>
         {showViewAll ? (
           <Link
             href={section.viewAllHref!}
-            className="text-sm font-medium text-neutral-900 underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+            className={`rounded-sm text-sm font-medium text-foreground underline ${FOCUS_RING}`}
           >
             View all in queue →
           </Link>
@@ -46,26 +47,5 @@ export function AttentionSection({
         </ul>
       )}
     </section>
-  );
-}
-
-export function SummaryPill({
-  href,
-  label,
-  count,
-}: {
-  href: string;
-  label: string;
-  count: number;
-}) {
-  if (count === 0) return null;
-  return (
-    <a
-      href={href}
-      className="inline-flex items-center gap-2 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-800 transition-colors hover:border-neutral-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
-    >
-      <span className="font-semibold tabular-nums text-neutral-900">{count}</span>
-      <span>{label}</span>
-    </a>
   );
 }

@@ -4,13 +4,10 @@ import {
   resolveNextHealthCleanupTenancyAction,
   updateTenancyDetailsAction,
 } from "@/app/(dashboard)/leasing/tenancies/actions";
-import {
-  FormField,
-  FormSection,
-  InlineNotice,
-  PrimaryButton,
-  SURFACE_CARD,
-} from "@/components/portal/ui";
+import { Button } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
+import { FormField, FormSection, InlineNotice, SURFACE_CARD } from "@/components/portal/ui";
 import { formatTenancyStatus } from "@/lib/leasing/application-staff-detail";
 import {
   buildHealthEditTenancyHref,
@@ -139,7 +136,7 @@ export function TenancyEditSection({
     startTransition(async () => {
       const saved = await saveTenancyDetails();
       if (!saved) return;
-      router.push(buildHealthReturnUrl(healthCleanupContext.filters));
+      router.push(buildHealthReturnUrl(healthCleanupContext));
     });
   }
 
@@ -149,17 +146,21 @@ export function TenancyEditSection({
     startTransition(async () => {
       const saved = await saveTenancyDetails();
       if (!saved) return;
-      const filtersParam = serializeCleanupFiltersParam(healthCleanupContext.filters);
-      const next = await resolveNextHealthCleanupTenancyAction(detail.id, filtersParam);
+      const next = await resolveNextHealthCleanupTenancyAction(detail.id, {
+        filters: serializeCleanupFiltersParam(healthCleanupContext.filters),
+        query: healthCleanupContext.query,
+        status: healthCleanupContext.status,
+        sort: healthCleanupContext.sort,
+      });
       if (!next.ok) {
         setError(next.error);
         return;
       }
       if (next.nextTenancyId) {
-        router.push(buildHealthEditTenancyHref(next.nextTenancyId, healthCleanupContext.filters));
+        router.push(buildHealthEditTenancyHref(next.nextTenancyId, healthCleanupContext));
         return;
       }
-      router.push(buildHealthReturnUrl(healthCleanupContext.filters, { cleanupDone: "1" }));
+      router.push(buildHealthReturnUrl(healthCleanupContext, { cleanupDone: "1" }));
     });
   }
 
@@ -179,12 +180,12 @@ export function TenancyEditSection({
   return (
     <div id="edit-tenancy" className={`${SURFACE_CARD} mb-8 px-4 py-4`}>
       <FormSection legend="Edit tenancy">
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-foreground-muted">
           Correct imported tenant and lease details. New tenancies should still follow the normal
           application and onboarding workflow.
         </p>
         {hasHealthCleanupContext ? (
-          <p className="mt-2 text-sm text-neutral-600">
+          <p className="mt-2 text-sm text-foreground-muted">
             Opened from Property Health cleanup. You can save and return to the filtered queue or
             continue to the next matching tenancy.
           </p>
@@ -193,23 +194,27 @@ export function TenancyEditSection({
           <button
             type="button"
             onClick={() => setShowEdit(true)}
-            className="mt-3 text-sm font-medium text-neutral-800 underline"
+            className={`mt-3 text-sm font-medium text-foreground underline ${FOCUS_RING}`}
           >
             Edit tenancy
           </button>
         ) : (
-          <form className="mt-4 flex flex-col gap-6 border-t border-neutral-200 pt-4" onSubmit={onSave}>
-            {error ? <InlineNotice>{error}</InlineNotice> : null}
+          <form className="mt-4 flex flex-col gap-6 border-t border-border pt-4" onSubmit={onSave}>
+            {error ? (
+              <InlineNotice tone="danger" role="alert">
+                {error}
+              </InlineNotice>
+            ) : null}
 
             <div>
-              <h3 className="text-sm font-semibold text-neutral-900">Tenant contact</h3>
+              <h3 className="text-sm font-semibold text-foreground">Tenant contact</h3>
               <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 <FormField label="First name" htmlFor={firstNameId}>
                   <input
                     id={firstNameId}
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                     required
                   />
                 </FormField>
@@ -218,7 +223,7 @@ export function TenancyEditSection({
                     id={lastNameId}
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                     required
                   />
                 </FormField>
@@ -228,7 +233,7 @@ export function TenancyEditSection({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
                 <FormField label="Phone (optional)" htmlFor={phoneId}>
@@ -236,12 +241,12 @@ export function TenancyEditSection({
                     id={phoneId}
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
               </div>
               <div className="mt-4">
-                <label className="flex items-center gap-2 text-sm text-neutral-800">
+                <label className="flex items-center gap-2 text-sm text-foreground">
                   <input
                     id={portalAccessId}
                     type="checkbox"
@@ -254,7 +259,7 @@ export function TenancyEditSection({
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-neutral-900">Lease</h3>
+              <h3 className="text-sm font-semibold text-foreground">Lease</h3>
               <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 <FormField label="Monthly rent" htmlFor={monthlyRentId}>
                   <input
@@ -264,7 +269,7 @@ export function TenancyEditSection({
                     step="0.01"
                     value={monthlyRent}
                     onChange={(e) => setMonthlyRent(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                     required
                   />
                 </FormField>
@@ -276,7 +281,7 @@ export function TenancyEditSection({
                     step="0.01"
                     value={securityDeposit}
                     onChange={(e) => setSecurityDeposit(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                     required
                   />
                 </FormField>
@@ -286,7 +291,7 @@ export function TenancyEditSection({
                     type="date"
                     value={leaseStartDate}
                     onChange={(e) => setLeaseStartDate(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                     required
                   />
                 </FormField>
@@ -296,7 +301,7 @@ export function TenancyEditSection({
                     type="date"
                     value={moveInDate}
                     onChange={(e) => setMoveInDate(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                     required
                   />
                 </FormField>
@@ -306,7 +311,7 @@ export function TenancyEditSection({
                     type="date"
                     value={leaseEndDate}
                     onChange={(e) => setLeaseEndDate(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
                 <FormField label="Status" htmlFor={statusId}>
@@ -314,7 +319,7 @@ export function TenancyEditSection({
                     id={statusId}
                     value={status}
                     onChange={(e) => setStatus(e.target.value as TenancyStatus)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   >
                     {STATUS_OPTIONS.map((option) => (
                       <option key={option} value={option}>
@@ -324,14 +329,14 @@ export function TenancyEditSection({
                   </select>
                 </FormField>
               </div>
-              <p className="mt-2 text-xs text-neutral-500">
+              <p className="mt-2 text-xs text-foreground-subtle">
                 Move-out scheduling and inspections still use the dedicated offboarding actions
                 when available.
               </p>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-neutral-900">Notes</h3>
+              <h3 className="text-sm font-semibold text-foreground">Notes</h3>
               <div className="mt-3 grid gap-4">
                 <FormField label="Parking notes (optional)" htmlFor={parkingNotesId}>
                   <textarea
@@ -339,7 +344,7 @@ export function TenancyEditSection({
                     rows={2}
                     value={parkingDescription}
                     onChange={(e) => setParkingDescription(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
                 <FormField label="Storage notes (optional)" htmlFor={storageNotesId}>
@@ -348,7 +353,7 @@ export function TenancyEditSection({
                     rows={2}
                     value={storageDescription}
                     onChange={(e) => setStorageDescription(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
                 <FormField label="Pet notes (optional)" htmlFor={petNotesId}>
@@ -357,40 +362,40 @@ export function TenancyEditSection({
                     rows={2}
                     value={petDetails}
                     onChange={(e) => setPetDetails(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <PrimaryButton type="submit" className="!w-auto px-6" disabled={pending}>
+              <Button variant="primary" size="lg" type="submit" disabled={pending}>
                 {pending ? "Saving…" : "Save"}
-              </PrimaryButton>
+              </Button>
               {hasHealthCleanupContext ? (
                 <>
-                  <PrimaryButton
-                    type="button"
-                    className="!w-auto px-6"
+                  <Button
+                    variant="primary"
+                    size="lg"
                     disabled={pending}
                     onClick={onSaveAndReturn}
                   >
                     {pending ? "Saving…" : "Save & return to Health"}
-                  </PrimaryButton>
-                  <PrimaryButton
-                    type="button"
-                    className="!w-auto px-6"
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="lg"
                     disabled={pending}
                     onClick={onSaveAndNext}
                   >
                     {pending ? "Saving…" : "Save & next issue"}
-                  </PrimaryButton>
+                  </Button>
                 </>
               ) : null}
               <button
                 type="button"
                 onClick={() => setShowEdit(false)}
-                className="text-sm font-medium text-neutral-700 underline"
+                className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}
               >
                 Cancel
               </button>

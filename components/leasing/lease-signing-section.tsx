@@ -6,12 +6,9 @@ import {
   sendLeaseForSignatureAction,
   submitPmLeaseSignatureAction,
 } from "@/app/(dashboard)/leasing/tenancies/actions";
-import {
-  FormSection,
-  InlineNotice,
-  PrimaryButton,
-  SURFACE_PANEL,
-} from "@/components/portal/ui";
+import { Button } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { FormSection, InlineNotice, SURFACE_PANEL } from "@/components/portal/ui";
 import { withBasePath } from "@/lib/app-path";
 import { LeaseSigningForm } from "@/components/signing/lease-signing-form";
 import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-types";
@@ -92,43 +89,47 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
 
   return (
     <FormSection legend="Lease execution">
-      <p className="text-sm text-neutral-600">
+      <p className="text-sm text-foreground-muted">
         Send the RTB-1 draft for in-app tenant signature, then counter-sign to generate a locked
         executed agreement.
       </p>
 
-      {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
+      {error ? (
+        <InlineNotice className="mt-4" tone="danger" role="alert">
+          {error}
+        </InlineNotice>
+      ) : null}
       {emailWarning ? (
-        <InlineNotice className="mt-4 border-amber-200 bg-amber-50 text-amber-950">
+        <InlineNotice className="mt-4" tone="warning">
           {emailWarning}
         </InlineNotice>
       ) : null}
 
-      <ol className={`${SURFACE_PANEL} mt-4 divide-y divide-neutral-200`}>
+      <ol className={`${SURFACE_PANEL} mt-4 divide-y divide-border`}>
         {stepItems.map((step) => (
           <li key={step.id} className="flex flex-col gap-0.5 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <span
                 className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold ${
-                  step.complete ? "bg-emerald-600 text-white" : "bg-neutral-200 text-neutral-600"
+                  step.complete ? "bg-success text-primary-foreground" : "bg-border text-foreground-muted"
                 }`}
                 aria-hidden
               >
                 {step.complete ? "✓" : "·"}
               </span>
-              <span className="text-sm font-medium text-neutral-900">{step.label}</span>
+              <span className="text-sm font-medium text-foreground">{step.label}</span>
             </div>
             {step.timestampLabel ? (
-              <span className="text-xs text-neutral-500 sm:ml-7">{step.timestampLabel}</span>
+              <span className="text-xs text-foreground-subtle sm:ml-7">{step.timestampLabel}</span>
             ) : null}
           </li>
         ))}
       </ol>
 
-      <p className="mt-3 text-sm text-neutral-600">Status: {signing.statusLabel}</p>
+      <p className="mt-3 text-sm text-foreground-muted">Status: {signing.statusLabel}</p>
 
       {signing.signatures.length > 0 ? (
-        <ul className="mt-3 space-y-1 text-sm text-neutral-700">
+        <ul className="mt-3 space-y-1 text-sm text-foreground-muted">
           {signing.signatures.map((sig) => (
             <li key={`${sig.signerRole}-${sig.signedAt}`}>
               {sig.signerRole === "tenant" ? "Tenant" : "Property manager"}: {sig.signerName} ·{" "}
@@ -139,34 +140,35 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
       ) : null}
 
       {signing.canSendForSignature ? (
-        <PrimaryButton
-          type="button"
-          className="mt-4 !w-auto px-6"
+        <Button
+          variant="primary"
+          size="lg"
+          className="mt-4"
           disabled={pending}
           onClick={onSendForSignature}
         >
           {pending ? "Sending…" : "Send For Signature"}
-        </PrimaryButton>
+        </Button>
       ) : null}
 
       {signing.signatureRequestId &&
       !signing.steps.find((s) => s.id === "tenant_signed")?.complete ? (
         <div className="mt-4 space-y-2">
           {signingLink ? (
-            <p className="text-sm text-neutral-700">
+            <p className="text-sm text-foreground-muted">
               Tenant signing link:{" "}
-              <a href={signingLink} className="font-medium underline" target="_blank" rel="noreferrer">
+              <a href={signingLink} className={`font-medium underline ${FOCUS_RING}`} target="_blank" rel="noreferrer">
                 {absoluteSigningUrl(signingLink)}
               </a>
             </p>
           ) : (
-            <p className="text-sm text-neutral-600">
+            <p className="text-sm text-foreground-muted">
               A signing link was sent. Refresh the link if the tenant needs a new URL.
             </p>
           )}
           <button
             type="button"
-            className="text-sm font-medium text-neutral-800 underline disabled:opacity-50"
+            className={`text-sm font-medium text-foreground underline disabled:opacity-50 ${FOCUS_RING}`}
             disabled={pending}
             onClick={onRefreshLink}
           >
@@ -176,15 +178,16 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
       ) : null}
 
       {signing.canRetryLeaseExecution ? (
-        <div className="mt-6 border-t border-neutral-200 pt-6">
-          <h3 className="text-sm font-semibold text-neutral-900">Complete lease execution</h3>
-          <p className="mt-1 text-sm text-neutral-600">
+        <div className="mt-6 border-t border-border pt-6">
+          <h3 className="text-sm font-semibold text-foreground">Complete lease execution</h3>
+          <p className="mt-1 text-sm text-foreground-muted">
             The property manager signature is recorded but the executed RTB-1 was not finalized.
             Retry to generate the locked executed agreement.
           </p>
-          <PrimaryButton
-            type="button"
-            className="mt-4 !w-auto px-6"
+          <Button
+            variant="primary"
+            size="lg"
+            className="mt-4"
             disabled={pending}
             onClick={() => {
               if (!signing.signatureRequestId) return;
@@ -200,14 +203,14 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
             }}
           >
             {pending ? "Retrying…" : "Retry execution"}
-          </PrimaryButton>
+          </Button>
         </div>
       ) : null}
 
       {signing.canPmSign ? (
-        <div className="mt-6 border-t border-neutral-200 pt-6">
-          <h3 className="text-sm font-semibold text-neutral-900">Property manager counter-sign</h3>
-          <p className="mt-1 text-sm text-neutral-600">
+        <div className="mt-6 border-t border-border pt-6">
+          <h3 className="text-sm font-semibold text-foreground">Property manager counter-sign</h3>
+          <p className="mt-1 text-sm text-foreground-muted">
             Review the tenant signature, then sign below to generate the executed RTB-1.
           </p>
           <div className="mt-4">
@@ -229,7 +232,7 @@ export function LeaseSigningSection({ detail }: { detail: TenancyStaffDetail }) 
           href={signing.executedDownloadHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 inline-block text-sm font-medium text-neutral-900 underline"
+          className={`mt-4 inline-block text-sm font-medium text-foreground underline ${FOCUS_RING}`}
         >
           Download executed agreement
         </a>

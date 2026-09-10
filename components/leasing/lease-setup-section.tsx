@@ -1,13 +1,10 @@
 "use client";
 
 import { updateLeaseSetupAction } from "@/app/(dashboard)/leasing/tenancies/actions";
-import {
-  FormField,
-  FormSection,
-  InlineNotice,
-  PrimaryButton,
-  SURFACE_PANEL,
-} from "@/components/portal/ui";
+import { Button } from "@/components/portal/button";
+import { formControlClasses } from "@/components/portal/form-control";
+import type { StatusTone } from "@/components/portal/status-badge";
+import { FormField, FormSection, InlineNotice, SURFACE_PANEL } from "@/components/portal/ui";
 import {
   emptyServicesIncluded,
   RTB_SERVICE_KEYS,
@@ -21,14 +18,15 @@ import type { TenancyStaffDetail } from "@/lib/leasing/tenancy-staff-detail-type
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
-function statusNoticeClass(status: LeaseSetupReadinessStatus): string {
-  if (status === "ready_for_rtb1") {
-    return "border-emerald-300 bg-emerald-50 text-emerald-950";
-  }
-  if (status === "lease_setup_complete") {
-    return "border-sky-300 bg-sky-50 text-sky-950";
-  }
-  return "border-amber-300 bg-amber-50 text-amber-950";
+/**
+ * Lease setup owns `readiness -> tone`; `InlineNotice` owns the visual treatment. Passing a tone
+ * rather than a `className` also makes the result reliable: appending border and background
+ * utilities to the notice only won by CSS source order, not by intent.
+ */
+function statusNoticeTone(status: LeaseSetupReadinessStatus): StatusTone {
+  if (status === "ready_for_rtb1") return "success";
+  if (status === "lease_setup_complete") return "info";
+  return "warning";
 }
 
 export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
@@ -120,7 +118,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
   return (
     <div id="lease-setup">
       <FormSection legend="Lease setup">
-        <InlineNotice className={statusNoticeClass(detail.leaseSetupStatus)}>
+        <InlineNotice tone={statusNoticeTone(detail.leaseSetupStatus)}>
           <span className="font-medium">{detail.leaseSetupStatusLabel}</span>
           {detail.leaseSetupStatus === "ready_for_rtb1" ? (
             <span className="mt-1 block text-sm">
@@ -138,11 +136,15 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
           )}
         </InlineNotice>
 
-        {error ? <InlineNotice className="mt-4">{error}</InlineNotice> : null}
+        {error ? (
+          <InlineNotice className="mt-4" tone="danger" role="alert">
+            {error}
+          </InlineNotice>
+        ) : null}
 
         {portedFromApplication ? (
-          <div className={`${SURFACE_PANEL} mt-4 px-3.5 py-3 text-sm text-neutral-700`}>
-            <p className="font-medium text-neutral-900">From approved application</p>
+          <div className={`${SURFACE_PANEL} mt-4 px-3.5 py-3 text-sm text-foreground-muted`}>
+            <p className="font-medium text-foreground">From approved application</p>
             {setup.occupantCount != null ? (
               <p className="mt-1">Occupants · {setup.occupantCount}</p>
             ) : null}
@@ -161,7 +163,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
               value={tenancyType}
               onChange={(e) => setTenancyType(e.target.value as TenancyType)}
               disabled={pending}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              className={formControlClasses()}
             >
               <option value="month_to_month">Month-to-month</option>
               <option value="fixed_term">Fixed term</option>
@@ -174,7 +176,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
               value={rentPeriod}
               onChange={(e) => setRentPeriod(e.target.value as RentPeriod)}
               disabled={pending}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              className={formControlClasses()}
             >
               <option value="month">Month</option>
               <option value="week">Week</option>
@@ -192,7 +194,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                 value={leaseEndDate}
                 onChange={(e) => setLeaseEndDate(e.target.value)}
                 disabled={pending}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className={formControlClasses()}
               />
             </FormField>
             <FormField label="At end of fixed term" htmlFor="lease-setup-end-behavior">
@@ -201,7 +203,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                 value={fixedTermEndBehavior}
                 onChange={(e) => setFixedTermEndBehavior(e.target.value)}
                 disabled={pending}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className={formControlClasses()}
               >
                 <option value="">Select…</option>
                 <option value="continue">Continue as month-to-month</option>
@@ -220,7 +222,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                 value={vacateReason}
                 onChange={(e) => setVacateReason(e.target.value)}
                 disabled={pending}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className={formControlClasses()}
               />
             </FormField>
             <FormField label="Applicable RTA section" htmlFor="lease-setup-vacate-section">
@@ -230,10 +232,10 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                 value={vacateRtrSection}
                 onChange={(e) => setVacateRtrSection(e.target.value)}
                 disabled={pending}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className={formControlClasses()}
               />
             </FormField>
-            <label className="flex items-start gap-2 text-sm text-neutral-700">
+            <label className="flex items-start gap-2 text-sm text-foreground-muted">
               <input
                 type="checkbox"
                 checked={vacateClauseAttested}
@@ -248,8 +250,8 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
         ) : null}
 
         <div className="mt-6">
-          <p className="text-sm font-medium text-neutral-900">Rent & deposits (from tenancy)</p>
-          <div className={`${SURFACE_PANEL} mt-2 px-3.5 py-3 text-sm text-neutral-700`}>
+          <p className="text-sm font-medium text-foreground">Rent & deposits (from tenancy)</p>
+          <div className={`${SURFACE_PANEL} mt-2 px-3.5 py-3 text-sm text-foreground-muted`}>
             <p>Monthly rent · ${detail.monthlyRent}</p>
             <p className="mt-1">Security deposit · ${detail.securityDeposit}</p>
             <p className="mt-1">Rent due day · {detail.rentDueDay}</p>
@@ -265,11 +267,11 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
               value={securityDepositDueDate}
               onChange={(e) => setSecurityDepositDueDate(e.target.value)}
               disabled={pending}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              className={formControlClasses()}
             />
           </FormField>
           <div>
-            <label className="mb-2 flex items-center gap-2 text-sm text-neutral-700">
+            <label className="mb-2 flex items-center gap-2 text-sm text-foreground-muted">
               <input
                 type="checkbox"
                 checked={petDepositNotApplicable}
@@ -289,7 +291,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                     value={petDeposit}
                     onChange={(e) => setPetDeposit(e.target.value)}
                     disabled={pending}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
                 <FormField label="Pet deposit due date" htmlFor="lease-setup-pet-due">
@@ -299,7 +301,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                     value={petDepositDueDate}
                     onChange={(e) => setPetDepositDueDate(e.target.value)}
                     disabled={pending}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    className={formControlClasses()}
                   />
                 </FormField>
               </div>
@@ -308,13 +310,13 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
         </div>
 
         <div className="mt-6">
-          <p className="text-sm font-medium text-neutral-900">Services included in rent</p>
-          <p className="mt-1 text-sm text-neutral-600">
+          <p className="text-sm font-medium text-foreground">Services included in rent</p>
+          <p className="mt-1 text-sm text-foreground-muted">
             Check each utility or service the landlord provides as part of the rent.
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {RTB_SERVICE_KEYS.map((key) => (
-              <label key={key} className="flex items-center gap-2 text-sm text-neutral-700">
+              <label key={key} className="flex items-center gap-2 text-sm text-foreground-muted">
                 <input
                   type="checkbox"
                   checked={servicesIncluded[key]}
@@ -336,7 +338,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                 value={parkingDescription}
                 onChange={(e) => setParkingDescription(e.target.value)}
                 disabled={pending}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className={formControlClasses()}
               />
             </FormField>
           </div>
@@ -351,14 +353,14 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                 value={storageDescription}
                 onChange={(e) => setStorageDescription(e.target.value)}
                 disabled={pending}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className={formControlClasses()}
               />
             </FormField>
           </div>
         ) : null}
 
         <div className="mt-6">
-          <label className="flex items-center gap-2 text-sm text-neutral-700">
+          <label className="flex items-center gap-2 text-sm text-foreground-muted">
             <input
               type="checkbox"
               checked={addendumAttached}
@@ -377,7 +379,7 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                   value={addendumPageCount}
                   onChange={(e) => setAddendumPageCount(e.target.value)}
                   disabled={pending}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 />
               </FormField>
               <FormField label="Addendum terms" htmlFor="lease-setup-addendum-terms">
@@ -388,21 +390,16 @@ export function LeaseSetupSection({ detail }: { detail: TenancyStaffDetail }) {
                   value={addendumTermCount}
                   onChange={(e) => setAddendumTermCount(e.target.value)}
                   disabled={pending}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  className={formControlClasses()}
                 />
               </FormField>
             </div>
           ) : null}
         </div>
 
-        <PrimaryButton
-          type="button"
-          className="mt-6 !w-auto px-6"
-          disabled={pending}
-          onClick={onSave}
-        >
+        <Button variant="primary" size="lg" className="mt-6" disabled={pending} onClick={onSave}>
           {pending ? "Saving…" : "Save lease setup"}
-        </PrimaryButton>
+        </Button>
       </FormSection>
     </div>
   );

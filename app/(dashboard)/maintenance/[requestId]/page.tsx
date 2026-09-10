@@ -7,6 +7,7 @@ import {
   TriageSummaryCard,
 } from "@/components/maintenance";
 import type { MaintenanceTriageUrgency, MaintenanceWorkflowStatus } from "@/components/maintenance/types";
+import { FOCUS_RING } from "@/components/portal/focus";
 import { InlineNotice } from "@/components/portal/ui";
 import { splitTriageSummaryForDisplay } from "@/lib/maintenance/split-triage";
 import { withBasePath } from "@/lib/app-path";
@@ -151,14 +152,21 @@ export default function MaintenanceDetailPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6">
-        <Link href="/maintenance" className="text-sm font-medium text-neutral-700 underline">
+        <Link
+          href="/maintenance"
+          className={`text-sm font-medium text-foreground-muted underline ${FOCUS_RING}`}
+        >
           ← Back to maintenance queue
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-neutral-900">Request detail</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-foreground">Request detail</h1>
       </div>
 
-      {loading ? <InlineNotice>Loading request…</InlineNotice> : null}
-      {!loading && error ? <InlineNotice>{error}</InlineNotice> : null}
+      {loading ? <InlineNotice role="status">Loading request…</InlineNotice> : null}
+      {!loading && error ? (
+        <InlineNotice tone="danger" role="alert">
+          {error}
+        </InlineNotice>
+      ) : null}
 
       {!loading && row ? (
         <div className="flex flex-col gap-6">
@@ -180,7 +188,11 @@ export default function MaintenanceDetailPage() {
               ...(triageParts.guidedMetaRaw ? { technicalAppendix: triageParts.guidedMetaRaw } : {}),
             }}
           />
-          {actionError ? <InlineNotice role="alert">{actionError}</InlineNotice> : null}
+          {actionError ? (
+            <InlineNotice tone="danger" role="alert">
+              {actionError}
+            </InlineNotice>
+          ) : null}
           <MaintenanceActionCard
             workflowStatus={workflowStatus}
             actionsDisabled={patching}

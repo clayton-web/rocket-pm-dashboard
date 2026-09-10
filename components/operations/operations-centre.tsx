@@ -3,10 +3,8 @@ import {
   InlineNotice,
   PortalPageHeader,
 } from "@/components/portal/ui";
-import {
-  AttentionSection,
-  SummaryPill,
-} from "@/components/operations/attention-section";
+import { AttentionSection } from "@/components/operations/attention-section";
+import { SummaryPill } from "@/components/portal/summary-pill";
 import type { OperationsCentreData } from "@/lib/operations/operations-centre.service";
 
 export function OperationsCentre({
@@ -55,7 +53,7 @@ export function OperationsCentre({
       />
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold text-neutral-900">Open items</p>
+        <p className="text-sm font-semibold text-foreground">Open items</p>
         <div className="flex flex-wrap gap-2" aria-label="Operations summary">
           {!hasWork ? (
             <InlineNotice>No items need attention right now.</InlineNotice>

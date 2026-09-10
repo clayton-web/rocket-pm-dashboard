@@ -57,6 +57,8 @@ export type UpdatePropertyInput = Partial<
 
 const PROPERTY_AUDIT_FIELDS = [
   "name",
+  "streetLine1",
+  "streetLine2",
   "city",
   "province",
   "postalCode",
@@ -65,11 +67,26 @@ const PROPERTY_AUDIT_FIELDS = [
   "serviceRelationship",
   "propertyType",
   "bedrooms",
+  "bathrooms",
   "approxSqft",
   "ownerEmail",
   "ownerPhone",
   "strataNotes",
 ] as const;
+
+/**
+ * `bathrooms` is a Prisma `Decimal`, which the generic audit serializer would walk as a plain
+ * object and store as its internal coefficient/exponent fields. Flatten it to a number so the
+ * ActivityLog snapshot stays readable and diffable.
+ */
+export function propertyAuditSnapshot(row: Property): Record<string, unknown> {
+  const snapshot = pickForAudit(row, [...PROPERTY_AUDIT_FIELDS]);
+  if ("bathrooms" in snapshot) {
+    const raw = snapshot.bathrooms;
+    snapshot.bathrooms = raw == null ? null : Number(raw);
+  }
+  return snapshot;
+}
 
 function profileCreateData(input: CreatePropertyInput): Pick<
   Prisma.PropertyCreateInput,
@@ -119,7 +136,7 @@ export async function createProperty(
       },
     });
     await logPropertyActivity(db, principal, row.id, "Property", row.id, "property.created", {
-      newValues: pickForAudit(row, [...PROPERTY_AUDIT_FIELDS]),
+      newValues: propertyAuditSnapshot(row),
     });
     await createUnit(db, principal, row.id, entirePropertyUnitCreateInput());
     return row;
@@ -162,8 +179,8 @@ export async function updateProperty(
     data: data as Prisma.PropertyUpdateInput,
   });
   await logPropertyActivity(prisma, principal, propertyId, "Property", propertyId, "property.updated", {
-    oldValues: before ? pickForAudit(before, [...PROPERTY_AUDIT_FIELDS]) : undefined,
-    newValues: pickForAudit(row, [...PROPERTY_AUDIT_FIELDS]),
+    oldValues: before ? propertyAuditSnapshot(before) : undefined,
+    newValues: propertyAuditSnapshot(row),
   });
   return row;
 }

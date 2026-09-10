@@ -27,6 +27,7 @@ describe("enrichBriefingEmailSummaryJson", () => {
           sender: "Alex Tenant",
           senderEmail: "tenant@example.com",
           subject: "Lease renewal question",
+          excerpt: null,
           categoryHint: BriefingItemCategory.TENANT,
           urgencyHint: BriefingItemUrgency.HIGH,
           entityHints: { contactName: "Alex Tenant" },

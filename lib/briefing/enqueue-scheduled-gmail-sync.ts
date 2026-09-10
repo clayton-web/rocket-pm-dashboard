@@ -1,35 +1,30 @@
-import prisma from "@/lib/db/prisma";
-import { enqueueGmailSyncJob } from "@/lib/gmail/enqueue-gmail-sync";
+import {
+  enqueueScheduledGmailSyncForConnectedAccounts,
+  type EnqueueScheduledGmailSyncDeps,
+} from "@/lib/gmail/enqueue-scheduled-gmail-sync";
 
 const BRIEFING_SYNC_DELAY_MS = 5 * 60 * 1000;
 
-export async function enqueueScheduledGmailSyncForBriefing(args: {
-  organizationId: string;
-  actorUserId: string;
-}): Promise<{ enqueued: number; jobIds: string[] }> {
-  const accounts = await prisma.connectedEmailAccount.findMany({
-    where: {
+/**
+ * Briefing-owned wrapper around the independent scheduled Gmail enqueue.
+ * Still used while Daily Briefing remains enabled; later decommission drops this caller.
+ */
+export async function enqueueScheduledGmailSyncForBriefing(
+  args: {
+    organizationId: string;
+    actorUserId: string;
+  },
+  deps: EnqueueScheduledGmailSyncDeps = {},
+): Promise<{ enqueued: number; jobIds: string[] }> {
+  const result = await enqueueScheduledGmailSyncForConnectedAccounts(
+    {
       organizationId: args.organizationId,
-      status: "CONNECTED",
+      actorUserId: args.actorUserId,
     },
-    select: { id: true },
-  });
+    deps,
+  );
 
-  const jobIds: string[] = [];
-  let enqueued = 0;
-
-  for (const account of accounts) {
-    const result = await enqueueGmailSyncJob({
-      organizationId: args.organizationId,
-      connectedAccountId: account.id,
-      triggeredByUserId: args.actorUserId,
-      triggerSource: "CRON",
-    });
-    jobIds.push(result.jobId);
-    if (result.created) enqueued += 1;
-  }
-
-  return { enqueued, jobIds };
+  return { enqueued: result.enqueued, jobIds: result.jobIds };
 }
 
 export function getBriefingGenerateDelayAfterSync(): number {

@@ -11,7 +11,7 @@ export function OnboardingStepper({ steps }: { steps: OnboardingStep[] }) {
               {index < steps.length - 1 ? (
                 <div
                   className={`mx-1 h-0.5 flex-1 ${
-                    step.state === "complete" ? "bg-neutral-400" : "bg-neutral-200"
+                    step.state === "complete" ? "bg-foreground-subtle" : "bg-border"
                   }`}
                   aria-hidden
                 />
@@ -20,10 +20,10 @@ export function OnboardingStepper({ steps }: { steps: OnboardingStep[] }) {
             <span
               className={`mt-2 pr-2 text-xs leading-tight ${
                 step.state === "current"
-                  ? "font-semibold text-neutral-900"
+                  ? "font-semibold text-foreground"
                   : step.state === "complete"
-                    ? "text-neutral-600"
-                    : "text-neutral-400"
+                    ? "text-foreground-muted"
+                    : "text-foreground-subtle"
               }`}
             >
               {step.label}
@@ -38,10 +38,10 @@ export function OnboardingStepper({ steps }: { steps: OnboardingStep[] }) {
             <span
               className={
                 step.state === "current"
-                  ? "font-semibold text-neutral-900"
+                  ? "font-semibold text-foreground"
                   : step.state === "complete"
-                    ? "text-neutral-700"
-                    : "text-neutral-400"
+                    ? "text-foreground-muted"
+                    : "text-foreground-subtle"
               }
             >
               {step.label}
@@ -57,7 +57,7 @@ function StepDot({ state }: { state: OnboardingStep["state"] }) {
   if (state === "complete") {
     return (
       <span
-        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-xs text-white"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground"
         aria-hidden
       >
         ✓
@@ -67,14 +67,14 @@ function StepDot({ state }: { state: OnboardingStep["state"] }) {
   if (state === "current") {
     return (
       <span
-        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-neutral-800 bg-white"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-surface"
         aria-hidden
       />
     );
   }
   return (
     <span
-      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-neutral-200 bg-white"
+      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-border bg-surface"
       aria-hidden
     />
   );

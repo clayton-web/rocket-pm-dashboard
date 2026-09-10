@@ -1,5 +1,6 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
 import { SURFACE_CARD, SURFACE_PANEL } from "@/components/portal/ui";
 import { OffboardingStepper } from "@/components/leasing/offboarding-stepper";
 import type { OffboardingNextStep, OffboardingStep } from "@/lib/leasing/offboarding-progress";
@@ -37,32 +38,32 @@ export function OffboardingSummary({
 }: OffboardingSummaryProps) {
   return (
     <div className={`${SURFACE_CARD} mb-6 px-4 py-4`} id="offboarding-summary">
-      <h2 className="text-sm font-semibold text-neutral-900">Offboarding</h2>
+      <h2 className="text-sm font-semibold text-foreground">Offboarding</h2>
       <div className="mt-4">
         <OffboardingStepper steps={steps} />
       </div>
 
-      <div className={`${SURFACE_PANEL} mt-4 flex flex-col gap-2 px-3.5 py-3 text-sm text-neutral-700`}>
+      <div className={`${SURFACE_PANEL} mt-4 flex flex-col gap-2 px-3.5 py-3 text-sm text-foreground-muted`}>
         <p>
-          <span className="text-neutral-500">Requested move-out · </span>
+          <span className="text-foreground-subtle">Requested move-out · </span>
           {formatDate(requestedMoveOutDate)}
         </p>
         <p>
-          <span className="text-neutral-500">Scheduled move-out · </span>
+          <span className="text-foreground-subtle">Scheduled move-out · </span>
           {formatDate(scheduledMoveOutDate)}
         </p>
         <p>
-          <span className="text-neutral-500">Inspection date · </span>
+          <span className="text-foreground-subtle">Inspection date · </span>
           {formatDate(inspectionDate)}
         </p>
         <p>
-          <span className="text-neutral-500">Inspection report · </span>
+          <span className="text-foreground-subtle">Inspection report · </span>
           {inspectionReportUrl ? (
             <a
               href={inspectionReportUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium underline"
+              className={`font-medium underline ${FOCUS_RING}`}
             >
               View report
             </a>
@@ -72,16 +73,16 @@ export function OffboardingSummary({
         </p>
         {inspectionNotes ? (
           <p>
-            <span className="text-neutral-500">Inspection notes · </span>
+            <span className="text-foreground-subtle">Inspection notes · </span>
             <span className="whitespace-pre-wrap">{inspectionNotes}</span>
           </p>
         ) : null}
         {acceptedNoticeId ? (
           <p>
-            <span className="text-neutral-500">Notice · </span>
+            <span className="text-foreground-subtle">Notice · </span>
             <Link
               href={`/leasing/notices/${acceptedNoticeId}`}
-              className="font-medium underline"
+              className={`font-medium underline ${FOCUS_RING}`}
             >
               View tenant notice
             </Link>
@@ -90,9 +91,9 @@ export function OffboardingSummary({
       </div>
 
       {missingAcceptedNotice ? (
-        <p className="mt-4 text-sm text-amber-900">
+        <p className="mt-4 text-sm text-warning-foreground">
           No accepted notice on file for this tenancy. Accept a tenant notice on{" "}
-          <Link href="/leasing/offboarding" className="font-medium underline">
+          <Link href="/leasing/offboarding" className={`font-medium underline ${FOCUS_RING}`}>
             Offboarding
           </Link>{" "}
           before scheduling move-out.
@@ -100,13 +101,13 @@ export function OffboardingSummary({
       ) : null}
 
       {nextStep.kind !== "none" ? (
-        <div className="mt-4 border-t border-neutral-200 pt-4">
-          <p className="text-sm font-semibold text-neutral-900">Next step</p>
-          <p className="mt-1 text-sm font-medium text-neutral-800">{nextStep.title}</p>
-          <p className="mt-1 text-sm text-neutral-600">{nextStep.description}</p>
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="text-sm font-semibold text-foreground">Next step</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{nextStep.title}</p>
+          <p className="mt-1 text-sm text-foreground-muted">{nextStep.description}</p>
           {nextStep.href ? (
             <p className="mt-3">
-              <Link href={nextStep.href} className="text-sm font-medium text-neutral-900 underline">
+              <Link href={nextStep.href} className={`text-sm font-medium text-foreground underline ${FOCUS_RING}`}>
                 Go to {nextStep.title} →
               </Link>
             </p>
@@ -114,7 +115,7 @@ export function OffboardingSummary({
             <p className="mt-3">
               <a
                 href={`#${nextStep.anchorId}`}
-                className="text-sm font-medium text-neutral-900 underline"
+                className={`text-sm font-medium text-foreground underline ${FOCUS_RING}`}
               >
                 Go to {nextStep.title} →
               </a>

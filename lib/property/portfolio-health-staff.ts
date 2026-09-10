@@ -9,6 +9,7 @@ import {
   type PortfolioHealthTenancyInput,
   type PortfolioHealthTenantContactInput,
 } from "@/lib/property/portfolio-health";
+import { canManagePropertyFromContext } from "@/lib/services/property-access";
 import { listPropertiesForUser } from "@/lib/services/property.service";
 import type { StaffContext } from "@/lib/services/staff-context";
 
@@ -148,6 +149,8 @@ export async function loadPortfolioHealthForStaff(
       ownerEmail: property.ownerEmail,
       ownerPhone: property.ownerPhone,
       strataNotes: property.strataNotes,
+      updatedAt: property.updatedAt,
+      canEdit: canManagePropertyFromContext(ctx, property.id),
       documentCount: documentCountByProperty.get(property.id) ?? 0,
       units: propertyUnits.map((unit) =>
         buildPortfolioHealthUnitInput(

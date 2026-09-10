@@ -1,8 +1,10 @@
 "use client";
 
+import { FOCUS_RING } from "@/components/portal/focus";
+import { formControlClasses } from "@/components/portal/form-control";
 import { withBasePath } from "@/lib/app-path";
 import { useState } from "react";
-import { FormField, PrimaryButton, SURFACE_CARD } from "@/components/portal/ui";
+import { FormField, InlineNotice, PrimaryButton, SURFACE_CARD } from "@/components/portal/ui";
 
 type Step = "email" | "code";
 
@@ -92,7 +94,7 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
               required
               autoComplete="email"
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              className={formControlClasses()}
             />
           </FormField>
           <PrimaryButton type="submit" disabled={loading}>
@@ -101,14 +103,14 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
         </form>
       ) : (
         <form className="flex flex-col gap-4" onSubmit={handleVerify}>
-          <p className="text-sm text-neutral-600">
-            Enter the 6-digit code for <span className="font-medium text-neutral-900">{email}</span>.
+          <p className="text-sm text-foreground-muted">
+            Enter the 6-digit code for <span className="font-medium text-foreground">{email}</span>.
           </p>
-          {message ? <p className="text-sm text-neutral-600">{message}</p> : null}
+          {message ? <p className="text-sm text-foreground-muted">{message}</p> : null}
           {devCode ? (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <InlineNotice tone="warning" size="compact">
               Dev code: <span className="font-mono font-semibold">{devCode}</span>
-            </p>
+            </InlineNotice>
           ) : null}
           <FormField htmlFor="tenant-code" label="One-time code">
             <input
@@ -122,7 +124,7 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
               required
               autoComplete="one-time-code"
               placeholder="123456"
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm font-mono tracking-widest"
+              className={formControlClasses({ className: "font-mono tracking-widest" })}
             />
           </FormField>
           <div className="flex flex-col gap-2">
@@ -131,7 +133,7 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
             </PrimaryButton>
             <button
               type="button"
-              className="text-sm text-neutral-600 underline underline-offset-2"
+              className={`text-sm text-foreground-muted underline underline-offset-2 ${FOCUS_RING}`}
               onClick={() => {
                 setStep("email");
                 setCode("");
@@ -144,7 +146,11 @@ export function TenantLoginForm({ next }: { next?: string | null }) {
           </div>
         </form>
       )}
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-3 text-sm font-medium text-danger-foreground">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

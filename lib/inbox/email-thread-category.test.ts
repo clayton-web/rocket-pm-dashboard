@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { EmailThreadCategory } from "@prisma/client";
 import type { InboxThreadDisplayRow } from "@/lib/inbox/inbox-thread-display";
 import {
   buildInboxBrowseAllLink,
@@ -45,6 +46,9 @@ function row(
     actionState: "no_action",
     stakeholderLabel: "Unsorted",
     primaryContextLabel: "Test",
+    senderLabel: "Unknown sender",
+    senderEmail: null,
+    metaLine: "Unlinked",
   };
 }
 
@@ -130,7 +134,11 @@ describe("email-thread-category", () => {
       "STRATA",
       "UNCATEGORIZED",
     ]);
-    assert.ok(!INBOX_STAKEHOLDER_BIN_ORDER.some((category) => category === "TENANT_INQUIRY"));
+    assert.ok(
+      !INBOX_STAKEHOLDER_BIN_ORDER.some(
+        (category: EmailThreadCategory) => category === "TENANT_INQUIRY",
+      ),
+    );
   });
 
   it("uses short labels and Unsorted for stakeholder bins", () => {

@@ -12,14 +12,24 @@ describe("property profile helpers", () => {
 
 describe("property detail profile UI", () => {
   it("displays and edits property profile on detail page", async () => {
-    const source = await readFile(
+    const detail = await readFile(
       new URL("../../components/properties/property-detail.tsx", import.meta.url),
       "utf8",
     );
-    assert.match(source, /PropertyProfileSection/);
-    assert.match(source, /Edit property profile/);
-    assert.match(source, /updatePropertyProfileAction/);
-    assert.match(source, /formatProfileSummary/);
+    assert.match(detail, /PropertyProfileSection/);
+
+    // The section itself now lives in the shared property editor, which Property Health also
+    // links into.
+    const section = await readFile(
+      new URL(
+        "../../components/properties/edit/property-profile-section.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    assert.match(section, /Edit property profile/);
+    assert.match(section, /updatePropertyProfileAction/);
+    assert.match(section, /formatProfileSummary/);
   });
 });
 

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --import tsx --test 'lib/**/*.test.ts'",
+    "test": "node --import tsx --test 'lib/**/*.test.ts' 'components/**/*.test.ts'",
     "inbox:classification-dry-run": "npx tsx scripts/classification-dry-run-report.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",

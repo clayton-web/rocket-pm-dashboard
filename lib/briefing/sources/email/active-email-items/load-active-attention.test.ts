@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BriefingAttentionStatus } from "@prisma/client";
+import { BriefingAttentionStatus, type Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
-import { loadActiveAttentionRows } from "@/lib/briefing/sources/email/active-email-items/load-active-attention";
+import {
+  loadActiveAttentionRows,
+  type LoadActiveAttentionRowsDeps,
+} from "@/lib/briefing/sources/email/active-email-items/load-active-attention";
 
 describe("loadActiveAttentionRows", () => {
   it("queries ACTIVE rows scoped to organizationId", async () => {
@@ -19,10 +22,10 @@ describe("loadActiveAttentionRows", () => {
     const result = await loadActiveAttentionRows(
       { organizationId: "org_1" },
       {
-        findMany: async (args) => {
+        findMany: (async (args: Prisma.EmailThreadBriefingAttentionFindManyArgs) => {
           calls.push(args);
           return rows as Awaited<ReturnType<typeof loadActiveAttentionRows>>;
-        },
+        }) as unknown as LoadActiveAttentionRowsDeps["findMany"],
       },
     );
 
@@ -38,15 +41,15 @@ describe("loadActiveAttentionRows", () => {
   });
 
   it("filters by emailThreadIds when provided", async () => {
-    let capturedWhere: Record<string, unknown> | null = null;
+    let capturedWhere = null as Record<string, unknown> | null;
 
     await loadActiveAttentionRows(
       { organizationId: "org_1", emailThreadIds: ["thread_a", "thread_b"] },
       {
-        findMany: async (args) => {
+        findMany: (async (args: Prisma.EmailThreadBriefingAttentionFindManyArgs) => {
           capturedWhere = args.where as Record<string, unknown>;
           return [];
-        },
+        }) as unknown as LoadActiveAttentionRowsDeps["findMany"],
       },
     );
 

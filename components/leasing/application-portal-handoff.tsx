@@ -1,6 +1,8 @@
 "use client";
 
-import { PrimaryButton, SURFACE_PANEL } from "@/components/portal/ui";
+import { Button, buttonClasses } from "@/components/portal/button";
+import { FOCUS_RING } from "@/components/portal/focus";
+import { noticeClasses, SURFACE_PANEL } from "@/components/portal/ui";
 import { withBasePath } from "@/lib/app-path";
 import { markApplicationSentAction } from "@/app/(dashboard)/leasing/prospects/[prospectId]/actions";
 import type { ApplicationPortalHandoff } from "@/lib/leasing/application-portal-link";
@@ -92,78 +94,78 @@ export function ApplicationPortalHandoffPanel({
 
   return (
     <div className={`${SURFACE_PANEL} px-3.5 py-3`}>
-      <p className="text-sm text-neutral-700">{handoff.instructionText}</p>
-      <p className="mt-2 text-sm text-neutral-700">
-        <span className="text-neutral-500">Application form · </span>
-        <Link href={handoff.portalPath} className="font-medium underline">
+      <p className="text-sm text-foreground-muted">{handoff.instructionText}</p>
+      <p className="mt-2 text-sm text-foreground-muted">
+        <span className="text-foreground-subtle">Application form · </span>
+        <Link href={handoff.portalPath} className={`font-medium underline ${FOCUS_RING}`}>
           {handoff.portalPath}
         </Link>
       </p>
-      <p className="mt-2 text-sm text-neutral-600">
-        <span className="text-neutral-500">Property · </span>
+      <p className="mt-2 text-sm text-foreground-muted">
+        <span className="text-foreground-subtle">Property · </span>
         {handoff.propertyName}
       </p>
       {handoff.unitLabel ? (
-        <p className="mt-1 text-sm text-neutral-600">
-          <span className="text-neutral-500">Unit · </span>
+        <p className="mt-1 text-sm text-foreground-muted">
+          <span className="text-foreground-subtle">Unit · </span>
           {handoff.unitLabel}
         </p>
       ) : null}
-      <p className="mt-1 text-sm text-neutral-600">
-        <span className="text-neutral-500">Email for prefill · </span>
+      <p className="mt-1 text-sm text-foreground-muted">
+        <span className="text-foreground-subtle">Email for prefill · </span>
         {handoff.email}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {canMarkApplicationSent && prospectId && !alreadySent ? (
-          <PrimaryButton
-            type="button"
-            className="!w-auto px-6"
+          <Button
+            variant="primary"
+            size="lg"
             disabled={sentPending}
             onClick={() => void onSendApplication()}
           >
             {sentPending ? "Sending…" : copied && !sentPending ? "Copied — saving…" : "Send application"}
-          </PrimaryButton>
+          </Button>
         ) : null}
 
         {alreadySent || !canMarkApplicationSent || !prospectId ? (
-          <PrimaryButton type="button" className="!w-auto px-6" onClick={() => void onCopyAgain()}>
+          <Button variant="primary" size="lg" onClick={() => void onCopyAgain()}>
             {copied ? "Copied" : "Copy message"}
-          </PrimaryButton>
+          </Button>
         ) : null}
 
-        {copyError ? <span className="text-sm text-red-700">{copyError}</span> : null}
-        {actionError ? <span className="text-sm text-red-700">{actionError}</span> : null}
+        {copyError ? (
+          <span className="text-sm font-medium text-danger-foreground" role="alert">
+            {copyError}
+          </span>
+        ) : null}
+        {actionError ? (
+          <span className="text-sm font-medium text-danger-foreground" role="alert">
+            {actionError}
+          </span>
+        ) : null}
       </div>
 
       {showFallback && !alreadySent && prospectId ? (
-        <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-3">
-          <p className="text-sm text-amber-950">
+        <div className={noticeClasses("warning", "compact", "mt-4")} role="alert">
+          <p className="text-sm">
             Clipboard access failed. The application was <span className="font-medium">not</span>{" "}
             marked as sent. Open email with the prepared message, or mark sent after you share it
             another way.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <a
-              href={mailtoHref}
-              className="inline-flex items-center rounded-md border border-neutral-900 bg-neutral-900 px-4 py-2 text-sm font-medium text-white no-underline hover:bg-neutral-800"
-            >
+            <a href={mailtoHref} className={buttonClasses({ variant: "primary" })}>
               Open in email
             </a>
-            <PrimaryButton
-              type="button"
-              className="!w-auto px-6"
-              disabled={sentPending}
-              onClick={markSent}
-            >
+            <Button variant="primary" size="lg" disabled={sentPending} onClick={markSent}>
               {sentPending ? "Saving…" : "Mark as sent"}
-            </PrimaryButton>
+            </Button>
           </div>
         </div>
       ) : null}
 
       {applicationSentAt ? (
-        <p className="mt-3 text-xs text-neutral-600">
+        <p className="mt-3 text-xs text-foreground-muted">
           Application marked sent{" "}
           {new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short" }).format(
             new Date(applicationSentAt),

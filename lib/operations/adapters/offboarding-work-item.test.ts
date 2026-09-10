@@ -8,6 +8,9 @@ import {
 } from "./offboarding-work-item";
 import { classifyWorkItem } from "../classify-work-item";
 
+/** Fixed reference day so classification does not drift with the wall clock. */
+const TODAY = "2026-07-10";
+
 const noticeBase = {
   id: "notice_1",
   tenancyId: "ten_1",
@@ -35,7 +38,7 @@ describe("adaptOffboardingToWorkItemDraft", () => {
     };
     const next = resolveOffboardingNextStep(row);
     assert.equal(next.kind, "accept_notice");
-    const draft = adaptOffboardingToWorkItemDraft(row, next);
+    const draft = adaptOffboardingToWorkItemDraft(row, next, { today: TODAY });
     assert.equal(draft.nextActionLabel, "Accept notice");
     assert.equal(classifyWorkItem(draft)?.primarySection, "needs_attention");
   });
@@ -99,7 +102,9 @@ describe("adaptOffboardingToWorkItemDraft", () => {
         updatedAt: "2026-07-08T12:00:00.000Z",
       },
     };
-    const draft = adaptOffboardingToWorkItemDraft(row);
+    const draft = adaptOffboardingToWorkItemDraft(row, resolveOffboardingNextStep(row), {
+      today: TODAY,
+    });
     assert.equal(draft.nextActionLabel, expected.title);
     assert.equal(classifyWorkItem(draft)?.primarySection, "overdue");
   });

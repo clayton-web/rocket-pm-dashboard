@@ -20,11 +20,11 @@ export async function OrgSwitcher() {
 
   if (!operator && memberships.length <= 1) {
     return (
-      <div className="truncate text-xs text-neutral-600">
+      <div className="truncate text-xs text-foreground-muted">
         {active ? (
           <>
-            <span className="font-medium text-neutral-900">{active.name}</span>
-            <span className="text-neutral-400"> · </span>
+            <span className="font-medium text-foreground">{active.name}</span>
+            <span className="text-foreground-subtle"> · </span>
             <span>{active.role.replace("_", " ")}</span>
           </>
         ) : (
@@ -39,7 +39,7 @@ export async function OrgSwitcher() {
       <select
         name="organizationId"
         defaultValue={active?.id ?? ""}
-        className="max-w-[14rem] rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-800"
+        className="max-w-[14rem] rounded-md border border-border bg-surface px-2 py-1 text-xs text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         onChange={(event) => event.currentTarget.form?.requestSubmit()}
         aria-label="Active organization"
       >
