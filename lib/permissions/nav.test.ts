@@ -44,3 +44,21 @@ describe("Property Health navigation access", () => {
     assert.equal(canSeeNavItem(navItem("nav-properties-health"), perms({ role: null })), false);
   });
 });
+
+describe("Photo Enhancer navigation access", () => {
+  it("is visible to members", () => {
+    const item = navItem("nav-photo-enhancer");
+
+    assert.equal(item.href, "/photo-enhancer");
+    assert.equal(item.enabled, true);
+    assert.equal(item.minimumRole, "MEMBER");
+
+    for (const role of ["MEMBER", "ADMIN", "OWNER"] as const) {
+      assert.equal(canSeeNavItem(item, perms({ role })), true, role);
+    }
+  });
+
+  it("stays hidden from signed-in users with no organization role", () => {
+    assert.equal(canSeeNavItem(navItem("nav-photo-enhancer"), perms({ role: null })), false);
+  });
+});

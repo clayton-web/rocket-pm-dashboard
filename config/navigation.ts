@@ -17,7 +17,8 @@ export type NavModuleId =
   | "crm"
   | "notifications"
   | "finance"
-  | "settings";
+  | "settings"
+  | "photoEnhancer";
 
 export type NavItem = {
   id: string;
@@ -167,6 +168,15 @@ export const navigationItems: NavItem[] = [
     moduleId: "leasing",
     label: "Offboarding",
     href: "/leasing/offboarding",
+    enabled: true,
+    section: "operations",
+    minimumRole: "MEMBER",
+  },
+  {
+    id: "nav-photo-enhancer",
+    moduleId: "photoEnhancer",
+    label: "Photo Enhancer",
+    href: "/photo-enhancer",
     enabled: true,
     section: "operations",
     minimumRole: "MEMBER",

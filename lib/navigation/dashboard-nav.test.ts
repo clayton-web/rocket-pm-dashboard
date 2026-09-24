@@ -32,6 +32,7 @@ describe("resolveDashboardPageTitle", () => {
     assert.equal(resolveDashboardPageTitle("/inbox"), "Inbox");
     assert.equal(resolveDashboardPageTitle("/operations"), "Operations");
     assert.equal(resolveDashboardPageTitle("/organization"), "Organization");
+    assert.equal(resolveDashboardPageTitle("/photo-enhancer"), "Photo Enhancer");
   });
 
   it("titles detail routes from their section", () => {
