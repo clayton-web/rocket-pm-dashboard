@@ -12,12 +12,32 @@ import {
   SURFACE_PANEL,
 } from "@/components/portal/ui";
 import { withBasePath } from "@/lib/app-path";
-import { PHOTO_ENHANCER_ACCEPT } from "@/lib/photo-enhancer/image-limits";
+import { selectPhotoEnhancerBatch } from "@/lib/photo-enhancer/batch";
+import {
+  PHOTO_JOB_STATUS_LABEL,
+  processPhotoQueue,
+  type PhotoJobStatus,
+} from "@/lib/photo-enhancer/concurrency";
+import {
+  PHOTO_ENHANCER_ACCEPT,
+  PHOTO_ENHANCER_MAX_BATCH,
+  PHOTO_ENHANCER_MAX_CONCURRENCY,
+} from "@/lib/photo-enhancer/image-limits";
 import { enhancedDownloadFileName, preparePhotoForUpload } from "@/lib/photo-enhancer/prepare-upload";
-import { validatePhotoEnhancerUpload } from "@/lib/photo-enhancer/validate-upload";
+import { revokePhotoPreviewUrlList } from "@/lib/photo-enhancer/preview-urls";
 
 type EnhanceErrorPayload = {
   error?: string;
+};
+
+type PhotoItem = {
+  id: string;
+  file: File;
+  originalUrl: string;
+  enhancedUrl: string | null;
+  downloadName: string;
+  status: PhotoJobStatus;
+  error: string | null;
 };
 
 function formatFileSize(sizeBytes: number): string {
@@ -32,97 +52,106 @@ function readEnhanceError(payload: unknown, fallback: string): string {
   return typeof message === "string" ? message : fallback;
 }
 
+function createPhotoId(file: File, index: number): string {
+  return `${file.name}:${file.size}:${file.lastModified}:${index}`;
+}
+
 export function PhotoEnhancerPanel() {
   const fileId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const originalUrlRef = useRef<string | null>(null);
-  const enhancedUrlRef = useRef<string | null>(null);
+  const itemsRef = useRef<PhotoItem[]>([]);
+  const generationRef = useRef(0);
+  const queueRunningRef = useRef(false);
 
-  const [originalFile, setOriginalFile] = useState<File | null>(null);
-  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-  const [enhancedUrl, setEnhancedUrl] = useState<string | null>(null);
-  const [downloadName, setDownloadName] = useState("photo-enhanced.png");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [items, setItems] = useState<PhotoItem[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [queueRunning, setQueueRunning] = useState(false);
 
-  function revokeOriginalUrl() {
-    if (originalUrlRef.current) {
-      URL.revokeObjectURL(originalUrlRef.current);
-      originalUrlRef.current = null;
-    }
+  function replaceItems(next: PhotoItem[]) {
+    itemsRef.current = next;
+    setItems(next);
   }
 
-  function revokeEnhancedUrl() {
-    if (enhancedUrlRef.current) {
-      URL.revokeObjectURL(enhancedUrlRef.current);
-      enhancedUrlRef.current = null;
-    }
+  function patchItem(id: string, patch: Partial<PhotoItem> | ((item: PhotoItem) => PhotoItem)) {
+    const next = itemsRef.current.map((item) => {
+      if (item.id !== id) return item;
+      return typeof patch === "function" ? patch(item) : { ...item, ...patch };
+    });
+    replaceItems(next);
   }
 
-  useEffect(() => {
-    return () => {
-      revokeOriginalUrl();
-      revokeEnhancedUrl();
-    };
-  }, []);
-
-  function resetWorkflow() {
-    revokeOriginalUrl();
-    revokeEnhancedUrl();
-    setOriginalFile(null);
-    setOriginalUrl(null);
-    setEnhancedUrl(null);
-    setDownloadName("photo-enhanced.png");
-    setError(null);
-    setPending(false);
+  function clearBatch() {
+    generationRef.current += 1;
+    revokePhotoPreviewUrlList(itemsRef.current);
+    replaceItems([]);
+    setNotice(null);
+    setQueueRunning(false);
+    queueRunningRef.current = false;
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   }
 
+  useEffect(() => {
+    return () => {
+      generationRef.current += 1;
+      revokePhotoPreviewUrlList(itemsRef.current);
+    };
+  }, []);
+
   function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    revokeEnhancedUrl();
-    setEnhancedUrl(null);
-    setError(null);
+    const files = Array.from(event.target.files ?? []);
+    const selection = selectPhotoEnhancerBatch(
+      files.map((file) => ({
+        fileName: file.name,
+        contentType: file.type,
+        sizeBytes: file.size,
+      })),
+    );
 
-    if (!file) {
-      revokeOriginalUrl();
-      setOriginalFile(null);
-      setOriginalUrl(null);
-      return;
-    }
+    generationRef.current += 1;
+    revokePhotoPreviewUrlList(itemsRef.current);
+    queueRunningRef.current = false;
+    setQueueRunning(false);
 
-    const check = validatePhotoEnhancerUpload({
-      fileName: file.name,
-      contentType: file.type,
-      sizeBytes: file.size,
-      enforceSize: false,
-    });
-    if (!check.ok) {
-      revokeOriginalUrl();
-      setOriginalFile(null);
-      setOriginalUrl(null);
-      setError(check.error);
+    if (selection.acceptedIndexes.length === 0) {
+      replaceItems([]);
+      setNotice(selection.error);
       event.target.value = "";
       return;
     }
 
-    revokeOriginalUrl();
-    const nextUrl = URL.createObjectURL(file);
-    originalUrlRef.current = nextUrl;
-    setOriginalFile(file);
-    setOriginalUrl(nextUrl);
-    setDownloadName(enhancedDownloadFileName(file.name));
+    const nextItems = selection.acceptedIndexes.map((index) => {
+      const file = files[index];
+      return {
+        id: createPhotoId(file, index),
+        file,
+        originalUrl: URL.createObjectURL(file),
+        enhancedUrl: null,
+        downloadName: enhancedDownloadFileName(file.name),
+        status: "waiting" as const,
+        error: null,
+      };
+    });
+    replaceItems(nextItems);
+    setNotice(selection.error);
   }
 
-  async function onEnhance() {
-    if (!originalFile || pending) return;
-    setError(null);
-    setPending(true);
+  function claimNextWaitingId(): string | null {
+    const inFlight = itemsRef.current.filter((item) => item.status === "enhancing").length;
+    if (inFlight >= PHOTO_ENHANCER_MAX_CONCURRENCY) return null;
+    const next = itemsRef.current.find((item) => item.status === "waiting");
+    if (!next) return null;
+    patchItem(next.id, { status: "enhancing", error: null });
+    return next.id;
+  }
+
+  async function enhanceClaimedPhoto(id: string, generation: number) {
+    const item = itemsRef.current.find((row) => row.id === id);
+    if (!item) return;
 
     try {
-      const uploadFile = await preparePhotoForUpload(originalFile);
+      const uploadFile = await preparePhotoForUpload(item.file);
       const formData = new FormData();
       formData.set("image", uploadFile);
 
@@ -134,124 +163,197 @@ export function PhotoEnhancerPanel() {
 
       if (!response.ok) {
         const payload: unknown = await response.json().catch(() => ({}));
-        setError(readEnhanceError(payload, "The enhancement request failed. Try again."));
-        return;
+        throw new Error(readEnhanceError(payload, "The enhancement request failed. Try again."));
       }
 
       const blob = await response.blob();
       if (blob.size === 0 || blob.type !== "image/png") {
-        setError("The enhancement request returned an unreadable image.");
+        throw new Error("The enhancement request returned an unreadable image.");
+      }
+
+      const nextUrl = URL.createObjectURL(blob);
+      if (generation !== generationRef.current) {
+        URL.revokeObjectURL(nextUrl);
         return;
       }
 
-      revokeEnhancedUrl();
-      const nextUrl = URL.createObjectURL(blob);
-      enhancedUrlRef.current = nextUrl;
-      setEnhancedUrl(nextUrl);
+      patchItem(id, (current) => {
+        if (current.enhancedUrl) URL.revokeObjectURL(current.enhancedUrl);
+        return { ...current, status: "complete", enhancedUrl: nextUrl, error: null };
+      });
     } catch (caught) {
+      if (generation !== generationRef.current) return;
       const message = caught instanceof Error ? caught.message : "The enhancement request failed.";
-      setError(message);
-    } finally {
-      setPending(false);
+      patchItem(id, { status: "failed", error: message });
     }
   }
+
+  async function runQueue() {
+    if (queueRunningRef.current) return;
+    if (!itemsRef.current.some((item) => item.status === "waiting")) return;
+
+    const generation = generationRef.current;
+    queueRunningRef.current = true;
+    setQueueRunning(true);
+    try {
+      await processPhotoQueue({
+        concurrency: PHOTO_ENHANCER_MAX_CONCURRENCY,
+        claimNext: () => {
+          if (generation !== generationRef.current) return null;
+          return claimNextWaitingId();
+        },
+        process: (id) => enhanceClaimedPhoto(id, generation),
+      });
+    } finally {
+      if (generation === generationRef.current) {
+        queueRunningRef.current = false;
+        setQueueRunning(false);
+      }
+    }
+  }
+
+  function retryPhoto(id: string) {
+    const item = itemsRef.current.find((row) => row.id === id);
+    if (!item || item.status !== "failed") return;
+    patchItem(id, (current) => {
+      if (current.enhancedUrl) URL.revokeObjectURL(current.enhancedUrl);
+      return { ...current, status: "waiting", enhancedUrl: null, error: null };
+    });
+    void runQueue();
+  }
+
+  const waitingCount = items.filter((item) => item.status === "waiting").length;
+  const enhancingCount = items.filter((item) => item.status === "enhancing").length;
+  const completeCount = items.filter((item) => item.status === "complete").length;
+  const failedCount = items.filter((item) => item.status === "failed").length;
+  const canEnhanceBatch = items.length > 0 && waitingCount > 0 && !queueRunning && enhancingCount === 0;
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-lg font-semibold text-foreground">Photo Enhancer</h1>
         <p className="mt-1 text-sm leading-relaxed text-foreground-muted">
-          Professionally enhance a real-estate photograph while preserving the factual contents of
-          the property. One photo at a time — review the result before you download it.
+          Professionally enhance real-estate photographs while preserving the factual contents of
+          the property. Upload up to {PHOTO_ENHANCER_MAX_BATCH} photos, then review each result
+          before you download it.
         </p>
       </header>
 
-      {error ? <InlineAlert>{error}</InlineAlert> : null}
+      {notice ? <InlineAlert>{notice}</InlineAlert> : null}
 
       <section className={`${SURFACE_PANEL} space-y-4 px-4 py-4`}>
         <FormField
           htmlFor={fileId}
-          label="Photograph"
-          helper="JPG, PNG, or WebP. Large phone photos are resized in the browser before upload."
+          label="Photographs"
+          helper={`JPG, PNG, or WebP. Up to ${PHOTO_ENHANCER_MAX_BATCH} photos. Large phone photos are resized in the browser before upload.`}
         >
           <input
             ref={fileInputRef}
             id={fileId}
             type="file"
+            multiple
             accept={PHOTO_ENHANCER_ACCEPT}
             onChange={onFileChange}
             className={`block w-full text-sm text-foreground file:mr-3 file:rounded-lg file:border file:border-border file:bg-surface file:px-3 file:py-2 file:text-sm file:font-medium ${FOCUS_RING}`}
           />
         </FormField>
 
-        {originalFile && originalUrl ? (
+        {items.length > 0 ? (
           <div className="space-y-3">
             <p className="text-sm text-foreground-muted">
-              {originalFile.name} · {formatFileSize(originalFile.size)}
+              {items.length} photo{items.length === 1 ? "" : "s"} selected
+              {completeCount || failedCount || enhancingCount
+                ? ` · ${completeCount} complete · ${failedCount} failed · ${enhancingCount} enhancing`
+                : null}
             </p>
-            {!enhancedUrl ? (
-              <>
-                <figure className={`${SURFACE_CARD} overflow-hidden p-3`}>
-                  <figcaption className="mb-2 text-sm font-semibold text-foreground">Original</figcaption>
-                  {/* Preview of a local object URL; not a remote/CMS asset. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={originalUrl}
-                    alt="Original property photograph"
-                    className="max-h-[28rem] w-full rounded-lg object-contain"
-                  />
-                </figure>
-                <PrimaryButton type="button" disabled={pending} onClick={() => void onEnhance()}>
-                  {pending ? "Enhancing…" : "Enhance"}
-                </PrimaryButton>
-              </>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {items.map((item) => (
+                <article key={item.id} className={`${SURFACE_CARD} space-y-3 overflow-hidden p-3`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{item.file.name}</p>
+                      <p className="text-xs text-foreground-muted">{formatFileSize(item.file.size)}</p>
+                    </div>
+                    <p className="shrink-0 text-xs font-semibold text-foreground">
+                      {PHOTO_JOB_STATUS_LABEL[item.status]}
+                    </p>
+                  </div>
+
+                  <div className={`grid gap-3 ${item.enhancedUrl ? "sm:grid-cols-2" : ""}`}>
+                    <figure>
+                      <figcaption className="mb-1 text-xs font-semibold text-foreground">Original</figcaption>
+                      {/* Preview of a local object URL; not a remote/CMS asset. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.originalUrl}
+                        alt={`Original photograph ${item.file.name}`}
+                        className="max-h-56 w-full rounded-lg object-contain"
+                      />
+                    </figure>
+                    {item.enhancedUrl ? (
+                      <figure>
+                        <figcaption className="mb-1 text-xs font-semibold text-foreground">Enhanced</figcaption>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.enhancedUrl}
+                          alt={`Enhanced photograph ${item.file.name}`}
+                          className="max-h-56 w-full rounded-lg object-contain"
+                        />
+                      </figure>
+                    ) : null}
+                  </div>
+
+                  {item.status === "failed" && item.error ? (
+                    <p className="text-sm text-danger" role="alert">
+                      {item.error}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-2">
+                    {item.enhancedUrl ? (
+                      <a
+                        href={item.enhancedUrl}
+                        download={item.downloadName}
+                        className={buttonClasses({ variant: "primary" })}
+                      >
+                        Download PNG
+                      </a>
+                    ) : null}
+                    {item.status === "failed" ? (
+                      <Button type="button" variant="secondary" onClick={() => retryPhoto(item.id)}>
+                        Retry
+                      </Button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {completeCount > 0 ? (
+              <InlineNotice>
+                Review each enhanced image before marketing use and confirm the property has not been
+                materially altered.
+              </InlineNotice>
             ) : null}
+
+            <div className="flex flex-wrap gap-3">
+              {canEnhanceBatch ? (
+                <PrimaryButton type="button" onClick={() => void runQueue()}>
+                  Enhance Photos
+                </PrimaryButton>
+              ) : null}
+              {queueRunning ? (
+                <PrimaryButton type="button" disabled>
+                  Enhancing…
+                </PrimaryButton>
+              ) : null}
+              <Button type="button" variant="secondary" onClick={clearBatch}>
+                Start Again
+              </Button>
+            </div>
           </div>
         ) : null}
       </section>
-
-      {enhancedUrl && originalUrl ? (
-        <section className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <figure className={`${SURFACE_CARD} overflow-hidden p-3`}>
-              <figcaption className="mb-2 text-sm font-semibold text-foreground">Original</figcaption>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={originalUrl}
-                alt="Original property photograph for comparison"
-                className="max-h-[28rem] w-full rounded-lg object-contain"
-              />
-            </figure>
-            <figure className={`${SURFACE_CARD} overflow-hidden p-3`}>
-              <figcaption className="mb-2 text-sm font-semibold text-foreground">Enhanced</figcaption>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={enhancedUrl}
-                alt="Enhanced property photograph"
-                className="max-h-[28rem] w-full rounded-lg object-contain"
-              />
-            </figure>
-          </div>
-
-          <InlineNotice>
-            Review the enhanced image before marketing use and confirm the property has not been
-            materially altered.
-          </InlineNotice>
-
-          <div className="flex flex-wrap gap-3">
-            <a
-              href={enhancedUrl}
-              download={downloadName}
-              className={buttonClasses({ variant: "primary" })}
-            >
-              Download PNG
-            </a>
-            <Button type="button" variant="secondary" onClick={resetWorkflow}>
-              Start Again
-            </Button>
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  PHOTO_ENHANCER_MAX_BATCH,
   PHOTO_ENHANCER_MAX_BYTES,
+  PHOTO_ENHANCER_MAX_CONCURRENCY,
   PHOTO_ENHANCER_MAX_LONG_EDGE,
+  PHOTO_ENHANCER_RATE_LIMIT_MAX,
   photoNeedsClientCompression,
   targetPhotoDimensions,
 } from "./image-limits";
@@ -37,5 +40,13 @@ describe("photoNeedsClientCompression", () => {
 
   it("skips already-safe files", () => {
     assert.equal(photoNeedsClientCompression(400_000, 1600, 900), false);
+  });
+});
+
+describe("photo enhancer batch limits", () => {
+  it("allows 20 photos with 3 concurrent requests and enough rate-limit headroom", () => {
+    assert.equal(PHOTO_ENHANCER_MAX_BATCH, 20);
+    assert.equal(PHOTO_ENHANCER_MAX_CONCURRENCY, 3);
+    assert.ok(PHOTO_ENHANCER_RATE_LIMIT_MAX >= PHOTO_ENHANCER_MAX_BATCH);
   });
 });

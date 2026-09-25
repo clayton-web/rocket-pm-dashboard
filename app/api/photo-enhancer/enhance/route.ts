@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireStaffContextFromSession, StaffAuthError } from "@/lib/auth/staff-from-session";
 import { PhotoEnhancerError, photoEnhancerErrorJson } from "@/lib/photo-enhancer/errors";
+import {
+  PHOTO_ENHANCER_RATE_LIMIT_MAX,
+  PHOTO_ENHANCER_RATE_LIMIT_WINDOW_MS,
+} from "@/lib/photo-enhancer/image-limits";
 import { enhanceRealEstatePhoto } from "@/lib/photo-enhancer/openai-client";
 import { enhancedDownloadFileName } from "@/lib/photo-enhancer/prepare-upload";
 import { assertPhotoEnhancerUpload } from "@/lib/photo-enhancer/validate-upload";
@@ -26,8 +30,8 @@ export async function POST(request: Request) {
   try {
     const ctx = await requireStaffContextFromSession();
     const limited = checkRateLimit(`photo-enhancer:${ctx.userId}`, {
-      windowMs: 5 * 60_000,
-      max: 8,
+      windowMs: PHOTO_ENHANCER_RATE_LIMIT_WINDOW_MS,
+      max: PHOTO_ENHANCER_RATE_LIMIT_MAX,
     });
     if (!limited.ok) {
       return errorResponse(

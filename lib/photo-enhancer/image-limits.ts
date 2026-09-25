@@ -4,6 +4,16 @@ export const PHOTO_ENHANCER_MAX_BYTES = 3 * 1024 * 1024;
 /** Longest edge after browser resize. Preserves aspect ratio; does not crop. */
 export const PHOTO_ENHANCER_MAX_LONG_EDGE = 2048;
 
+/** Maximum photos accepted in one staff upload. */
+export const PHOTO_ENHANCER_MAX_BATCH = 20;
+
+/** Simultaneous enhancement requests from one browser session. */
+export const PHOTO_ENHANCER_MAX_CONCURRENCY = 3;
+
+/** Staff enhance-route cap: one full 20-photo batch plus a few individual retries. */
+export const PHOTO_ENHANCER_RATE_LIMIT_MAX = 24;
+export const PHOTO_ENHANCER_RATE_LIMIT_WINDOW_MS = 5 * 60_000;
+
 export const PHOTO_ENHANCER_ALLOWED_CONTENT_TYPES = [
   "image/jpeg",
   "image/png",
