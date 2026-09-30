@@ -19,6 +19,12 @@ import {
   type PhotoJobStatus,
 } from "@/lib/photo-enhancer/concurrency";
 import {
+  browserZipDownloadEnvironment,
+  createEnhancedPhotosZip,
+  downloadEnhancedPhotosZip,
+  type EnhancedZipPhoto,
+} from "@/lib/photo-enhancer/download-all";
+import {
   PHOTO_ENHANCER_ACCEPT,
   PHOTO_ENHANCER_MAX_BATCH,
   PHOTO_ENHANCER_MAX_CONCURRENCY,
@@ -62,6 +68,7 @@ export function PhotoEnhancerPanel() {
   const itemsRef = useRef<PhotoItem[]>([]);
   const generationRef = useRef(0);
   const queueRunningRef = useRef(false);
+  const zipDownloadRef = useRef(false);
 
   const [items, setItems] = useState<PhotoItem[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -212,6 +219,40 @@ export function PhotoEnhancerPanel() {
     }
   }
 
+  async function downloadAllPngs() {
+    if (zipDownloadRef.current) return;
+    const snapshot = itemsRef.current;
+    if (!snapshot.some((item) => item.status === "complete" && item.enhancedUrl)) return;
+
+    zipDownloadRef.current = true;
+    try {
+      const photos: EnhancedZipPhoto[] = [];
+      for (const item of snapshot) {
+        if (item.status !== "complete" || !item.enhancedUrl) {
+          photos.push({ status: item.status, downloadName: item.downloadName, pngBytes: null });
+          continue;
+        }
+        try {
+          const response = await fetch(item.enhancedUrl);
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          photos.push({
+            status: "complete",
+            downloadName: item.downloadName,
+            pngBytes: bytes.byteLength > 0 ? bytes : null,
+          });
+        } catch {
+          photos.push({ status: "complete", downloadName: item.downloadName, pngBytes: null });
+        }
+      }
+
+      const zip = createEnhancedPhotosZip(photos);
+      if (!zip) return;
+      downloadEnhancedPhotosZip(zip.bytes, browserZipDownloadEnvironment(), zip.fileName);
+    } finally {
+      zipDownloadRef.current = false;
+    }
+  }
+
   function retryPhoto(id: string) {
     const item = itemsRef.current.find((row) => row.id === id);
     if (!item || item.status !== "failed") return;
@@ -337,6 +378,11 @@ export function PhotoEnhancerPanel() {
             ) : null}
 
             <div className="flex flex-wrap gap-3">
+              {completeCount > 0 ? (
+                <Button type="button" variant="secondary" onClick={() => void downloadAllPngs()}>
+                  Download All PNGs
+                </Button>
+              ) : null}
               {canEnhanceBatch ? (
                 <PrimaryButton type="button" onClick={() => void runQueue()}>
                   Enhance Photos
